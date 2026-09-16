@@ -1,0 +1,92 @@
+export interface Identity {
+  id: string;
+  name: string;
+  verified: boolean;
+  avatarUrl?: string;
+  accentColor?: string;
+}
+
+export interface Anchor {
+  /** A manually moved indicator keeps its own position instead of joining a stack. */
+  unstacked?: boolean;
+  selector: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pageX: number;
+  pageY: number;
+  viewportWidth: number;
+  source?: string;
+}
+
+export interface Comment {
+  id: string;
+  body: string;
+  author: Identity;
+  createdAt: number;
+  editedAt: number | null;
+  reactions: Record<string, string[]>;
+}
+
+export interface Thread {
+  id: string;
+  page: string;
+  anchor: Anchor;
+  resolved: boolean;
+  resolvedBy: Identity | null;
+  createdAt: number;
+  updatedAt: number;
+  comments: Comment[];
+}
+
+export interface OnboardingOptions {
+  code?: string;
+  workspace?: string;
+  claimKey?: string;
+  site?: string;
+}
+
+export interface CommentsOptions {
+  /** Used by the hosted setup screen to reuse the sidebar account UI. */
+  onboarding?: OnboardingOptions;
+  /** Shared API URL. Never put a private credential here. */
+  endpoint: string;
+  /** Repository identifier, normally owner/repository. */
+  repo: string;
+  branch: string;
+  /** Public project key registered in the API configuration. */
+  project: string;
+  enabled?: boolean;
+  /** Hide the drawer away from the pointer. Defaults to true. */
+  autoHideDrawer?: boolean;
+  /** Center the default drawer position within this element. */
+  drawerContainer?: HTMLElement;
+  /** The site's content wrapper, excluding the comments UI. */
+  pageRoot?: HTMLElement;
+  /** Resolve an anchor to a repository-relative source path. */
+  source?: (element: Element) => string | undefined;
+  /** Defaults to GitHub's source viewer. */
+  sourceUrl?: (source: string, branch: string) => string;
+  /** Defaults to location.pathname; query strings are not stored. */
+  page?: () => string;
+  pollInterval?: number;
+  /** Controlled parent domain shared by preview hosts; never a public suffix. */
+  sessionDomain?: string;
+}
+
+export interface CommentsController {
+  /** Open a new comment anchored to an element. */
+  comment(element: Element): void;
+  destroy(): void;
+  open(): void;
+  close(): void;
+  refresh(): Promise<void>;
+}
+
+export interface AccountUsage {
+  hosted: boolean;
+  projects: { used: number; limit: number | null } | null;
+  comments: { used: number; limit: number | null };
+}

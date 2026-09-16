@@ -1,0 +1,5 @@
+server/.wrangler/
+server/worker-configuration.d.ts
+server/.dev.vars*
+node_modules/
+*.tgz
