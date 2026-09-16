@@ -57,6 +57,10 @@ Comments are shared across deployments by default. Use `pnpm exec komo init --br
 
 ## Agent CLI
 
+`komo init` adds the default comment workflow to `AGENTS.md`, preserving existing instructions. For an existing project, run `komo agents setup` from its root. Commit the instructions so every agent uses them.
+
+Before editing, agents read open comments, export the relevant prompt, and read replies. After verifying a simple fix, an agent can reply with evidence and resolve it at **90%+ confidence**. Complex or uncertain work stays open with a question or progress reply. This is guidance for your coding agent; the CLI does not run an agent or measure its confidence.
+
 Requires komo 0.2.0 or later. Connect your coding agent to the same comments your team sees in the browser:
 
 ```sh

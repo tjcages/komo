@@ -7,6 +7,7 @@ import { createInterface } from "node:readline/promises";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import { branchName, clientModule, gitValue, repository } from "./config.mjs";
 
+import { installAgentWorkflow } from "./workflow.mjs";
 import { agentCommands, agentHelp, runAgent } from "./agent.mjs";
 
 const cwd = process.cwd();
@@ -125,6 +126,7 @@ async function deploy() {
     )}\n`
   );
   await sync();
+  await installAgentWorkflow(cwd);
   const key = await readFile(join(dir, "owner-key"), "utf8");
   console.log(
     `Register ${endpoint}/auth/google/callback in Google Console.\nOpen ${endpoint}/setup?project=${state.project}#${key} to claim ownership with Google.`
@@ -274,6 +276,8 @@ async function init() {
     await writeFile(settingsPath, `${JSON.stringify(config, null, 2)}\n`);
     await protectLocalFiles();
     await sync();
+    await installAgentWorkflow(cwd);
+    console.log("Added the komo comment workflow to AGENTS.md");
     console.log(
       `\nMount after the page loads:\n\nimport { initKomo } from '@tjcages/komo';\ninitKomo(${JSON.stringify({ ...config, origin: undefined, ...(config.scope === "branch" ? { branch: branchName(process.env, cwd) } : {}) }, null, 2)});\n\nFor automatic branch detection, use the generated komo.config.js helper and run komo sync before your build.\n`
     );
