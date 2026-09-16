@@ -1,0 +1,19 @@
+{
+  "name": "komo-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "pnpm run build && python3 -m http.server 4340 -d dist",
+    "deploy": "pnpm run build && wrangler deploy --config wrangler.jsonc",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@tjcages/komo": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "wrangler": "^4.105.0",
+    "typescript": "^6.0.0"
+  }
+}

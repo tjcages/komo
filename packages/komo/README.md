@@ -250,20 +250,3 @@ The dock adapts [Danny Williams’s morphing menu](https://dannyjpwilliams.com/p
 ## License
 
 MIT.
-
-## Development
-
-```sh
-pnpm install
-pnpm build
-pnpm typecheck
-pnpm test
-pnpm size
-pnpm dev
-```
-
-The npm package, CLI and API live in `packages/komo`; the website lives in `packages/komo-site`. `pnpm dev:api` starts a local API. Production deployments retain the existing hosted database; local development uses a separate database.
-
-## Source
-
-Extracted from the komo product at source commit `f57f3521` in the Cloudflare marketing workspace. Product development now lives in [tjcages/komo](https://github.com/tjcages/komo). Third-party credits are preserved in each package’s NOTICE.md.

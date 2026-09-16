@@ -1,0 +1,91 @@
+{
+  "name": "@tjcages/komo",
+  "version": "0.2.0",
+  "description": "Point, area, and threaded comments for website branches.",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "server/index.ts",
+    "server/validation.ts",
+    "server/migrations",
+    "server/tsconfig.json",
+    "server/secrets.d.ts",
+    "src/types.ts",
+    "src/emoji.ts",
+    "README.md",
+    "LICENSE",
+    "src/page.ts",
+    "NOTICE.md",
+    "cli",
+    "server/workspaces.ts",
+    "server/setup-page.ts",
+    "server/setup-client.txt"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./setup": {
+      "types": "./dist/setup.d.ts",
+      "import": "./dist/setup.js"
+    },
+    "./server": "./server/index.ts"
+  },
+  "sideEffects": [
+    "./dist/chunk-*.js",
+    "./dist/picker-*.js"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs && pnpm run build:setup",
+    "prepack": "pnpm run build",
+    "typecheck": "wrangler types --config server/wrangler.jsonc server/worker-configuration.d.ts && tsc -p tsconfig.json --noEmit && tsc -p server/tsconfig.json",
+    "test": "pnpm run build:setup && vitest run --config vitest.config.ts",
+    "dev:api": "wrangler dev --config server/wrangler.jsonc --port 8788",
+    "migrate:local": "wrangler d1 migrations apply DB --local --config server/wrangler.jsonc",
+    "migrate:remote": "wrangler d1 migrations apply DB --remote --config server/wrangler.jsonc",
+    "deploy:api": "pnpm run build:setup && wrangler deploy --config server/wrangler.jsonc",
+    "build:setup": "esbuild src/setup-browser.ts --bundle --format=esm --minify --outfile=server/setup-client.txt",
+    "size": "node scripts/measure.mjs",
+    "bench": "node scripts/bench.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tjcages/komo.git",
+    "directory": "packages/komo"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^26",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^6.0.0",
+    "vitest": "4.1.9",
+    "wrangler": "^4.105.0",
+    "esbuild": "^0.25.0",
+    "motion": "^12.43.0",
+    "emoji-picker-element": "^1.29.1",
+    "react-colorful": "^5.8.1"
+  },
+  "dependencies": {
+    "@untitledui/icons": "0.0.22",
+    "emoji-regex": "^10.6.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "bin": {
+    "komo": "./cli/index.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "homepage": "https://komo.offbr.co",
+  "bugs": {
+    "url": "https://github.com/tjcages/komo/issues"
+  }
+}
