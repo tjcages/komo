@@ -1,5 +1,8 @@
 # komo
 
+[![npm version](https://img.shields.io/npm/v/@tjcages/komo)](https://www.npmjs.com/package/@tjcages/komo)
+[![downloads](https://img.shields.io/npm/dm/@tjcages/komo)](https://www.npmjs.com/package/@tjcages/komo)
+
 Comments for your website. Point at an element, mark an area, and leave feedback your team can reply to, resolve, or copy into a coding agent.
 
 Framework independent. Shared persistence. Google identities and guest reviewers.
