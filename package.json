@@ -13,7 +13,7 @@
     "size": "pnpm --filter @tjcages/komo size",
     "dev": "pnpm --filter komo-site dev",
     "dev:api": "pnpm --filter @tjcages/komo dev:api",
-    "deploy:site": "pnpm --filter komo-site deploy",
+    "deploy:site": "pnpm --filter komo-site run deploy",
     "deploy:api": "pnpm --filter @tjcages/komo build:setup && wrangler deploy --config packages/komo/server/hosted.jsonc",
     "preview:deploy": "pnpm build && wrangler pages deploy packages/komo-site/dist --project-name komo --branch preview"
   },
