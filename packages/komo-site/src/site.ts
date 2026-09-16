@@ -1,4 +1,5 @@
 import "./site.css";
+import { createTryCursors } from "./try-cursors";
 const check =
   document.querySelector<HTMLTemplateElement>("#check-icon")!.innerHTML;
 document
@@ -103,6 +104,7 @@ const tryBlock = document.querySelector<HTMLElement>("#try-komo");
 const tryMotion =
   document.querySelector<HTMLButtonElement>("[data-try-motion]");
 if (tryBlock && tryMotion) {
+  const cursors = createTryCursors(tryBlock);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const pauseIcon = tryMotion.innerHTML;
   const playIcon =
@@ -110,9 +112,7 @@ if (tryBlock && tryMotion) {
   let paused = reduced.matches;
   let visible = false;
   const syncMotion = () => {
-    tryBlock.dataset.moving = String(
-      !paused && visible && !document.hidden && !reduced.matches
-    );
+    cursors.setPlaying(!paused && visible && !document.hidden && !reduced.matches);
     tryMotion.innerHTML = paused ? playIcon : pauseIcon;
     tryMotion.setAttribute(
       "aria-label",
