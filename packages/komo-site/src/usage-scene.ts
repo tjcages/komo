@@ -4,10 +4,6 @@ export function mountUsageScene() {
   const count = demo.querySelector<HTMLElement>("[data-usage-comments]")!;
   const projects = demo.querySelector<HTMLElement>("[data-usage-projects]")!;
   const slots = [...demo.querySelectorAll<HTMLElement>(".product-slots span")];
-  const play = demo.querySelector<HTMLButtonElement>("[data-usage-play]")!;
-  const pauseIcon = play.innerHTML;
-  const playIcon =
-    document.querySelector<HTMLTemplateElement>("#play-icon")!.innerHTML;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const frames = [
     { comments: 42, projects: 1 },
@@ -30,7 +26,7 @@ export function mountUsageScene() {
     const fraction = Math.min(1, Math.max(0, ((position % 1) - 0.25) / 0.55));
     const eased = fraction * fraction * (3 - 2 * fraction);
     const comments = Math.round(
-      from.comments + (to.comments - from.comments) * eased
+      from.comments + (to.comments - from.comments) * eased,
     );
     const projectCount = from.projects + (to.projects - from.projects) * eased;
     count.textContent = String(comments);
@@ -39,8 +35,8 @@ export function mountUsageScene() {
     slots.forEach((slot, i) =>
       slot.style.setProperty(
         "--slot-progress",
-        String(Math.max(0, Math.min(1, projectCount - i)))
-      )
+        String(Math.max(0, Math.min(1, projectCount - i))),
+      ),
     );
   }
   function tick(now: number) {
@@ -52,30 +48,31 @@ export function mountUsageScene() {
   function sync() {
     cancelAnimationFrame(raf);
     last = 0;
-    play.innerHTML = paused ? playIcon : pauseIcon;
-    play.setAttribute(
+    demo!.setAttribute(
       "aria-label",
-      paused ? "Play usage animation" : "Pause usage animation"
+      paused ? "Play usage animation" : "Pause usage animation",
     );
+    demo!.setAttribute("aria-pressed", String(paused));
     if (!paused && visible && !document.hidden && !reduced.matches)
       raf = requestAnimationFrame(tick);
   }
-  play.addEventListener("click", () => {
+  const toggle = () => {
     paused = !paused;
     sync();
-  });
-  demo.querySelector("[data-usage-replay]")!.addEventListener("click", () => {
-    elapsed = 0;
-    paused = reduced.matches;
-    draw();
-    sync();
+  };
+  demo.addEventListener("click", toggle);
+  demo.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggle();
+    }
   });
   new IntersectionObserver(
     ([entry]) => {
       visible = !!entry?.isIntersecting;
       sync();
     },
-    { threshold: 0.25 }
+    { threshold: 0.25 },
   ).observe(demo);
   document.addEventListener("visibilitychange", sync);
   reduced.addEventListener("change", () => {
