@@ -1,5 +1,6 @@
 import { resolveConfig, type KomoConfig } from "./config.js";
 export type { KomoConfig } from "./config.js";
+import { pinDirection } from "./pin-direction.js";
 import { pinStacks } from "./pin-stacks.js";
 import { OptimisticQueue } from "./optimistic.js";
 import { accountUsage } from "./account-usage.js";
@@ -1238,7 +1239,12 @@ export function initComments(options: CommentsOptions): CommentsController {
     const snapshot = JSON.stringify([
       selected,
       draft && locateAnchor(draft),
-      positions.map(({ thread, rect, blocked }) => [thread.id, rect, blocked]),
+      positions.map(({ thread, rect, blocked }) => [
+        thread.id,
+        rect,
+        blocked,
+        pinDirection(rect, window.innerWidth),
+      ]),
     ]);
     if (snapshot === pinSnapshot) return;
     pinSnapshot = snapshot;
@@ -1368,7 +1374,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         previewTimer = window.setTimeout(hidePreview, 120);
       });
       pin.dataset.thread = thread.id;
-      pin.dataset.pointer = rect.x < window.innerWidth / 2 ? "right" : "left";
+      pin.dataset.pointer = pinDirection(placement.rect, window.innerWidth);
       Object.assign(pin.style, { left: `${rect.x}px`, top: `${rect.y}px` });
       if (group && leader?.rect.attached && !leader.blocked) {
         let stack = stackElements.get(group[0].id);
@@ -3026,8 +3032,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         }
       }
       moved = true;
-      pin.dataset.pointer =
-        origin.x + dx < window.innerWidth / 2 ? "right" : "left";
+      pin.dataset.pointer = pinDirection(
+        { ...origin, x: origin.x + dx, y: origin.y + dy },
+        window.innerWidth
+      );
       pin.style.left = `${origin.x + dx}px`;
       pin.style.top = `${origin.y + dy}px`;
       draggedPin = { id: thread.id, x: origin.x + dx, y: origin.y + dy };
