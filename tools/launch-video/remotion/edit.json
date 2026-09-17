@@ -1,0 +1,46 @@
+{
+  "cuts": [
+    {
+      "scene": "context",
+      "in": 0,
+      "out": 66,
+      "continuity": "momentum"
+    },
+    {
+      "scene": "conversation",
+      "in": 3,
+      "out": 69,
+      "continuity": "momentum"
+    },
+    {
+      "scene": "sidebar",
+      "in": 3,
+      "out": 66,
+      "continuity": "momentum"
+    },
+    {
+      "scene": "drawer",
+      "in": 3,
+      "out": 63,
+      "continuity": "impact"
+    },
+    {
+      "scene": "copy",
+      "in": 3,
+      "out": 39,
+      "continuity": "match"
+    },
+    {
+      "scene": "agent",
+      "in": 3,
+      "out": 57,
+      "continuity": "impact"
+    },
+    {
+      "scene": "logo",
+      "in": 0,
+      "out": 75,
+      "continuity": "momentum"
+    }
+  ]
+}

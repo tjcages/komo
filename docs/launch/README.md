@@ -1,8 +1,9 @@
 # komo public beta review
 
-Current review: the animated beat-driven webpage. Video export is deferred by owner direction. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
+Current review: a fresh 14-second Remotion promo. The previous beat-driven webpage remains available. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
 
-- **[Current animated webpage — 144 BPM](https://a51ec679.komo-wb5.pages.dev/launch-demo/?bpm=144)**
+- **[New 14-second Remotion promo](https://08394749.komo-wb5.pages.dev/promo/)** · [MP4](https://08394749.komo-wb5.pages.dev/promo/komo-promo.mp4) · [Source](../../tools/launch-video/remotion/README.md)
+- **[Previous animated webpage — 144 BPM](https://a51ec679.komo-wb5.pages.dev/launch-demo/?bpm=144)**
 - [Previous rendered asset gallery](https://4adc4b37.komo-wb5.pages.dev/launch-assets/)
 - [Draft PR #10](https://github.com/tjcages/komo/pull/10)
 - [Previous landscape source preview](https://4adc4b37.komo-wb5.pages.dev/launch-demo/)
