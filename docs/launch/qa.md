@@ -15,3 +15,5 @@ Verified 2026-09-17.
 `render-evidence.json` records exact media properties and SHA-256 hashes. Full media stays in the ignored output directory and the deployed review gallery.
 
 Remaining: owner review of the creative assets and public launch decision. Linear reconciliation remains blocked by the official connector's authorization error. Google branding review is still pending.
+
+Browser playback on the deployed gallery reached the clean ending for all three files: master 42s, portrait 42s, teaser 12s; all reported `ended: true` with no media error. The final immutable review gallery is linked from this folder's README.
