@@ -10,9 +10,13 @@ export function drawerPresence(
   let pointerFrame = 0;
   let peekTimer = 0;
   let peekEndTimer = 0;
+  let introEndTimer = 0;
   let pointer: { x: number; y: number } | undefined;
   const canHide = matchMedia("(hover: hover) and (pointer: fine)");
-  if (canHide.matches) toolbar.dataset.away = "true";
+  if (canHide.matches) {
+    toolbar.dataset.away = "true";
+    toolbar.dataset.intro = "true";
+  }
   const setDirection = () => {
     const rect = toolbar.getBoundingClientRect();
     const gaps = [
@@ -22,6 +26,10 @@ export function drawerPresence(
       window.innerHeight - rect.bottom,
     ];
     const side = gaps.indexOf(Math.min(...gaps));
+    toolbar.style.setProperty(
+      "--drawer-peek-clip",
+      ["inset(0 50% 0 0)", "inset(0 0 0 50%)", "inset(0 0 50% 0)", "inset(50% 0 0 0)"][side]
+    );
     toolbar.style.setProperty(
       "--drawer-away-x",
       `${side === 0 ? -24 : side === 1 ? 24 : 0}px`
@@ -35,6 +43,8 @@ export function drawerPresence(
     clearTimeout(peekTimer);
     clearTimeout(peekEndTimer);
     delete toolbar.dataset.peek;
+    delete toolbar.dataset.intro;
+    clearTimeout(introEndTimer);
     clearTimeout(timer);
     timer = 0;
     delete toolbar.dataset.away;
@@ -81,6 +91,9 @@ export function drawerPresence(
       toolbar.dataset.peek = "true";
       peekEndTimer = window.setTimeout(() => {
         delete toolbar.dataset.peek;
+        introEndTimer = window.setTimeout(() => {
+          delete toolbar.dataset.intro;
+        }, 300);
       }, 900);
     }, 700);
   };
@@ -115,6 +128,7 @@ export function drawerPresence(
       cancelAnimationFrame(pointerFrame);
       clearTimeout(peekTimer);
       clearTimeout(peekEndTimer);
+      clearTimeout(introEndTimer);
       observer.disconnect();
     },
     { once: true }

@@ -356,7 +356,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (id === "account") {
       if (!api.user) return icon("person");
       const portrait = avatar(api.user);
-      portrait.className = "review-avatar";
+      portrait.classList.add("review-avatar");
       return portrait;
     }
     return icon(
