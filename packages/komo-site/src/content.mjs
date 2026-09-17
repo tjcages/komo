@@ -51,41 +51,41 @@ export const pages = [
     title: "Configuration.",
     description:
       "Configure project and branch scope, preview environments, source links, and reviewer sessions.",
-    body: `<h1>Configuration.</h1><p class="lede">Pass your project key and any options when you initialize komo.</p>${code("import { initKomo } from '@tjcages/komo';\n\ninitKomo({\n  project: 'YOUR_PROJECT_KEY',\n  pageRoot: document.querySelector('#app'),\n  scope: 'branch',\n  branch: 'preview/navigation',\n});")}
+    body: `<h1>Configuration.</h1><p class="lede">Pass your project key and any options when you initialize komo.</p><p><code>YOUR_PROJECT_KEY</code> is a placeholder for a string. For hosted komo, copy the key returned by <code>komo init</code>. For self-hosting, use the project identifier configured on your server. Reuse the same key wherever you want to share feedback.</p>${code("import { initKomo } from '@tjcages/komo';\n\ninitKomo({\n  project: 'YOUR_PROJECT_KEY',\n  pageRoot: document.querySelector('#app'),\n  scope: 'branch',\n  branch: 'preview/navigation',\n});")}
  ${section(
    "Client options",
-   `<div class="table-scroll"><table><thead><tr><th>Option</th><th>Default / behavior</th></tr></thead><tbody>${[
-     ["endpoint", "Hosted komo API by default. Override for self-hosting."],
-     ["project", "Generated public project key. Not a credential."],
+   `<div class="table-scroll"><table><thead><tr><th>Option</th><th>Type</th><th>Default / behavior</th></tr></thead><tbody>${[
+     ["endpoint", "string", "Hosted komo API by default. Override for self-hosting."],
+     ["project", "string", "Required. Use the string returned by setup. Public, not a credential."],
      [
-       "repo",
+       "repo", "string",
        "Defaults to the project key. Pass owner/repo to enrich agent prompts.",
      ],
      [
-       "scope",
+       "scope", "\"project\" | \"branch\"",
        "project: feedback shared across deployments. Use branch to isolate it.",
      ],
      [
-       "branch",
+       "branch", "string",
        "Detected at build time by komo sync when branch scope is enabled.",
      ],
-     ["enabled", "true. Set false to omit the widget."],
+     ["enabled", "boolean", "true. Set false to omit the widget."],
      [
-       "pageRoot",
+       "pageRoot", "HTMLElement",
        "Page content wrapper. Set explicitly when your layout has one.",
      ],
-     ["page", "Current pathname. Query strings and fragments excluded."],
-     ["drawerContainer", "Optional element to center the drawer within."],
-     ["autoHideDrawer", "true. Set false to keep the drawer visible."],
-     ["pollInterval", "4000 ms while the page is visible."],
-     ["source", "Element → repository-relative source file path."],
-     ["sourceUrl", "Source path and branch → editor or repository URL."],
+     ["page", "() => string", "Current pathname. Query strings and fragments excluded."],
+     ["drawerContainer", "HTMLElement", "Optional element to center the drawer within."],
+     ["autoHideDrawer", "boolean", "true. Set false to keep the drawer visible."],
+     ["pollInterval", "number", "4000 ms while the page is visible."],
+     ["source", "(element: Element) => string | undefined", "Element → repository-relative source file path."],
+     ["sourceUrl", "(source: string, branch: string) => string", "Source path and branch → editor or repository URL."],
      [
-       "sessionDomain",
+       "sessionDomain", "string",
        "Optional parent domain you own. Never a public suffix.",
      ],
    ]
-     .map(([k, v]) => `<tr><td><code>${k}</code></td><td>${v}</td></tr>`)
+     .map(([k, type, v]) => `<tr><td><code>${k}</code></td><td><code>${escape(type)}</code></td><td>${v}</td></tr>`)
      .join("")}</tbody></table></div>`
  )}
  ${section("Branch scope", `${code("npx @tjcages/komo init --branch-scope")}<p>Use this when feedback belongs to a particular change. Without it, matching page paths share comments across deployments.</p><p>For automatic branch detection, import <code>initKomo</code> from the optional generated <code>komo.config.js</code> helper and run <code>komo sync</code> before your build. It checks deployment environment variables and Git. Set <code>KOMO_BRANCH</code> when neither can identify the branch.</p>`)}
