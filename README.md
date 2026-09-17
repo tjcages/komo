@@ -43,6 +43,22 @@ initKomo({
 });
 ```
 
+### React
+
+With React 18.2 or 19, call the hook once near your app root:
+
+```tsx
+'use client'; // Required for Next.js App Router client components.
+import { useKomo } from '@tjcages/komo/react';
+
+export function Komo() {
+  useKomo({ project: 'YOUR_PROJECT_KEY' });
+  return null;
+}
+```
+
+Render `<Komo />` in your app or layout. The hook handles mounting, cleanup, and React Strict Mode. Inline configuration objects are supported; unchanged values do not restart komo. Changing configuration remounts it, and `enabled: false` removes it. Memoize callback options with `useCallback` and pass stable DOM elements for `pageRoot` or `drawerContainer`. Mount only one hook per page; do not combine it with a separate `initKomo()` call. Server rendering does not mount the tool.
+
 The **endpoint is the comments API**, not your website or preview URL. Hosted komo defaults to `https://komo.offbr.co`. Google sign-in returns to `https://komo.offbr.co/auth/google/callback`, regardless of the website embedding komo. Existing installations using the original workers.dev endpoint continue to work. For self-hosting, pass the Worker URL as `endpoint`. Your current page comes from the browser. Setup detects repository metadata from Git; include its printed `repo` value to enrich agent prompts.
 
 Comments are shared across deployments by default. Use `pnpm exec komo init --branch-scope` to separate them by branch. For automatic branch detection, import from the optional generated `komo.config.js` helper and run `komo sync` before builds. It detects the current branch from deployment environment variables or Git; set `KOMO_BRANCH` if neither is available. It fails rather than silently grouping unknown branches.
@@ -188,7 +204,7 @@ Pass these to `initKomo(config)` from `@tjcages/komo`:
 
 The lower-level `initComments` export remains available. It requires explicit `endpoint`, `project`, `repo`, and `branch`; it does not infer scope. Existing integrations keep their branch grouping.
 
-The returned controller has `open()`, `close()`, `comment(element)`, `refresh()`, and `destroy()`. Repeated initialization returns the current controller; destroy it before switching projects. SSR returns a no-op controller. In React, initialize in an effect and destroy on cleanup. With Astro view transitions, destroy before swapping the document and initialize after navigation.
+The returned controller has `open()`, `close()`, `comment(element)`, `refresh()`, and `destroy()`. Repeated initialization returns the current controller; destroy it before switching projects. SSR returns a no-op controller. In React, use the `useKomo` hook below. With Astro view transitions, destroy before swapping the document and initialize after navigation.
 
 ### CLI
 
