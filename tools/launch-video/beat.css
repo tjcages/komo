@@ -1001,3 +1001,11 @@ body.beat-studio {
 #film #agent-handoff .coding-user p { white-space:pre-wrap; max-height:480px; overflow:hidden; font-family:ui-monospace,monospace; font-size:22px !important; line-height:1.4 !important; }
 #film #agent-handoff .coding-user p { font-family:inherit; font-size:38px !important; line-height:1.5 !important; padding-top:20px; }
 #film #agent-handoff .prompt-attachment { font-size:25px; color:#cdb6ef; }
+#agent-handoff { transform-origin:50% 50%; background:transparent; }
+#film #agent-handoff .coding-window { top:175px; height:730px; }
+#film #agent-handoff .coding-user p { font-size:34px !important; padding-top:10px; }
+#film #agent-handoff .coding-response { margin:32px 0 0; padding:25px 30px; transform:none; animation:none; border-top:1px solid #ffffff15; }
+#film #agent-handoff .coding-response-title { display:block; font-size:30px; color:#ceb5ee; }
+#film #agent-handoff .coding-response p { font-size:24px !important; padding-top:12px; color:#ada3b8; }
+.working-dots { animation:working-pulse 700ms ease-in-out infinite alternate; }
+@keyframes working-pulse { from { opacity:.3 } to { opacity:1 } }

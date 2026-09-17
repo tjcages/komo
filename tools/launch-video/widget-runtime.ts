@@ -151,14 +151,15 @@ new MutationObserver(() => {
     const id = pin.dataset.thread!;
     if (animatedPinNodes.has(pin)) continue;
     animatedPinNodes.add(pin);
+    pin.style.scale = "2";
     const started = seenPins.get(id) ?? performance.now();
     seenPins.set(id, started);
     const elapsed = performance.now() - started;
     if (elapsed >= 360) continue;
     const entrance = pin.animate([
-      { opacity: 0, scale: "0.55", translate: "0 8px" },
-      { opacity: 1, scale: "1.08", translate: "0 -2px", offset: 0.72 },
-      { opacity: 1, scale: "1", translate: "0 0" },
+      { opacity: 0, scale: "1.1" },
+      { opacity: 1, scale: "2.16", offset: 0.72 },
+      { opacity: 1, scale: "2" },
     ], { duration: 360, easing: "cubic-bezier(.22,1,.36,1)" });
     entrance.currentTime = elapsed;
   }
@@ -200,8 +201,8 @@ async function apply() {
         const now = Date.now();
         threads.push({ ...template, id: `incoming-${incoming}`, createdAt: now, updatedAt: now,
           comments: [{ ...template.comments[0], id: `incoming-comment-${incoming}`,
-            author: other, createdAt: now,
-            body: ["This feels really good.", "One tiny thought here…", "Yes. Keep this detail."][incoming - 1] }] });
+            author: incoming % 2 ? other : me, createdAt: now,
+            body: ["This feels really good.", "One tiny thought here…", "Yes. Keep this detail.", "Love the spacing here.", "This is the one.", "A little more contrast?", "Nice touch.", "Ready for another look."][incoming - 1] }] });
       }
       await controller.refresh(); // The product animates new rows and moves existing rows.
     }
@@ -249,7 +250,7 @@ async function apply() {
       if (mode === "drawer")
         root()
           .querySelector<HTMLButtonElement>('[data-menu-item="more"]')
-          ?.click();
+          ?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
     }
     if (s.copy && !didCopy) {
       const button = root().querySelector<HTMLButtonElement>('[data-menu-item="copy-prompts"]');
@@ -275,6 +276,9 @@ async function apply() {
     busy = false;
   }
 }
+function rectObject(el: HTMLElement) {
+  const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height };
+}
 (window as any).widgetDemo = {
   update(s: any) {
     if (s.beat < lastBeat) {
@@ -285,15 +289,17 @@ async function apply() {
     }
     lastBeat = s.beat;
     desired = s;
-    const enter = Math.max(0, Math.min(1, s.beat / 1.25));
-    const q = 1 - (1 - enter) ** 3;
     const hero = document.querySelector<HTMLElement>(".website-hero")!;
-    hero.style.opacity = String(q);
-    hero.style.transform = `translateY(${30 * (1 - q)}px) scale(${0.96 + q * 0.04})`;
+    hero.style.opacity = "1";
+    hero.style.transform = "none";
+    document.querySelectorAll<HTMLElement>(".hero-word").forEach((word, i) => {
+      const p = Math.max(0, Math.min(1, (s.beat - i * 0.16) / 0.5));
+      word.style.opacity = String(1 - (1 - p) ** 3);
+    });
 
     document.body.dataset.scene = s.mode;
     const surface = document.querySelector<HTMLElement>("#website")!;
-    surface.style.opacity = s.isolated ? "0" : "1";
+    surface.style.opacity = s.isolated ? "0" : String(s.surfaceOpacity ?? 1);
     surface.style.transition = "opacity 160ms ease-out";
     const nav = root().querySelector<HTMLElement>(".morphing-menu");
     if (nav) nav.style.opacity = s.beat < 16 || (s.isolated && s.mode !== "drawer") ? "0" : "1";
@@ -305,7 +311,23 @@ async function apply() {
   },
   get copied() { return copied; },
   pinRect(id: string) { return root().querySelector<HTMLElement>(`.pin[data-thread="${id}"]`)?.getBoundingClientRect(); },
-  focusRect(kind: string) { return root().querySelector<HTMLElement>(kind === "drawer" ? ".morphing-menu__shell" : ".dialog")?.getBoundingClientRect(); },
+  focusRect(kind: string) {
+    const el = root().querySelector<HTMLElement>(kind === "drawer" ? ".morphing-menu__shell" : ".dialog");
+    if (!el) return null;
+    if (kind === "drawer") return el.getBoundingClientRect();
+    // Layout bounds exclude the dialog's entrance scale/translation, so the camera
+    // does not counter-animate against komo's own spring.
+    return { x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight };
+  },
+  menuRects() {
+    return [...root().querySelectorAll<HTMLElement>(".morphing-menu__panel [data-menu-item]")].map(el => ({ id: el.dataset.menuItem, ...rectObject(el) }));
+  },
+  hoverAt(y: number) {
+    for (const el of root().querySelectorAll<HTMLElement>(".morphing-menu__panel [data-menu-item]")) {
+      const r = el.getBoundingClientRect();
+      el.style.background = y >= r.top && y <= r.bottom ? "var(--mm-hover)" : "";
+    }
+  },
   get state() {
     return { count, mode, ready };
   },

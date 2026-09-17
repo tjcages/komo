@@ -62,3 +62,11 @@ Sequence extended to 72 beats (30 seconds at 144 BPM), with final URL held for 1
 Clipboard writes are intercepted only inside the isolated fixture iframe; the real agentPrompt formatter runs, and excerpts of its output appear in the agent window. No agent executes changes. The 76-beat sequence retains a five-second ending at 144 BPM. Replay/backward seeking reset fixture data; paused framing continues to follow settling product UI.
 
 Build/typecheck/111 tests/size checks pass; final isolated bundle build and JS syntax check pass. Production package sizes remain unchanged. No video files rendered.
+
+## Fade, framing and loop refinement — 2026-09-17
+
+[Preview](https://2300081a.komo-wb5.pages.dev/launch-demo/?bpm=144). Removed text translation/scale; headline and intertitle use opacity-only word staggering. Actual pins doubled to 2×. Camera reads comment layout bounds instead of animated bounds and prepares the comment during the invisible part of the opening transition.
+
+Visually inspected retained fullscreen conversation, centered drawer moving down with the website behind it, 2× indicators, centered drawer cursor hover on copy, and focused homepage agent window with captured feedback and an illustrative working state. Sidebar now receives eight comments every half beat, with six right-side emoji pops. Extra copy/paste headlines removed. Finale fades to the animated komo logo and loops by default.
+
+Build, typecheck, all 111 tests and size checks pass. Final isolated build, JS syntax and whitespace checks pass. Production package/bundle sizes unchanged. No new video export or actual agent execution.

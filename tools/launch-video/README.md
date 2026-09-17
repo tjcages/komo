@@ -18,13 +18,15 @@ The isolated iframe fetch adapter serves in-memory fixture threads and handles t
 
 ## Sequence
 
-1. Title alone; real pins pop on the right and left. The site's cursor icon flies in without a name badge and pulses on a pin.
-2. The website fades away; the actual comment is centered, then Alex and Jamie reply. A quick scroll reveals more pins and opens two comments in sequence.
-3. The native sidebar opens, three new fixture comments push the existing rows down, and a choreographed emoji burst celebrates the activity.
-4. “Every comment. One place.” leads into the isolated, centered production drawer. Its actual copy action generates the prompt; a fixture clipboard adapter captures it without changing the user's clipboard.
-5. The existing site agent window receives an excerpt of the captured prompt. No agent execution or completed edits are depicted. The logo and URL close the sequence, with a five-second final hold at 144 BPM; looping defaults off.
+1. The title uses quick, staggered word fades with no slide. Actual pins appear at 2× size, then the unnamed cursor clicks. The fullscreen conversation uses stable layout bounds so camera motion does not fight the native card entrance.
+2. A large centered native drawer opens. The page scrolls behind it while the drawer moves down and collapses into its bottom position. A comment close-up leads to a wider desktop framing.
+3. The actual sidebar opens before a quick camera zoom. Eight fixture comments arrive every half beat; six editorial emoji pops appear on the right of the text.
+4. The centered drawer returns. A cursor hovers from the top row down to the bottom, then returns to the real copy action. There is no extra copy headline. The fixture clipboard captures the real generated prompt without changing the user's clipboard.
+5. The reused homepage agent window comes into focus, receives excerpts of the captured feedback, and shows an illustrative working state. It fades to the animated komo logo and loops. No completed edits are claimed.
 
-Actual widget markup, styles, comment transitions and drawer/sidebar springs remain in use. Preview-only effects animate pin entrances, the cursor, camera, isolation fades and emoji particles. The particles are editorial motion, not a claimed production sidebar feature. Native animations settle independently of pause/scrub. This is fixture choreography, not a live customer session.
+76 beats (31.67 seconds at 144 BPM). Loop is on by default. The user's latest direction replaces the previous held URL ending.
+
+Actual widget markup and drawer/sidebar springs remain in use. Preview-only effects handle doubled pin size/entrances, cursor, hover highlighting using the product hover token, camera, fades and six emoji pops. Emoji particles and the agent working state are editorial demonstration, not live activity. Native animations settle independently of pause/scrub. This is fixture choreography, not a customer session. No real agent is invoked.
 
 ## Deploy a review preview
 
