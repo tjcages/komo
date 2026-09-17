@@ -19,28 +19,28 @@
 @keyframes intro-weight{0%,100%{stroke-width:0}22%{stroke-width:2}43%{stroke-width:6}64%{stroke-width:2}83%{stroke-width:0}}
 @media(prefers-reduced-motion:reduce){.intro .letter,.intro .letter-face{animation:none!important}}
 .logo-lockup{display:flex;align-items:center;gap:2px;width:min(85%,416px)}.logo-lockup .symbol{width:calc((100% - 2px)*.195);height:auto;flex:none;transform:translateY(17%)}.stage .logo-lockup .wordmark{width:calc((100% - 2px)*.805)}.small-stage .logo-lockup{width:auto;gap:1px}.small-stage .logo-lockup .symbol{width:24px;height:24px}/* The tail stays planted while the bubble compresses, hops, and settles. */
-.logo-lockup .symbol { transform-origin:84% 84%; }
-.play .symbol { animation:komo-symbol-bounce 920ms cubic-bezier(.4,0,.2,1) both; }
-.intro .symbol { animation:komo-symbol-intro 1200ms cubic-bezier(.4,0,.2,1) both; }
+.logo-lockup .symbol { transform-origin:50% 84%; }
+.play .symbol { animation:komo-symbol-bounce 760ms cubic-bezier(.4,0,.2,1) both; }
+.intro .symbol { animation:komo-symbol-intro 1050ms cubic-bezier(.4,0,.2,1) both; }
 .play[data-motion="soft"] .letter,
 .play[data-motion="soft"] .letter-face { animation-delay:calc(var(--i)*38ms + 70ms); }
 .intro .letter,
 .intro .letter-face { animation-delay:calc(var(--i)*65ms + 60ms); }
 @keyframes komo-symbol-bounce {
   0%,100% { transform:translateY(17%) rotate(0) scale(1); }
-  16% { transform:translateY(20%) rotate(-9deg) scale(1.14,.83); }
-  34% { transform:translateY(4%) rotate(12deg) scale(.93,1.14); }
-  53% { transform:translateY(19%) rotate(-5deg) scale(1.08,.95); }
-  73% { transform:translateY(15%) rotate(2.5deg) scale(.98,1.03); }
-  88% { transform:translateY(17%) rotate(-.8deg) scale(1.01,.99); }
+  14% { transform:translateY(20%) rotate(-1deg) scale(1.055,.94); }
+  35% { transform:translateY(10%) rotate(1.5deg) scale(1.055,1.1); }
+  56% { transform:translateY(19%) rotate(-.6deg) scale(1.025,.99); }
+  77% { transform:translateY(15%) rotate(.25deg) scale(.995,1.008); }
+  88% { transform:translateY(17%) rotate(-.1deg) scale(1.002,.999); }
 }
 @keyframes komo-symbol-intro {
-  0% { opacity:0; transform:translateY(35%) rotate(-28deg) scale(.55,.45); }
-  20% { opacity:1; transform:translateY(22%) rotate(-12deg) scale(1.2,.8); }
-  39% { transform:translateY(-4%) rotate(17deg) scale(.94,1.2); }
-  59% { transform:translateY(21%) rotate(-7deg) scale(1.1,.92); }
-  77% { transform:translateY(14%) rotate(3deg) scale(.98,1.04); }
-  90% { transform:translateY(17%) rotate(-1deg) scale(1.01,.99); }
+  0% { opacity:0; transform:translateY(35%) rotate(-4deg) scale(.75,.68); }
+  22% { opacity:1; transform:translateY(22%) rotate(-2deg) scale(1.08,.9); }
+  43% { transform:translateY(7%) rotate(2deg) scale(1.04,1.13); }
+  64% { transform:translateY(21%) rotate(-.8deg) scale(1.035,.97); }
+  77% { transform:translateY(14%) rotate(.3deg) scale(.995,1.02); }
+  90% { transform:translateY(17%) rotate(-.1deg) scale(1.002,.999); }
   100% { opacity:1; transform:translateY(17%) rotate(0) scale(1); }
 }
 @media(prefers-reduced-motion:reduce) {
