@@ -1234,7 +1234,7 @@ p, .lede, .home .hero-aside>p, .home .tool-card p { font-size:14px; line-height:
 .comment-queue:is([data-step="2"],[data-step="3"]) .conversation-card:first-child .queue-resolved { opacity:1; transform:none; }
 .comment-queue:is([data-step="2"],[data-step="3"]) .conversation-card:first-child .conversation-response { opacity:0; transform:translateY(-4px); }
 .comment-queue[data-step="3"] .conversation-track { transform:translateX(-50%); transition:transform 600ms var(--panel-ease) 350ms; }
-.comment-queue[data-step="3"] .conversation-card:first-child { opacity:0; scale:.4; transition:scale 350ms var(--panel-ease),opacity 350ms ease; }
+.comment-queue[data-step="3"] .conversation-card:first-child { opacity:0; scale:.4; transition:scale 350ms var(--panel-ease),opacity 250ms ease; }
 .comment-queue .conversation-card[data-thread$="1"] .product-avatar,.comment-queue .conversation-card[data-thread$="4"] .product-avatar { background:#b4d3fe; }
 .comment-queue .conversation-card[data-thread$="2"] .product-avatar,.comment-queue .conversation-card[data-thread$="5"] .product-avatar { background:#bce2c5; }
 .queue-count { font-size:10px; color:#aaa; }
