@@ -22,11 +22,11 @@ The isolated iframe fetch adapter serves in-memory fixture threads and handles t
 2. A large centered native drawer opens. The page scrolls behind it while the drawer moves down and collapses into its bottom position. A comment close-up leads to a wider desktop framing.
 3. The actual sidebar opens before a quick camera zoom. Eight fixture comments arrive every half beat; six editorial emoji pops appear on the right of the text.
 4. The centered drawer returns. A cursor hovers from the top row down to the bottom, then returns to the real copy action. There is no extra copy headline. The fixture clipboard captures the real generated prompt without changing the user's clipboard.
-5. The reused homepage agent window comes into focus, receives excerpts of the captured feedback, and shows an illustrative working state. It fades to the animated komo logo and loops. No completed edits are claimed.
+5. A centered abstract prompt bar fades in. A cursor clicks it and the full captured comments prompt is pasted, then scrolls through the feedback. It fades to the animated komo logo and loops. No completed edits are claimed.
 
 76 beats (31.67 seconds at 144 BPM). Loop is on by default. The user's latest direction replaces the previous held URL ending.
 
-Actual widget markup and drawer/sidebar springs remain in use. Preview-only effects handle doubled pin size/entrances, cursor, hover highlighting using the product hover token, camera, fades and six emoji pops. Emoji particles and the agent working state are editorial demonstration, not live activity. Native animations settle independently of pause/scrub. This is fixture choreography, not a customer session. No real agent is invoked.
+Actual widget markup and drawer/sidebar springs remain in use. Preview-only effects handle doubled pin size/entrances, cursor, hover highlighting using the product hover token, camera, fades and six emoji pops. Emoji particles are editorial demonstration, not live activity. Scene changes use a short background-colored matte to cover camera and component resets. The drawer camera uses stable panel layout bounds, never its animated shell height. Views remain hidden until their native UI is ready. Native animations settle independently of pause/scrub. This is fixture choreography, not a customer session. No real agent is invoked.
 
 ## Deploy a review preview
 

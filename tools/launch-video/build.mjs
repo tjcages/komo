@@ -160,7 +160,7 @@ let beatPage = main
   );
 beatPage = beatPage.replace(
   /<section id="story">[\s\S]*?(?=<section id="outro">)/,
-  `<section id="story"><iframe id="product-frame" title="Live komo on a fixture website" src="widget-frame.html"></iframe></section><div id="demo-cursor">${icons.multiplayer}</div><div id="click-ring"></div><div id="emoji-burst">${Array.from({length:6},(_,i)=>`<i>${["💜","👍","🔥","✨"][i%4]}</i>`).join("")}</div><h1 id="copy-title"></h1><section id="agent-handoff">${decorate(promptExample).match(/<section class="desktop-window coding-window"[\s\S]*?<\/section>/)[0].replace(/<div class="coding-response">[\s\S]*?<\/div>/, '<div class="coding-response"><span class="coding-response-title">Working<span class="working-dots">…</span></span><p>Reading feedback and page context.</p></div>').replace("2 comments", "Website feedback")}</section>`,
+  `<section id="story"><iframe id="product-frame" title="Live komo on a fixture website" src="widget-frame.html"></iframe></section><div id="demo-cursor">${icons.multiplayer}</div><div id="click-ring"></div><div id="emoji-burst">${Array.from({length:6},(_,i)=>`<i>${["💜","👍","🔥","✨"][i%4]}</i>`).join("")}</div><h1 id="copy-title"></h1><section id="agent-handoff" aria-label="Agent prompt"><div id="prompt-bar"><span class="prompt-plus">+</span><textarea id="agent-prompt" readonly aria-label="Full copied comments prompt" placeholder="Ask your agent…"></textarea><div id="prompt-meta"><span id="prompt-count"></span><span>✓</span></div><span class="prompt-send">↑</span></div></section><div id="transition-matte" aria-hidden="true"></div><div id="prompt-measure" aria-hidden="true"></div>`,
 );
 await writeFile(
   new URL("./widget-frame.html", out),

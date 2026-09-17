@@ -123,3 +123,5 @@ body {
 .website-hero button { visibility: hidden; }
 html { scrollbar-width: none; }
 html::-webkit-scrollbar { display:none; }
+
+.hero-word { opacity:0; }

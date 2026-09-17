@@ -2,7 +2,7 @@
 
 Current review: the animated beat-driven webpage. Video export is deferred by owner direction. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
 
-- **[Current animated webpage — 144 BPM](https://2300081a.komo-wb5.pages.dev/launch-demo/?bpm=144)**
+- **[Current animated webpage — 144 BPM](https://e5325afd.komo-wb5.pages.dev/launch-demo/?bpm=144)**
 - [Previous rendered asset gallery](https://4adc4b37.komo-wb5.pages.dev/launch-assets/)
 - [Draft PR #10](https://github.com/tjcages/komo/pull/10)
 - [Previous landscape source preview](https://4adc4b37.komo-wb5.pages.dev/launch-demo/)
@@ -30,6 +30,6 @@ Local media lives in `tools/launch-video/output/`, excluded from Git. No custome
 
 Current source and preview commands: [beat studio README](../../tools/launch-video/README.md). This pass uses a 76-beat sequence at 144 BPM by default, adjustable 60–240 BPM, optional ramp and metronome click. Titles have at most four words. The previous films above do not represent this revision.
 
-Current cut: opacity-only staggered title → doubled pins/cursor click → fullscreen conversation → centered native drawer moving down while the website scrolls behind → comment close-up → wider native sidebar opening and quick zoom → eight rapid incoming comments and six right-side emoji pops → centered drawer cursor sweep/copy → homepage agent window focus, paste and working state → fade to animated komo logo and loop.
+Current cut: opacity-only staggered title → doubled pins/cursor click → fullscreen conversation → centered native drawer moving down while the website scrolls behind → comment close-up → wider native sidebar opening and quick zoom → eight rapid incoming comments and six right-side emoji pops → centered drawer cursor sweep/copy → centered abstract prompt bar, cursor click and full comments paste → fade to animated komo logo and loop.
 
-76 beats, 31.67 seconds at 144 BPM. Loop is on by default. The agent working state is a fixture illustration; no real agent executes changes. The fixture clipboard captures the real generated prompt without changing the user's clipboard. Video export remains deferred.
+76 beats, 31.67 seconds at 144 BPM. Loop is on by default. The prompt bar displays the complete fixture comments prompt; no real agent executes changes. The fixture clipboard captures the real generated prompt without changing the user's clipboard. Video export remains deferred.

@@ -300,8 +300,10 @@ function rectObject(el: HTMLElement) {
     document.body.dataset.scene = s.mode;
     const surface = document.querySelector<HTMLElement>("#website")!;
     surface.style.opacity = s.isolated ? "0" : String(s.surfaceOpacity ?? 1);
-    surface.style.transition = "opacity 160ms ease-out";
+    surface.style.transition = "none";
     const nav = root().querySelector<HTMLElement>(".morphing-menu");
+    if (s.mode === "page" && nav?.contains(root().activeElement))
+      (root().activeElement as HTMLElement)?.blur();
     if (nav) nav.style.opacity = s.beat < 16 || (s.isolated && s.mode !== "drawer") ? "0" : "1";
     const pins = root().querySelector<HTMLElement>(".pins");
     if (pins) pins.style.visibility = s.isolated ? "hidden" : "visible";
@@ -312,12 +314,18 @@ function rectObject(el: HTMLElement) {
   get copied() { return copied; },
   pinRect(id: string) { return root().querySelector<HTMLElement>(`.pin[data-thread="${id}"]`)?.getBoundingClientRect(); },
   focusRect(kind: string) {
-    const el = root().querySelector<HTMLElement>(kind === "drawer" ? ".morphing-menu__shell" : ".dialog");
-    if (!el) return null;
-    if (kind === "drawer") return el.getBoundingClientRect();
-    // Layout bounds exclude the dialog's entrance scale/translation, so the camera
-    // does not counter-animate against komo's own spring.
-    return { x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight };
+    if (kind === "drawer") {
+      const nav = root().querySelector<HTMLElement>(".morphing-menu");
+      const panel = root().querySelector<HTMLElement>(".morphing-menu__panel");
+      if (!nav || !panel || panel.offsetHeight < 100) return null;
+      // Frame the expanded layout, never the animated shell. Its native spring
+      // may compress/collapse without changing the camera's reference rectangle.
+      const anchor = nav.getBoundingClientRect();
+      return { x: anchor.x + anchor.width / 2 - panel.offsetWidth / 2,
+        y: anchor.bottom - panel.offsetHeight, width: panel.offsetWidth, height: panel.offsetHeight };
+    }
+    const el = [...root().querySelectorAll<HTMLElement>(".dialog")].at(-1);
+    return el ? { x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight } : null;
   },
   menuRects() {
     return [...root().querySelectorAll<HTMLElement>(".morphing-menu__panel [data-menu-item]")].map(el => ({ id: el.dataset.menuItem, ...rectObject(el) }));

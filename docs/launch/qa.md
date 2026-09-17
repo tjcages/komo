@@ -70,3 +70,13 @@ Build/typecheck/111 tests/size checks pass; final isolated bundle build and JS s
 Visually inspected retained fullscreen conversation, centered drawer moving down with the website behind it, 2× indicators, centered drawer cursor hover on copy, and focused homepage agent window with captured feedback and an illustrative working state. Sidebar now receives eight comments every half beat, with six right-side emoji pops. Extra copy/paste headlines removed. Finale fades to the animated komo logo and loops by default.
 
 Build, typecheck, all 111 tests and size checks pass. Final isolated build, JS syntax and whitespace checks pass. Production package/bundle sizes unchanged. No new video export or actual agent execution.
+
+## Transition diagnosis and prompt bar — 2026-09-17
+
+[Preview](https://e5325afd.komo-wb5.pages.dev/launch-demo/?bpm=144). Reproduced a camera defect by pausing at beat 22.1 during drawer collapse: the camera continued moving because it followed the animated shell height. The camera now uses stable expanded-panel layout bounds anchored to the toolbar. Repeating the paused-collapse check showed no camera drift. Temporary debug instrumentation was removed.
+
+Removed the independent website fade that exposed outgoing content; new views remain hidden until their native UI exists. Short background-colored mattes cover camera/component resets at hard scene cuts while continuous drawer docking and native sidebar opening retain their animations. Initial headline opacity prevents a pre-runtime flash.
+
+Replaced the agent window with one centered abstract prompt bar. Cursor arrival/click precedes a single full-prompt paste; the bar expands and scrolls through the actual feedback. Verified all 12 fixture threads and replies remain in the field; inspected the readable first conversation after paste. No reply or working state is simulated.
+
+Local build, typecheck, all 111 tests and size checks pass (93,609 / 186,726 gzip bytes, unchanged). Final isolated build, JS syntax and whitespace checks pass. Video export remains deferred.

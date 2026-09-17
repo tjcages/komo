@@ -993,19 +993,17 @@ body.beat-studio {
 #emoji-burst { inset:0; }
 #emoji-burst i { position:absolute; left:0; top:0; font-style:normal; font-size:52px; }
 #copy-title { inset:65px 0 auto; text-align:center; font-size:80px; letter-spacing:-4px; }
-#agent-handoff { inset:0; background:#eee8f4; }
-#agent-handoff > h1 { text-align:center; margin:90px 0 0; font-size:85px; letter-spacing:-4px; }
-#film #agent-handoff .coding-window { position:absolute; left:310px; top:285px; width:1300px; height:670px; opacity:1; transform:none; animation:none; }
-#film #agent-handoff .coding-body { padding:35px; }
-#film #agent-handoff .coding-user { opacity:1; transform:none; animation:none; }
-#film #agent-handoff .coding-user p { white-space:pre-wrap; max-height:480px; overflow:hidden; font-family:ui-monospace,monospace; font-size:22px !important; line-height:1.4 !important; }
-#film #agent-handoff .coding-user p { font-family:inherit; font-size:38px !important; line-height:1.5 !important; padding-top:20px; }
-#film #agent-handoff .prompt-attachment { font-size:25px; color:#cdb6ef; }
-#agent-handoff { transform-origin:50% 50%; background:transparent; }
-#film #agent-handoff .coding-window { top:175px; height:730px; }
-#film #agent-handoff .coding-user p { font-size:34px !important; padding-top:10px; }
-#film #agent-handoff .coding-response { margin:32px 0 0; padding:25px 30px; transform:none; animation:none; border-top:1px solid #ffffff15; }
-#film #agent-handoff .coding-response-title { display:block; font-size:30px; color:#ceb5ee; }
-#film #agent-handoff .coding-response p { font-size:24px !important; padding-top:12px; color:#ada3b8; }
-.working-dots { animation:working-pulse 700ms ease-in-out infinite alternate; }
-@keyframes working-pulse { from { opacity:.3 } to { opacity:1 } }
+#agent-handoff { inset:0; display:grid; place-items:center; background:#f9f8fc; }
+#prompt-bar { position:relative; width:1160px; height:140px; border-radius:38px; background:#242128; box-shadow:0 18px 50px #29252f18,0 0 0 1px #ffffff15 inset; padding:32px 100px 32px 88px; overflow:hidden; }
+#prompt-bar.focused { box-shadow:0 18px 50px #29252f18,0 0 0 2px #bba2ee70 inset; }
+#agent-prompt { display:block; width:100%; height:calc(100% - 28px); min-height:64px; border:0; outline:0; resize:none; background:transparent; color:#eee9f4; padding:9px 0; font:23px/30px ui-monospace,monospace; scrollbar-width:none; }
+#agent-prompt::placeholder { color:#ada5b8; font:30px/42px Helvetica,Arial,sans-serif; }
+#agent-prompt::-webkit-scrollbar { display:none; }
+.prompt-plus { position:absolute; left:34px; top:43px; color:#ada5b8; font-size:38px; line-height:44px; }
+.prompt-send { position:absolute; right:30px; bottom:39px; width:48px; height:48px; border-radius:50%; color:#28232e; background:#cbb4eb; display:grid; place-items:center; font-size:31px; }
+#prompt-meta { position:absolute; left:88px; right:106px; bottom:22px; display:flex; justify-content:space-between; color:#bca3da; font-size:18px; }
+#transition-matte { position:absolute; inset:0; z-index:40; background:#f9f8fc; pointer-events:none; }
+
+#prompt-measure { position:absolute; visibility:hidden; pointer-events:none; white-space:pre-wrap; overflow-wrap:break-word; font:23px/30px ui-monospace,monospace; left:0; top:0; }
+
+#story { background:#f9f8fc; }

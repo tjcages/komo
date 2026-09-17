@@ -38,6 +38,7 @@ const show = (s, a) => {
   const e = $(s);
   e.style.opacity = clip(a);
   e.style.visibility = a > 0 ? "visible" : "hidden";
+  e.setAttribute("aria-hidden", a > 0 ? "false" : "true");
 };
 const move = (s, x = 0, y = 0, scale = 1, rotation = 0) => {
   $(s).style.transform =
@@ -92,19 +93,34 @@ function render(value) {
       e.style.opacity = (1 - p) * 0.75;
     });
   } else if (spec.kind === "agent") {
-    const focus = ease((beat - 60) / 1.1), exit = 1 - ease((beat - 67) / 1);
-    show("#story", (1 - focus) * exit);
-    $("#story").style.filter = `blur(${focus * 10}px)`;
-    show("#agent-handoff", focus * exit);
-    move("#agent-handoff", 0, 0, 0.88 + focus * 0.12);
-    const handoff = $("#product-frame").contentWindow.widgetDemo;
-    const copied = handoff?.copied || "";
-    if (!copied) handoff?.update({ beat, count: 4, incoming: 8, scroll: 850, mode: "drawer", isolated: true, replies: 2, reaction: 12, copy: true });
-    const excerpts = [...copied.matchAll(/\*\*(?:Requested change|Reply)[^\n]*\*\*\n> ([^\n]+)/g)].map(m => m[1]);
-    $("#agent-handoff .coding-user p").textContent = excerpts.slice(0, 2).join("\n\n");
-    $("#agent-handoff .prompt-attachment").textContent = `${copied.match(/Threads: (\d+) open/)?.[1] || "12"} comments · page context`;
-    show("#agent-handoff .coding-user", ease((beat - 61.5) / 0.5));
-    show("#agent-handoff .coding-response", ease((beat - 64) / 0.5));
+    const enter = ease((beat - 60.25) / 0.65), exit = 1 - ease((beat - 67) / 0.7);
+    show("#agent-handoff", enter * exit);
+    const demo = $("#product-frame").contentWindow.widgetDemo;
+    const copied = demo?.copied || "";
+    if (!copied) demo?.update({ beat, count: 4, incoming: 8, scroll: 850, mode: "drawer", isolated: true, replies: 2, reaction: 6, copy: true });
+    const paste = beat >= 63 && copied.length > 0;
+    const field = $("#agent-prompt");
+    field.value = paste ? copied : "";
+    const expansion = paste ? ease((beat - 63) / 0.7) : 0;
+    $("#prompt-bar").style.height = `${140 + 210 * expansion}px`;
+    $("#prompt-bar").classList.toggle("focused", beat >= 62);
+    show("#prompt-meta", expansion);
+    $("#prompt-count").textContent = `${copied.match(/Threads: (\d+) open/)?.[1] || "12"} comments · full prompt`;
+    // Full generated prompt is pasted at once. Show its actual feedback section
+    // and scroll through it, rather than recreating or shortening the prompt.
+    if (paste) {
+      const measure = $("#prompt-measure");
+      measure.style.width = `${field.clientWidth}px`;
+      measure.textContent = copied.slice(0, copied.indexOf("**Requested change"));
+      const firstThread = measure.offsetHeight;
+      field.scrollTop = mix(firstThread, field.scrollHeight - field.clientHeight, ease((beat - 64) / 2.5));
+    } else field.scrollTop = 0;
+    const p = ease((beat - 60.8) / 1), cursorAlpha = ease((beat - 60.8) / 0.3) * (1 - ease((beat - 63.4) / 0.4));
+    show("#demo-cursor", cursorAlpha);
+    move("#demo-cursor", mix(1590, 700, p), mix(280, 535, p), beat >= 62 && beat < 62.25 ? 0.78 : 1);
+    const click = clip((beat - 62) / 0.5);
+    show("#click-ring", beat >= 62 ? (1 - click) * cursorAlpha : 0);
+    move("#click-ring", 652, 487, 0.5 + click);
   } else {
     show("#story", 1);
     $("#story").style.filter = "none";
@@ -138,11 +154,11 @@ function render(value) {
     }
     if (spec.kind === "thread" || spec.kind === "thread-two") {
       mode = spec.kind; scale = 2.15; x = -530; y = -100;
-      show("#story", ease((beat - 28) / 0.45));
+      show("#story", 1);
     }
     if (spec.kind === "wide") {
       scale = 1.5; x = 0; y = -10;
-      show("#story", ease((beat - 32) / 0.4));
+      show("#story", 1);
     }
     if (spec.kind === "sidebar") {
       mode = "sidebar";
@@ -162,13 +178,14 @@ function render(value) {
     if (isolated || spec.kind === "drawer-dock") {
       const r = demo?.focusRect(["drawer", "drawer-intro", "drawer-dock", "copy"].includes(spec.kind) ? "drawer" : "comment");
       if (r) { x = 960 - (r.x + r.width / 2) * scale; y = 540 - (r.y + r.height / 2) * scale; }
+      else show("#story", 0);
     }
     if (spec.kind === "drawer-dock") {
       const p = ease((beat - 20) / 3.5);
       x = mix(x, 0, p); y = mix(y, -10, p); scale = mix(2.6, 1.5, p);
     }
     // No camera reads from an outgoing comment while the next view is being prepared.
-    if (isolated && demo?.state.mode !== mode) show("#story", 0);
+    if (!demo?.state.ready || demo.state.mode !== mode) show("#story", 0);
     frame.style.transform = `translate(${x}px,${y}px) scale(${scale})`;
     if (spec.kind === "pins" && beat >= 5.5 && beat < 7.55) {
       const r = demo?.pinRect("demo-0");
@@ -211,6 +228,16 @@ function render(value) {
     }
 
   }
+  // A brief opaque midpoint hides the actual scene swap. Continuous desktop
+  // movement and native sidebar opening are intentionally not masked.
+  const cuts = [8, 16, 28, 32, 48, 52, 60, 68];
+  let matte = 0;
+  for (const cut of cuts) {
+    const before = ease((beat - (cut - 0.32)) / 0.22);
+    const after = 1 - ease((beat - (cut + 0.12)) / 0.3);
+    matte = Math.max(matte, before * after);
+  }
+  show("#transition-matte", matte);
   lastScene = index;
   for (const a of $("#intro").getAnimations({ subtree: true })) {
     a.pause();
