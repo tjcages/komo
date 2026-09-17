@@ -111,3 +111,8 @@ body {
   font-size: 16px;
   margin-bottom: 25px;
 }
+/* A single headline leads the opening, with room for its actual comment. */
+.website-hero { padding-top: 140px; }
+.website-hero h1 { margin: 0; max-width: 1000px; font-size: 94px; }
+.website-hero .eyebrow, .website-hero p, .site-art { display: none; }
+.website-hero button { margin-top: 48px; }

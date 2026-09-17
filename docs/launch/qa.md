@@ -48,3 +48,9 @@ Visually inspected typed partial comment and caret, native drawer expansion/sett
 Visually inspected real pin/thread text, partial typing in the actual composer, successful fixture posting with a stacked pin, native drawer expansion, sidebar list and website framing, and selecting a sidebar row to open its thread. Adjusted the final camera so the sidebar and corresponding thread remain visible together. All data is fabricated; the iframe fetch adapter blocks external API destinations. No agent execution or website improvement is depicted. Native animations settle independently of narrative seeking.
 
 Local build, typecheck, 111 tests and size checks pass. Initial/all-feature gzip: 93,609 / 186,726 bytes, unchanged. No new video export.
+
+## Entrances and ending — 2026-09-17
+
+[Preview](https://abdf39ab.komo-wb5.pages.dev/launch-demo/?bpm=144). Verified a partially transparent/rising opening headline at beat 4.25, actual nearby thread at beat 8, and incoming fixture comment at beat 41.1 preceding existing sidebar rows. The product supplies row entrance/displacement. The camera remains still for the native sidebar opening before zooming in. Preview-only WAAPI adds entrance motion to actual pin nodes; product markup/styles are unchanged. Comment/composer camera scale increased to 2.2.
+
+Sequence extended to 72 beats (30 seconds at 144 BPM), with final URL held for 12 beats/five seconds and looping off by default. Inspected final frame near beat 72. Local build, typecheck, 111 tests and size checks pass; browser bundle sizes unchanged. Video export remains deferred.

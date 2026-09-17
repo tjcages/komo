@@ -152,10 +152,10 @@ let beatPage = main
     <button id="play" aria-label="Pause animation">Pause</button><button id="replay" aria-label="Replay animation">↺</button>
     <label class="tempo">BPM <input id="bpm" type="number" min="60" max="240" value="144" inputmode="numeric"></label>
     <input id="tempo-range" type="range" min="60" max="240" value="144" aria-label="Tempo">
-    <label><input id="ramp" type="checkbox">Ramp</label><label><input id="click-track" type="checkbox">Click</label><label><input id="loop" type="checkbox" checked>Loop</label>
-    <span id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i></span><output id="beat-readout" aria-label="Current beat">01 / 64</output>
+    <label><input id="ramp" type="checkbox">Ramp</label><label><input id="click-track" type="checkbox">Click</label><label><input id="loop" type="checkbox">Loop</label>
+    <span id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i></span><output id="beat-readout" aria-label="Current beat">01 / 72</output>
     <button id="fullscreen" aria-label="Fullscreen animation">⛶</button>
-    <input id="scrub" type="range" min="0" max="64" step="0.01" value="0" aria-label="Scrub beats">
+    <input id="scrub" type="range" min="0" max="72" step="0.01" value="0" aria-label="Scrub beats">
   </div><script src="beat.js"></script>`,
   );
 beatPage = beatPage.replace(

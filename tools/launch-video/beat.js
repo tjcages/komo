@@ -3,7 +3,7 @@ const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const params = new URLSearchParams(location.search);
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-const TOTAL = 64;
+const TOTAL = 72;
 const beats = [
   { kind: "logo" },
   { kind: "pins" },
@@ -100,7 +100,13 @@ function render(value) {
       scale = 1.75,
       x = -100,
       y = -80;
-    if (spec.kind === "pins") count = beat < 6 ? 0 : beat < 9 ? 1 : 2;
+    if (spec.kind === "pins") {
+      count = beat < 6 ? 0 : beat < 10 ? 1 : 2;
+      mode = beat >= 7 ? "hero-thread" : "page";
+      scale = 1.7;
+      x = -70;
+      y = -65;
+    }
     if (spec.kind === "scroll") {
       scroll = 850 * ease((beat - 16) / 7);
       count = beat < 18 ? 2 : beat < 21 ? 3 : 4;
@@ -110,12 +116,13 @@ function render(value) {
       count = 4;
       mode = spec.kind;
       typing = clip((local - 0.6) / 2.5);
-      x = -480;
-      scale = 2;
+      x = -530;
+      y = -100;
+      scale = 2.2;
     }
     if (spec.kind === "compose") {
-      x = -140;
-      y = -380;
+      x = -155;
+      y = -410;
     }
     if (spec.kind === "drawer") {
       scroll = 850;
@@ -128,13 +135,13 @@ function render(value) {
     if (spec.kind === "sidebar") {
       scroll = 850;
       count = 4;
-      mode = beat >= 43 ? "sidebar-thread" : "sidebar";
-      const p = ease((beat - 36) / 3);
+      mode = beat >= 45 ? "sidebar-thread" : "sidebar";
+      const p = ease((beat - 38) / 2);
       scale = mix(1.6, 2, p);
       x = mix(-100, -640, p);
       y = -40 * (1 - p);
       if (mode === "sidebar-thread") {
-        const q = ease((beat - 43) / 1.5);
+        const q = ease((beat - 45) / 1.5);
         scale = mix(2, 1.65, q);
         x = mix(-640, -180, q);
         y = -20 * q;
@@ -145,10 +152,16 @@ function render(value) {
       scroll = 850 + 600 * ease(local / 3);
       x = -180;
     }
+    // New focuses enter; continuous desktop/sidebar actions remain visible.
+    const starts = { pins: 4, scroll: 16, thread: 24, compose: 28, drawer: 32, "scroll-end": 52 };
+    if (starts[spec.kind] !== undefined)
+      show("#story", ease((beat - starts[spec.kind]) / 0.75));
     const frame = $("#product-frame");
     frame.style.transform = `translate(${x}px,${y}px) scale(${scale})`;
     frame.contentWindow.widgetDemo?.update({
+      beat,
       count,
+      incoming: spec.kind === "sidebar" ? (beat >= 43 ? 2 : beat >= 41 ? 1 : 0) : 0,
       scroll,
       mode,
       typing,
@@ -163,7 +176,7 @@ function render(value) {
   $("#progress").style.width = `${(beat / TOTAL) * 100}%`;
   $("#scrub").value = String(beat);
   $("#beat-readout").textContent =
-    `${String(Math.min(64, Math.floor(beat) + 1)).padStart(2, "0")} / 64`;
+    `${String(Math.min(TOTAL, Math.floor(beat) + 1)).padStart(2, "0")} / ${TOTAL}`;
   $$("#meter i").forEach((e, i) =>
     e.classList.toggle("on", i === Math.floor(beat) % 4),
   );
@@ -225,7 +238,7 @@ function anchor() {
 function setTempo(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return;
-  render(Math.min(64, current()));
+  render(Math.min(TOTAL, current()));
   bpm = Math.max(60, Math.min(240, n));
   $("#bpm").value = bpm;
   $("#tempo-range").value = bpm;
@@ -237,12 +250,12 @@ $("#ramp").checked = ramp;
 $("#bpm").addEventListener("change", (e) => setTempo(e.target.value));
 $("#tempo-range").addEventListener("input", (e) => setTempo(e.target.value));
 $("#ramp").addEventListener("change", (e) => {
-  render(Math.min(64, current()));
+  render(Math.min(TOTAL, current()));
   ramp = e.target.checked;
   anchor();
 });
 $("#play").addEventListener("click", () => {
-  render(Math.min(64, current()));
+  render(Math.min(TOTAL, current()));
   playing = !playing;
   if (playing && beat >= 64) render(0);
   anchor();
@@ -263,7 +276,7 @@ $("#click-track").addEventListener("change", async (e) => {
     audio ??= new AudioContext();
     await audio.resume();
   }
-  render(Math.min(64, current()));
+  render(Math.min(TOTAL, current()));
   anchor();
 });
 $("#fullscreen").addEventListener("click", () => {
@@ -279,7 +292,7 @@ addEventListener("keydown", (e) => {
     $("#play").click();
   }
   if (e.code === "Escape" && playing) {
-    render(Math.min(64, current()));
+    render(Math.min(TOTAL, current()));
     playing = false;
     anchor();
   }
@@ -288,7 +301,7 @@ let resume = false;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     resume = playing;
-    render(Math.min(64, current()));
+    render(Math.min(TOTAL, current()));
     playing = false;
     anchor();
   } else if (resume) {
@@ -298,7 +311,7 @@ document.addEventListener("visibilitychange", () => {
 });
 reduced.addEventListener("change", () => {
   if (reduced.matches) {
-    render(Math.min(64, current()));
+    render(Math.min(TOTAL, current()));
     playing = false;
     anchor();
   }

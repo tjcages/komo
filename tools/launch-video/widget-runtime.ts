@@ -143,6 +143,21 @@ function seed(n: number) {
     };
   });
 }
+// Preview-only entrances on actual product pins; no replacement markup/styles.
+const seenPins = new Set<string>();
+new MutationObserver(() => {
+  for (const pin of root().querySelectorAll<HTMLElement>(".pin[data-thread]")) {
+    const id = pin.dataset.thread!;
+    if (seenPins.has(id)) continue;
+    seenPins.add(id);
+    pin.animate([
+      { opacity: 0, scale: "0.55", translate: "0 8px" },
+      { opacity: 1, scale: "1.08", translate: "0 -2px", offset: 0.72 },
+      { opacity: 1, scale: "1", translate: "0 0" },
+    ], { duration: 360, easing: "cubic-bezier(.22,1,.36,1)" });
+  }
+}).observe(root(), { childList: true, subtree: true });
+let incoming = 0;
 let posted = false;
 let count = -1,
   mode = "",
@@ -155,9 +170,23 @@ async function apply() {
   try {
     const s = desired;
     if (s.count !== count) {
+      if (s.count < count) seenPins.clear();
       count = s.count;
+      incoming = 0;
       seed(count);
       await controller.refresh();
+    }
+    if (s.incoming > incoming) {
+      while (incoming < s.incoming) {
+        incoming++;
+        const template = threads.find(t => t.id === "demo-2")!;
+        const now = Date.now();
+        threads.push({ ...template, id: `incoming-${incoming}`, createdAt: now, updatedAt: now,
+          comments: [{ ...template.comments[0], id: `incoming-comment-${incoming}`,
+            author: other, createdAt: now,
+            body: incoming === 1 ? "This feels really good." : "One tiny thought here…" }] });
+      }
+      await controller.refresh(); // The product animates new rows and moves existing rows.
     }
     if (s.mode !== mode) {
       if (mode === "drawer")
@@ -174,6 +203,8 @@ async function apply() {
             )
             ?.click();
       }
+      if (mode === "hero-thread")
+        root().querySelector<HTMLButtonElement>('.pin[data-thread="demo-0"]')?.click();
       if (mode === "thread")
         root()
           .querySelector<HTMLButtonElement>('.pin[data-thread="demo-2"]')
@@ -208,6 +239,12 @@ async function apply() {
 (window as any).widgetDemo = {
   update(s: any) {
     desired = s;
+    const enter = Math.max(0, Math.min(1, (s.beat - 4) / 1.25));
+    const q = 1 - (1 - enter) ** 3;
+    const hero = document.querySelector<HTMLElement>(".website-hero")!;
+    hero.style.opacity = String(q);
+    hero.style.transform = `translateY(${30 * (1 - q)}px) scale(${0.96 + q * 0.04})`;
+
     const surface = document.querySelector<HTMLElement>("#website")!;
     if (surface.style.position === "fixed") surface.scrollTop = s.scroll;
     else window.scrollTo(0, s.scroll);
