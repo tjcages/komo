@@ -1,3 +1,4 @@
+import { projectHelp, runProject } from "./project.mjs";
 import {
   readFile,
   mkdir,
@@ -38,6 +39,7 @@ export const agentCommands = [
   "comments",
   "schema",
   "agents",
+  "project",
 ];
 export const agentHelp = `
 Agent commands:
@@ -53,6 +55,7 @@ Agent commands:
   komo agents setup          Install the default workflow in AGENTS.md
   komo schema                Machine-readable command reference
 
+${projectHelp}
 Default workflow:
 ${agentWorkflow}
 
@@ -70,6 +73,13 @@ Results are JSON except prompt (Markdown unless --json). Errors are JSON on stde
 function parse(args) {
   const booleans = new Set(["--json", "--remove", "--no-open"]);
   const values = new Set([
+    "--out",
+    "--file",
+    "--access",
+    "--email",
+    "--user",
+    "--invite",
+    "--confirm",
     "--project",
     "--endpoint",
     "--origin",
@@ -419,6 +429,7 @@ export async function runAgent(
           overrides: ["--endpoint", "--origin", "--repo", "--branch"],
           body: ["--body", "--body-file", "--body-file -"],
           setup: "komo agents setup",
+          project: projectHelp,
           guidance: agentWorkflow,
         },
         null,
@@ -430,13 +441,15 @@ export async function runAgent(
   if (command === "comments" && !Object.hasOwn(actions, action))
     throw Error(`Unknown comments action: ${action}`);
   const expected =
-    command === "comments"
-      ? ["edit", "delete", "react"].includes(action)
-        ? 4
-        : ["get", "reply", "resolve", "reopen", "move"].includes(action)
-          ? 3
-          : 2
-      : 1;
+    command === "project"
+      ? 2
+      : command === "comments"
+        ? ["edit", "delete", "react"].includes(action)
+          ? 4
+          : ["get", "reply", "resolve", "reopen", "move"].includes(action)
+            ? 3
+            : 2
+        : 1;
   if (positional.length > expected)
     throw Error("Unexpected positional arguments. Run komo --help.");
   const config = await configuration(flags, cwd, env),
@@ -452,7 +465,9 @@ export async function runAgent(
   else {
     if (!token)
       throw Error("No saved session. Run komo login, or set KOMO_TOKEN.");
-    if (command === "whoami") data = await request("me");
+    if (command === "project")
+      data = await runProject(action, flags, request, config, cwd);
+    else if (command === "whoami") data = await request("me");
     else if (command === "logout") {
       try {
         await request("me", "DELETE");

@@ -21,10 +21,10 @@ import {
   reviewLayout,
 } from "./review-layout.js";
 import { createElement } from "react";
-import { createRoot } from "react-dom/client";
-import { MorphingMenu, type MenuItem } from "./MorphingMenu.js";
+import { createToolbar } from "./lazy-toolbar.js";
+import type { MenuItem } from "./MorphingMenu.js";
 import { canonicalPage } from "./page.js";
-import { CommentsApi } from "./api.js";
+import { ApiError, CommentsApi } from "./api.js";
 import { captureAnchor, locateAnchor as measureAnchor } from "./anchors.js";
 import {
   age,
@@ -237,6 +237,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     control.prepend(googleLogo());
     return control;
   }
+  let accessError = "";
   let google = false;
   let movingThread: string | null = null;
   let github = false,
@@ -351,7 +352,17 @@ export function initComments(options: CommentsOptions): CommentsController {
   let hoverFrame = 0;
   const live = el("div", "sr-only");
   live.setAttribute("aria-live", "polite");
-  const toolbarRoot = createRoot(toolbar);
+  const toolbarRoot = createToolbar(toolbar, (id) => {
+    if (id === "account") {
+      if (!api.user) return icon("person");
+      const portrait = avatar(api.user);
+      portrait.className = "review-avatar";
+      return portrait;
+    }
+    return icon(
+      id === "browse" ? "pointer" : id === "comment" ? "comment" : "expand"
+    );
+  });
   shadow.append(
     style,
     catcher,
@@ -735,6 +746,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         return;
       const changed = JSON.stringify(next) !== JSON.stringify(threads);
       const recovered = connection !== "Live";
+      accessError = "";
       connection = "Live";
       if (selected && !next.some((thread) => thread.id === selected))
         selected = null;
@@ -744,6 +756,15 @@ export function initComments(options: CommentsOptions): CommentsController {
         renderToolbar();
       }
     } catch (reason) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        accessError = reason.message;
+        selected = null;
+        lastRefresh = undefined;
+        optimistic.replace([], revision);
+      }
       connection = "Offline";
       renderList();
       renderToolbar();
@@ -1174,32 +1195,30 @@ export function initComments(options: CommentsOptions): CommentsController {
         showInBar: false,
         onSelect: () => run(refresh),
       });
-    toolbarRoot.render(
-      createElement(MorphingMenu, {
-        items: options.onboarding
-          ? items.filter(
-              (item) => item.id === "account" || item.id === "comments"
-            )
-          : items,
-        alignEnd:
-          !!toolbarPlacement && toolbarPlacement.y > window.innerHeight / 2,
-        edge:
-          toolbarPlacement?.edgeX ??
-          toolbarPlacement?.edgeY ??
-          (toolbarPlacement && toolbarPlacement.y < window.innerHeight / 2
-            ? "top"
-            : "bottom"),
-        activeId: account
-          ? "account"
-          : mode
-            ? "comment"
-            : expanded
-              ? "comments"
-              : "browse",
-        label: "Website review",
-        moreLabel: "More review tools",
-      })
-    );
+    toolbarRoot.render({
+      items: options.onboarding
+        ? items.filter(
+            (item) => item.id === "account" || item.id === "comments"
+          )
+        : items,
+      alignEnd:
+        !!toolbarPlacement && toolbarPlacement.y > window.innerHeight / 2,
+      edge:
+        toolbarPlacement?.edgeX ??
+        toolbarPlacement?.edgeY ??
+        (toolbarPlacement && toolbarPlacement.y < window.innerHeight / 2
+          ? "top"
+          : "bottom"),
+      activeId: account
+        ? "account"
+        : mode
+          ? "comment"
+          : expanded
+            ? "comments"
+            : "browse",
+      label: "Website review",
+      moreLabel: "More review tools",
+    });
   }
 
   let pinSnapshot = "";
@@ -1743,16 +1762,22 @@ export function initComments(options: CommentsOptions): CommentsController {
         el(
           "strong",
           "",
-          connection === "Offline"
-            ? "Connection interrupted"
-            : search
-              ? "No matching comments"
-              : filter === "resolved"
-                ? "Nothing resolved yet"
-                : "No comments yet"
+          accessError
+            ? "Private project"
+            : connection === "Offline"
+              ? "Connection interrupted"
+              : search
+                ? "No matching comments"
+                : filter === "resolved"
+                  ? "Nothing resolved yet"
+                  : "No comments yet"
         )
       );
-      if (connection === "Offline")
+      if (accessError) {
+        empty.append(el("p", "", accessError));
+        if (!api.user?.verified)
+          empty.append(button("Sign in", openAccount, "secondary"));
+      } else if (connection === "Offline")
         empty.append(button("Retry", () => run(refresh), "secondary"));
       else if (!search && filter !== "resolved")
         empty.append(
@@ -2267,7 +2292,9 @@ export function initComments(options: CommentsOptions): CommentsController {
     closePicker?.(true);
     closePicker = undefined;
     const active = shadow.activeElement as
-      HTMLInputElement | HTMLTextAreaElement | null;
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | null;
     const focusKey = active?.dataset.focusKey;
     const caret = focusKey ? active?.selectionStart : null;
     const scroll = dialogs.querySelector(".messages")?.scrollTop ?? 0;
@@ -2329,7 +2356,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       exitingDialogs.set(previousDialog, undefined);
       const exit = previousDialog.animate(
         [from, { opacity: 0, transform: "translateY(4px) scale(.99)" }],
-        { duration: 150, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" }
+        {
+          duration: 150,
+          easing: "cubic-bezier(.22,1,.36,1)",
+          fill: "forwards",
+        }
       );
       void exit.finished
         .catch(() => {})
@@ -2569,6 +2600,41 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (options.onboarding)
           content.append(onboardingPanel(api, options.onboarding));
         else content.append(accountUsage(api));
+        if (
+          api.user?.verified &&
+          !options.onboarding?.code &&
+          !options.onboarding?.claimKey &&
+          !options.onboarding?.invite
+        ) {
+          const settings = el("div");
+          content.append(settings);
+          void import("./project-management.js").then(
+            ({ projectManagement }) => {
+              if (settings.isConnected)
+                settings.replaceWith(
+                  projectManagement(
+                    api,
+                    options.onboarding?.workspace,
+                    (deleted) => {
+                      if (deleted) {
+                        selected = null;
+                        optimistic.replace([], optimistic.revision);
+                        content.querySelector(".account-usage")?.remove();
+                      } else {
+                        const path = options.onboarding?.workspace
+                          ? `usage?workspace=${encodeURIComponent(options.onboarding.workspace)}`
+                          : "usage";
+                        content
+                          .querySelector(".account-usage")
+                          ?.replaceWith(accountUsage(api, path));
+                        void refresh().catch(() => {});
+                      }
+                    }
+                  )
+                );
+            }
+          );
+        }
         content.addEventListener("submit", (event) => {
           event.preventDefault();
           queueProfileSave(profile, true);
@@ -3468,7 +3534,16 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
   const observer = new ResizeObserver(geometry);
   observer.observe(surface);
-  const mutations = new MutationObserver(geometry);
+  let mutationTimer = 0;
+  const mutations = new MutationObserver(() => {
+    // Background host churn needs one refresh per burst, not per animation frame.
+    if (draft || selected || mode || activeNotice) return geometry();
+    if (!mutationTimer)
+      mutationTimer = window.setTimeout(() => {
+        mutationTimer = 0;
+        geometry();
+      }, 80);
+  });
   mutations.observe(surface, {
     childList: true,
     subtree: true,
@@ -3494,8 +3569,11 @@ export function initComments(options: CommentsOptions): CommentsController {
   document.addEventListener(
     "visibilitychange",
     () => {
-      if (document.hidden) mutations.disconnect();
-      else {
+      if (document.hidden) {
+        mutations.disconnect();
+        clearTimeout(mutationTimer);
+        mutationTimer = 0;
+      } else {
         mutations.observe(surface, {
           childList: true,
           subtree: true,
@@ -3509,6 +3587,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
   const controller: CommentsController = {
     destroy() {
+      clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
       clearTimeout(accountOpenTimer);
       clearTimeout(copiedPromptTimer);

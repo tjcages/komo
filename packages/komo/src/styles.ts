@@ -1,5 +1,17 @@
 import { morphingMenuStyles } from "./morphing-menu-styles.js";
-export const styles = `
+export const styles: string = `
+.project-management select { width:100%; padding:10px; border:0; border-radius:10px; background:#ffffff0a; color:inherit; font:inherit; }
+.project-management select option { background:#242424; color:#eee; }
+.project-management[hidden], .project-management [hidden] { display:none !important; }
+.project-management .account-sites-summary { justify-content: space-between; }
+.project-management .account-usage-status { padding: 0 16px; }
+.project-management summary { cursor:pointer; }
+.project-member { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; overflow-wrap:anywhere; }
+.project-danger { display:grid; gap:10px; font-size:12px; }
+.project-danger p { color:#999; line-height:1.5; }
+.project-help { color:var(--accent,#c8b5f4); font-size:12px; }
+.project-management .destructive { color:#fda29b; }
+
 :host {
   all: initial;
   font-family: var(

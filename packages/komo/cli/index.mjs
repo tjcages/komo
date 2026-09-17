@@ -98,6 +98,9 @@ async function deploy() {
   }
   config.d1_databases[0].migrations_dir = "migrations";
   await writeFile(path, JSON.stringify(config, null, 2));
+  await cp(join(packageRoot, "server/migrations"), join(dir, "migrations"), {
+    recursive: true,
+  });
   await wr("d1", "migrations", "apply", "DB", "--remote");
   const output = await wr("deploy");
   const endpoint =

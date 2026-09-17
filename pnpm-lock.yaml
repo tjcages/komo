@@ -20,9 +20,6 @@ importers:
 
   packages/komo:
     dependencies:
-      '@untitledui/icons':
-        specifier: 0.0.22
-        version: 0.0.22(react@19.2.7)
       emoji-regex:
         specifier: ^10.6.0
         version: 10.6.0
@@ -42,6 +39,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.3.0(@types/react@19.3.0)
+      '@untitledui/icons':
+        specifier: 0.0.22
+        version: 0.0.22(react@19.2.7)
       emoji-picker-element:
         specifier: ^1.29.1
         version: 1.29.1

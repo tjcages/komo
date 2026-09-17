@@ -1,3 +1,8 @@
+import {
+  manageProject,
+  privateAccess,
+  requireMember,
+} from "./project-management";
 import { setupPage } from "./setup-page";
 import setupClient from "./setup-client.txt";
 import {
@@ -101,33 +106,43 @@ async function body(request: Request): Promise<Record<string, unknown>> {
       "Invalid JSON object."
     );
     const path = new URL(request.url).pathname;
-    const allowed = ["/auth/google/start", "/auth/github/start"].includes(path)
-      ? ["returnOrigin"]
-      : path === "/setup/start"
-        ? ["repo", "origins"]
-        : path === "/setup/poll"
-          ? ["id", "secret"]
-          : path === "/setup/complete"
-            ? ["code"]
-            : ["/workspace/sites", "/workspace/verify"].includes(path)
-              ? ["project", "origin"]
-              : path === "/owner/claim"
-                ? ["key"]
-                : path === "/auth/guest"
-                  ? ["name"]
-                  : path.endsWith("/reactions")
-                    ? ["emoji", "active"]
-                    : path === "/me"
-                      ? ["name", "avatarUrl", "accentColor"]
-                      : path === "/threads"
-                        ? ["body", "page", "anchor"]
-                        : path.endsWith("/comments")
-                          ? ["body"]
-                          : path.includes("/comments/")
+    const allowed = path.startsWith("/project")
+      ? path === "/project/import"
+        ? ["source", "kind", "records"]
+        : path === "/project/join"
+          ? ["invite"]
+          : path === "/project/invites"
+            ? ["email"]
+            : path === "/project/members"
+              ? ["user"]
+              : ["access", "confirm"]
+      : ["/auth/google/start", "/auth/github/start"].includes(path)
+        ? ["returnOrigin"]
+        : path === "/setup/start"
+          ? ["repo", "origins"]
+          : path === "/setup/poll"
+            ? ["id", "secret"]
+            : path === "/setup/complete"
+              ? ["code"]
+              : ["/workspace/sites", "/workspace/verify"].includes(path)
+                ? ["project", "origin"]
+                : path === "/owner/claim"
+                  ? ["key"]
+                  : path === "/auth/guest"
+                    ? ["name"]
+                    : path.endsWith("/reactions")
+                      ? ["emoji", "active"]
+                      : path === "/me"
+                        ? ["name", "avatarUrl", "accentColor"]
+                        : path === "/threads"
+                          ? ["body", "page", "anchor"]
+                          : path.endsWith("/comments")
                             ? ["body"]
-                            : path.startsWith("/threads/")
-                              ? ["anchor", "resolved"]
-                              : [];
+                            : path.includes("/comments/")
+                              ? ["body"]
+                              : path.startsWith("/threads/")
+                                ? ["anchor", "resolved"]
+                                : [];
     check(
       Object.keys(result).every((key) => allowed.includes(key)),
       400,
@@ -152,8 +167,8 @@ async function session(env: Env, project: string, userId: string) {
   const accessToken = token();
   await env.DB.batch([
     env.DB.prepare(
-      "INSERT OR IGNORE INTO project_members(project,user_id) VALUES(?,?)"
-    ).bind(project, userId),
+      "INSERT OR IGNORE INTO project_members(project,user_id) SELECT ?,? WHERE NOT EXISTS(SELECT 1 FROM project_settings WHERE project=? AND access='private') OR EXISTS(SELECT 1 FROM project_owners WHERE project=? AND user_id=?) OR EXISTS(SELECT 1 FROM project_access WHERE project=? AND user_id=?)"
+    ).bind(project, userId, project, project, userId, project, userId),
     env.DB.prepare(
       "INSERT INTO sessions(token_hash,user_id,project,expires_at) VALUES(?,?,?,?)"
     ).bind(
@@ -215,7 +230,7 @@ async function oauthAuthorize(
       provider === "google" ? env.GOOGLE_CLIENT_ID : env.GITHUB_CLIENT_ID,
     redirect_uri: `${url.origin}/auth/${provider}/callback`,
     ...(provider === "google"
-      ? { response_type: "code", scope: "openid profile" }
+      ? { response_type: "code", scope: "openid profile email" }
       : {}),
     state,
     code_challenge: challenge,
@@ -315,6 +330,8 @@ async function oauthCallback(
     id: number;
     login: string;
     name: string | null;
+    email?: string;
+    email_verified?: boolean;
   }>();
   check(
     provider === "google"
@@ -331,6 +348,14 @@ async function oauthCallback(
   )
     .bind(id, (profile.name || profile.login).slice(0, 60), safeAvatar)
     .run();
+  if (
+    provider === "google" &&
+    profile.email_verified === true &&
+    typeof profile.email === "string"
+  )
+    await env.DB.prepare("UPDATE users SET email=? WHERE id=?")
+      .bind(profile.email.toLowerCase(), id)
+      .run();
   const accessToken = await session(env, saved.project, id);
   const nonce = crypto.randomUUID();
   const message = JSON.stringify({
@@ -454,9 +479,15 @@ async function route(
   check(
     originAllowed(origin, config.origins) ||
       (origin === url.origin &&
-        !!config.bootstrapHash &&
         [
           "/auth/google/start",
+          "/project",
+          "/project/join",
+          "/project/invites",
+          "/project/members",
+          "/project/export",
+          "/project/import",
+          "/project/clear-resolved",
           "/owner/claim",
           "/config",
           "/me",
@@ -468,6 +499,7 @@ async function route(
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   check(
     project !== "_komo" ||
+      url.pathname.startsWith("/project") ||
       [
         "/setup/complete",
         "/workspace/verify",
@@ -598,6 +630,14 @@ async function route(
       ),
     });
   }
+  if (url.pathname === "/project" || url.pathname.startsWith("/project/")) {
+    const user = await authenticate(request, env, project);
+    const target =
+      project === "_komo"
+        ? string(url.searchParams.get("workspace"), 100, "workspace")
+        : project;
+    return manageProject(request, env, target, user, () => body(request));
+  }
   if (url.pathname === "/owner/claim" && request.method === "POST") {
     const user = await authenticate(request, env, project);
     check(
@@ -640,6 +680,9 @@ async function route(
         env.DB.prepare("DELETE FROM sessions WHERE expires_at<?").bind(
           Date.now()
         ),
+        env.DB.prepare("DELETE FROM project_invites WHERE expires_at<?").bind(
+          Date.now()
+        ),
         env.DB.prepare("DELETE FROM oauth_states WHERE expires_at<?").bind(
           Date.now()
         ),
@@ -650,7 +693,11 @@ async function route(
       repo: config.repo,
       github: !!(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET),
       google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
-      guests: config.allowGuests !== false && (!config.requireOwner || !!owner),
+      guests:
+        config.allowGuests !== false &&
+        (!config.requireOwner || !!owner) &&
+        !(await privateAccess(env, project)),
+      private: await privateAccess(env, project),
       guestResolve: config.allowGuestResolve !== false,
     });
   if (url.pathname === "/usage" && request.method === "GET") {
@@ -660,6 +707,8 @@ async function route(
         ? string(url.searchParams.get("workspace"), 100, "workspace")
         : project;
     if (project === "_komo") await googleOwner(env, target, user);
+    else if (await privateAccess(env, target))
+      await requireMember(env, target, user);
     const quota = await env.DB.prepare(
       "SELECT comments,max_comments FROM project_quotas WHERE project=?"
     )
@@ -713,6 +762,11 @@ async function route(
     });
   }
   if (url.pathname === "/auth/guest" && request.method === "POST") {
+    check(
+      !(await privateAccess(env, project)),
+      403,
+      "This project requires an invited Google account."
+    );
     check(config.allowGuests !== false, 403, "Guest comments are disabled.");
     await limit(env, `${project}:guest:${ip}`, 20, 3600);
     const data = await body(request);
@@ -823,6 +877,13 @@ async function route(
     }
     check(request.method === "GET", 405, "Method not allowed.");
     return json({ user });
+  }
+  if (await privateAccess(env, project)) {
+    await requireMember(
+      env,
+      project,
+      await authenticate(request, env, project)
+    );
   }
   const requestedRepo = url.searchParams.get("repo");
   const repo =
@@ -1106,6 +1167,9 @@ export default {
           Date.now()
         ),
         env.DB.prepare("DELETE FROM sessions WHERE expires_at<?").bind(
+          Date.now()
+        ),
+        env.DB.prepare("DELETE FROM project_invites WHERE expires_at<?").bind(
           Date.now()
         ),
         env.DB.prepare("DELETE FROM oauth_states WHERE expires_at<?").bind(

@@ -128,6 +128,16 @@ beforeAll(async () => {
     INSERT INTO project_quotas(project,max_comments,max_bytes,comments) VALUES('usage-project',250,10485760,249);
     INSERT INTO sessions(token_hash,user_id,project,expires_at) VALUES('${h("usage-owner-token")}','google:usage','usage-project',9999999999999);
 
+    INSERT INTO users(id,name,verified,email) VALUES('google:management','Manager',1,'owner@example.com'),('google:member','Member',1,'member@example.com'),('google:stranger','Stranger',1,'stranger@example.com');
+    INSERT INTO workspaces(id,owner_id,repo,origins,created_at) VALUES('managed','google:management','owner/site','["http://localhost:4321"]',1),('destination','google:management','owner/site','["http://localhost:4321"]',1);
+    INSERT INTO project_owners(project,user_id) VALUES('managed','google:management'),('destination','google:management');
+    INSERT INTO project_quotas(project,max_comments,max_bytes) VALUES('managed',250,10485760),('destination',250,10485760);
+    INSERT INTO sessions(token_hash,user_id,project,expires_at) VALUES
+      ('${h("managed-owner")}','google:management','managed',9999999999999),
+      ('${h("destination-owner")}','google:management','destination',9999999999999),
+      ('${h("managed-member")}','google:member','managed',9999999999999),
+      ('${h("managed-stranger")}','google:stranger','managed',9999999999999),
+      ('${h("manage-control")}','google:management','_komo',9999999999999);
     INSERT INTO project_quotas(project,max_comments,max_bytes) VALUES('owned',1,100000),('demo',100,100000);
     INSERT INTO sessions(token_hash,user_id,project,expires_at) VALUES
       ('${h("owner-token")}','google:fixture','_komo',9999999999999),
@@ -1272,4 +1282,203 @@ it("runs the agent CLI against the real Worker and persisted threads", async () 
       (comment: { id: string; body: string }) => comment.id === reply.data.id
     )?.body
   ).toBeUndefined();
+});
+
+describe("owner management and private projects", () => {
+  const call = (
+    path: string,
+    method = "GET",
+    data?: unknown,
+    token = "managed-owner",
+    project = "managed"
+  ) => request(path, method, data, token, "shared", "owner/site", project);
+  it("enforces invitations, rejects other emails and revokes existing sessions", async () => {
+    expect(
+      (await call("/project", "GET", undefined, "managed-stranger")).status
+    ).toBe(403);
+    expect(
+      (await call("/project", "PATCH", { access: "private" })).status
+    ).toBe(200);
+    expect((await call("/threads", "GET", undefined, "")).status).toBe(401);
+    expect(
+      (await call("/threads", "GET", undefined, "managed-stranger")).status
+    ).toBe(403);
+    expect(
+      (await call("/usage", "GET", undefined, "managed-stranger")).status
+    ).toBe(403);
+    expect(
+      (await call("/auth/guest", "POST", { name: "Guest" }, "")).status
+    ).toBe(403);
+    expect((await call("/threads")).status).toBe(200);
+    const invitation = await (
+      await call("/project/invites", "POST", { email: "member@example.com" })
+    ).json();
+    expect(invitation.url).toContain("#invite=");
+    expect(
+      (
+        await call(
+          "/project/join",
+          "POST",
+          { invite: invitation.invite },
+          "managed-stranger"
+        )
+      ).status
+    ).toBe(403);
+    expect(
+      (
+        await call(
+          "/project/join",
+          "POST",
+          { invite: invitation.invite },
+          "managed-member"
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (
+        await call(
+          "/project/join",
+          "POST",
+          { invite: invitation.invite },
+          "managed-member"
+        )
+      ).status
+    ).toBe(403);
+    expect(
+      (await call("/threads", "GET", undefined, "managed-member")).status
+    ).toBe(200);
+    expect(
+      (await call("/project/export", "GET", undefined, "managed-member")).status
+    ).toBe(403);
+    expect(
+      (await call("/project/members", "DELETE", { user: "google:member" }))
+        .status
+    ).toBe(200);
+    expect(
+      (await call("/threads", "GET", undefined, "managed-member")).status
+    ).toBe(401);
+    expect((await call("/project", "PATCH", { access: "public" })).status).toBe(
+      200
+    );
+    expect((await call("/threads", "GET", undefined, "")).status).toBe(200);
+  });
+  it("exports and imports scoped feedback without credentials or verified identities, and frees quota", async () => {
+    const created = await (
+      await call("/threads", "POST", {
+        page: "/",
+        anchor,
+        body: "Move this feedback",
+      })
+    ).json();
+    expect(
+      (
+        await call(`/threads/${created.id}/comments`, "POST", {
+          body: "Include my reply",
+        })
+      ).status
+    ).toBe(201);
+    await call(`/threads/${created.id}`, "PATCH", { resolved: true });
+    const snapshot = await (await call("/project/export?table=threads")).json();
+    await call(`/threads/${created.id}/comments`, "POST", {
+      body: "New feedback during export",
+    });
+    expect(
+      (
+        await call(
+          `/project/export?table=comments&revision=${snapshot.revision}`
+        )
+      ).status
+    ).toBe(409);
+    const tables: Record<string, unknown[]> = {};
+    for (const kind of ["users", "threads", "comments", "reactions"]) {
+      const response = await call(`/project/export?table=${kind}`);
+      expect(response.status).toBe(200);
+      tables[kind] = (await response.json()).rows;
+      expect(JSON.stringify(tables[kind])).not.toMatch(
+        /token_hash|owner@example.com|expires_at/
+      );
+      if (!tables[kind].length) continue;
+      const imported = await call(
+        "/project/import",
+        "POST",
+        { source: "managed", kind, records: tables[kind] },
+        "destination-owner",
+        "destination"
+      );
+      expect(imported.status).toBe(200);
+      expect((await imported.json()).imported).toBe(tables[kind].length);
+      const retry = await (
+        await call(
+          "/project/import",
+          "POST",
+          { source: "managed", kind, records: tables[kind] },
+          "destination-owner",
+          "destination"
+        )
+      ).json();
+      expect(retry.imported).toBe(0);
+    }
+    const result = await (
+      await call(
+        "/threads",
+        "GET",
+        undefined,
+        "destination-owner",
+        "destination"
+      )
+    ).json();
+    expect(result.threads).toHaveLength(1);
+    expect(
+      result.threads[0].comments.map((c: { body: string }) => c.body)
+    ).toEqual([
+      "Move this feedback",
+      "Include my reply",
+      "New feedback during export",
+    ]);
+    expect(result.threads[0].comments[0].author.verified).toBe(false);
+    expect(
+      (await call("/project/clear-resolved", "POST", { confirm: "wrong" }))
+        .status
+    ).toBe(400);
+    expect(
+      (await call("/project/clear-resolved", "POST", { confirm: "managed" }))
+        .status
+    ).toBe(200);
+    expect((await (await call("/usage")).json()).comments.used).toBe(0);
+    expect(
+      (
+        await (
+          await call(
+            "/threads",
+            "GET",
+            undefined,
+            "destination-owner",
+            "destination"
+          )
+        ).json()
+      ).threads
+    ).toHaveLength(1);
+  });
+  it("deletes only the confirmed owned workspace and restores its owner slot", async () => {
+    expect(
+      (await call("/project", "DELETE", { confirm: "destination" })).status
+    ).toBe(400);
+    expect(
+      (
+        await call(
+          "/project",
+          "DELETE",
+          { confirm: "destination" },
+          "destination-owner",
+          "destination"
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (await call("/config", "GET", undefined, "", "destination")).status
+    ).toBe(404);
+    expect((await call("/config")).status).toBe(200);
+    const usage = await (await call("/usage")).json();
+    expect(usage.projects.used).toBe(1);
+  });
 });
