@@ -80,3 +80,7 @@ Removed the independent website fade that exposed outgoing content; new views re
 Replaced the agent window with one centered abstract prompt bar. Cursor arrival/click precedes a single full-prompt paste; the bar expands and scrolls through the actual feedback. Verified all 12 fixture threads and replies remain in the field; inspected the readable first conversation after paste. No reply or working state is simulated.
 
 Local build, typecheck, all 111 tests and size checks pass (93,609 / 186,726 gzip bytes, unchanged). Final isolated build, JS syntax and whitespace checks pass. Video export remains deferred.
+
+## Dedicated drawer reveal — 2026-09-17
+
+[Preview](https://a51ec679.komo-wb5.pages.dev/launch-demo/?bpm=144). Hide the entire toolbar through a fixture shadow-host rule before its lazy UI mounts, preserving layout for camera measurement and preventing shell/handle flashes. Explicit visibility windows: beats 16–24 and 52–60. Visually verified clean title/pins at 4.5, centered native panel entrance at 17, and website/pins without toolbar at 34 (computed visibility hidden). Native drawer motion is unchanged.

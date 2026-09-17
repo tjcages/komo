@@ -38,3 +38,5 @@ pnpm exec wrangler pages deploy packages/komo-site/dist --project-name komo --br
 ```
 
 Open the returned URL at `/launch-demo/?bpm=144`. A normal site build removes this preview-only route. Historical films and their source remain available through `docs/launch/README.md`; they do not represent the current sequence.
+
+Drawer visibility is gated on the fixture shadow host before lazy toolbar mount. It appears only at beats 16–24 (centered native reveal, then docking) and 52–60 (centered copy action); it is absent from the opening, comment, sidebar and agent scenes.

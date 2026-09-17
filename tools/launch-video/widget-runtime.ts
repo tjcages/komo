@@ -100,6 +100,17 @@ const controller = initComments({
 });
 const root = () =>
   document.querySelector("[data-branch-comments]")!.shadowRoot!;
+// Gate the whole toolbar before its lazy UI mounts. A host rule survives native
+// rerenders and prevents the toolbar shell/handle flashing in unrelated scenes.
+const drawerGate = document.createElement("style");
+drawerGate.textContent = `
+  :host(:not([data-demo-drawer])) .toolbar {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+`;
+root().append(drawerGate);
 const seeds = [
   ["#headline-right", "Love this direction."],
   ["#headline-left", "Can we try lavender here?"],
@@ -304,7 +315,8 @@ function rectObject(el: HTMLElement) {
     const nav = root().querySelector<HTMLElement>(".morphing-menu");
     if (s.mode === "page" && nav?.contains(root().activeElement))
       (root().activeElement as HTMLElement)?.blur();
-    if (nav) nav.style.opacity = s.beat < 16 || (s.isolated && s.mode !== "drawer") ? "0" : "1";
+    const drawerVisible = (s.beat >= 16 && s.beat < 24) || (s.beat >= 52 && s.beat < 60);
+    (root().host as HTMLElement).toggleAttribute("data-demo-drawer", drawerVisible);
     const pins = root().querySelector<HTMLElement>(".pins");
     if (pins) pins.style.visibility = s.isolated ? "hidden" : "visible";
     if (surface.style.position === "fixed") surface.scrollTop = s.scroll;
