@@ -1,5 +1,6 @@
 import "./site.css";
 import "./theme.css";
+import "./logo";
 import { createTryCursors } from "./try-cursors";
 const check =
   document.querySelector<HTMLTemplateElement>("#check-icon")!.innerHTML;
