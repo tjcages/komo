@@ -27,7 +27,7 @@ document.querySelectorAll<HTMLElement>('.komo-logo').forEach((logo) => {
       logo.classList.remove('play', 'intro');
       playing = false;
       schedule();
-    }, intro ? 1300 : 1050);
+    }, intro ? 1400 : 1050);
   };
   const observer = new IntersectionObserver(([entry]) => {
     visible = entry.isIntersecting;

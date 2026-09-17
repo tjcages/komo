@@ -15,3 +15,32 @@
 @keyframes komo-intro{0%{opacity:0;transform:translateY(20px) rotate(-5deg) scale(.72,.6)}22%{opacity:1;transform:translateY(3px) rotate(-2deg) scale(1.1,.88)}43%{opacity:1;transform:translateY(-7px) rotate(2deg) scale(1.045,1.16)}64%{transform:translateY(1px) rotate(-.8deg) scale(1.045,.965)}83%{transform:translateY(-.5px) rotate(.3deg) scale(.995,1.02)}100%{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
 @keyframes komo-intro-weight{0%,100%{stroke-width:0}22%{stroke-width:2}43%{stroke-width:6}64%{stroke-width:2}83%{stroke-width:0}}
 @media(prefers-reduced-motion:reduce){.komo-logo.intro .letter,.komo-logo.intro .letter-face{animation:none!important}}
+
+/* The tail stays planted while the bubble compresses, hops, and settles. */
+.komo-logo .komo-symbol { transform-origin:84% 84%; }
+.komo-logo.play .komo-symbol { animation:komo-symbol-bounce 920ms cubic-bezier(.4,0,.2,1) both; }
+.komo-logo.intro .komo-symbol { animation:komo-symbol-intro 1200ms cubic-bezier(.4,0,.2,1) both; }
+.komo-logo.play[data-motion="soft"] .letter,
+.komo-logo.play[data-motion="soft"] .letter-face { animation-delay:calc(var(--i)*38ms + 70ms); }
+.komo-logo.intro .letter,
+.komo-logo.intro .letter-face { animation-delay:calc(var(--i)*65ms + 60ms); }
+@keyframes komo-symbol-bounce {
+  0%,100% { transform:translateY(17%) rotate(0) scale(1); }
+  16% { transform:translateY(20%) rotate(-9deg) scale(1.14,.83); }
+  34% { transform:translateY(4%) rotate(12deg) scale(.93,1.14); }
+  53% { transform:translateY(19%) rotate(-5deg) scale(1.08,.95); }
+  73% { transform:translateY(15%) rotate(2.5deg) scale(.98,1.03); }
+  88% { transform:translateY(17%) rotate(-.8deg) scale(1.01,.99); }
+}
+@keyframes komo-symbol-intro {
+  0% { opacity:0; transform:translateY(35%) rotate(-28deg) scale(.55,.45); }
+  20% { opacity:1; transform:translateY(22%) rotate(-12deg) scale(1.2,.8); }
+  39% { transform:translateY(-4%) rotate(17deg) scale(.94,1.2); }
+  59% { transform:translateY(21%) rotate(-7deg) scale(1.1,.92); }
+  77% { transform:translateY(14%) rotate(3deg) scale(.98,1.04); }
+  90% { transform:translateY(17%) rotate(-1deg) scale(1.01,.99); }
+  100% { opacity:1; transform:translateY(17%) rotate(0) scale(1); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .komo-logo.play .komo-symbol,.komo-logo.intro .komo-symbol { animation:none!important; }
+}

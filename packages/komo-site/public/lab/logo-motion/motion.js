@@ -32,7 +32,7 @@ function replay(intro = false) {
     stages.forEach(s => s.classList.remove('play', 'intro'));
     playing = false;
     schedule();
-  }, intro ? 1300 : 1050);
+  }, intro ? 1400 : 1050);
 }
 function updateLoop() {
   loopButton.setAttribute('aria-pressed', String(looping));
@@ -50,7 +50,7 @@ document.querySelectorAll('[data-style]').forEach(b => b.addEventListener('click
 document.querySelector('#replay').onclick = () => replay();
 document.querySelector('#intro').onclick = () => replay(true);
 loopButton.onclick = () => { looping = !looping; updateLoop(); };
-document.querySelectorAll('.wordmark').forEach(s => {
+document.querySelectorAll('.logo-lockup').forEach(s => {
   s.addEventListener('pointerenter', () => { if (!playing) replay(); });
   s.addEventListener('click', () => replay());
 });
