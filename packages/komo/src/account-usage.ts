@@ -43,7 +43,7 @@ export function accountUsage(api: CommentsApi, path = "usage") {
       if (!usagePanel.isConnected || api.user?.id !== usageUser) return;
       usagePanel.setAttribute("aria-busy", "false");
       usagePanel.replaceChildren(
-        el("h4", "", usage.hosted ? "Starter plan" : "Self-hosted")
+        el("h3", "", usage.hosted ? "Starter plan" : "Self-hosted")
       );
       const { used, limit } = usage.comments;
       const comments = el("div", "account-usage-label account-comments");

@@ -2627,7 +2627,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           "account-avatar-button"
         );
         photoButton.replaceChildren(portrait);
-        summary.append(photoButton, el("h3", "", "Your profile"), status);
+        summary.append(photoButton, el("h2", "", "Your profile"), status);
         content.append(summary);
         const nameField = el("label", "account-name-label", "Display name");
         const nameInput = el("input");
@@ -2767,7 +2767,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           );
       } else {
         content.append(
-          el("h3", "", options.onboarding ? "Set up komo" : "Leave comments")
+          el("h2", "", options.onboarding ? "Set up komo" : "Leave comments")
         );
         if (guests) {
           const label = el("label", "account-name-label", "Your name");
@@ -3553,9 +3553,9 @@ export function initComments(options: CommentsOptions): CommentsController {
       if (account && event.key === "Tab") {
         const controls = [
           ...dialogs.querySelectorAll<HTMLElement>(
-            "button:not(:disabled),input:not(:disabled),a[href]"
+            "button:not(:disabled),input:not(:disabled):not([type=hidden]),select:not(:disabled),textarea:not(:disabled),summary,a[href],[tabindex]"
           ),
-        ];
+        ].filter((control) => control.tabIndex >= 0 && control.getClientRects().length > 0 && !control.closest("[inert]"));
         const first = controls[0],
           last = controls.at(-1);
         if (event.shiftKey && shadow.activeElement === first) {
