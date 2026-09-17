@@ -69,28 +69,18 @@ $(".coding-response p").textContent = "Updated the button styles.";
 $(".abstract-headline").textContent = "";
 $(".abstract-headline.short").textContent = "";
 $("#resolved").setAttribute("aria-label", "Feedback verified and resolved");
-// Same squash / lift / settle contour as the existing logo intro, measured in beats.
-const contour = [
-  [0, 34, 0.94, 0.9, -2],
-  [0.22, 6, 1.04, 0.96, -1],
-  [0.43, -13, 1.025, 1.07, 1],
-  [0.64, 2, 1.02, 0.985, -0.4],
-  [0.83, -1, 0.997, 1.01, 0.2],
-  [1, 0, 1, 1, 0],
-];
+// Restrained whole-title rise: no elastic letters, rotation, or stroke swell.
 function titleMotion(el, p) {
-  p = clip(p);
-  let i = contour.findIndex((k) => k[0] >= p);
-  i = Math.max(1, i);
-  const a = contour[i - 1],
-    b = contour[i],
-    f = (p - a[0]) / (b[0] - a[0]);
-  const k = a.map((v, j) => mix(v, b[j], f));
-  el.style.opacity = clip(p * 6);
-  el.style.transform = reduced.matches
-    ? "none"
-    : `translateY(${k[1]}px) rotate(${k[4]}deg) scale(${k[2]},${k[3]})`;
-  el.style.webkitTextStroke = `${Math.sin(p * Math.PI) * 1.6}px currentColor`;
+  const q = reduced.matches ? 1 : ease(p);
+  el.style.opacity = q;
+  el.style.transform = `translateY(${24 * (1 - q)}px)`;
+  el.style.filter = `blur(${4 * (1 - q)}px)`;
+}
+function typeText(selector, text, p) {
+  const e = typeof selector === "string" ? $(selector) : selector,
+    n = Math.floor(text.length * clip(p));
+  e.textContent = text.slice(0, n);
+  e.classList.toggle("is-typing", n > 0 && n < text.length);
 }
 function render(value) {
   beat = Math.max(0, Math.min(TOTAL, value));
@@ -104,18 +94,8 @@ function render(value) {
   if (spec.title) {
     show("#title-hit", 1);
     $("#title-hit").dataset.tone = spec.tone || "lavender";
-    if (lastScene !== index)
-      $("#title-hit h1").replaceChildren(
-        ...spec.title.split(" ").map((w, i) => {
-          const e = document.createElement("span");
-          e.className = "word";
-          e.textContent = (i ? " " : "") + w;
-          return e;
-        }),
-      );
-    $$("#title-hit .word").forEach((e, i) =>
-      titleMotion(e, (local - i * 0.09) / 1.15),
-    );
+    $("#title-hit h1").textContent = spec.title;
+    titleMotion($("#title-hit h1"), local / 0.7);
   } else if (spec.kind === "logo") {
     show("#intro", 1);
     show("#beat-rings", 1);
@@ -150,12 +130,12 @@ function render(value) {
       move(".review-scene", x, y, scale);
     };
     const card = (reply = false) => {
-      show("#card-one", 1);
+      show("#card-one", reply ? 1 : fade(local, 0, 0.6));
       move(
         "#card-one",
         0,
         (reply ? 125 * (1 - fade(local, 1.1, 0.8)) : 125) + 24 * (1 - spring()),
-        0.96 + 0.04 * spring(),
+        reply ? 1 : 0.96 + 0.04 * spring(),
       );
       show("#reaction", reply ? fade(local, 0.4) : 0);
       show(".fixture-reply", reply ? fade(local, 1.1) : 0);
@@ -165,6 +145,16 @@ function render(value) {
       move("#reaction", 0, 0, 0.94 + 0.06 * spring(0.4, 0.5));
       move(".fixture-reply", 0, 18 * (1 - fade(local, 1.1)), 1);
     };
+    typeText(
+      "#card-one .agent-message p",
+      "Make the button lavender.",
+      spec.kind === "comment" ? (local - 0.45) / 2.1 : 1,
+    );
+    typeText(
+      ".fixture-reply p",
+      "On it. Sending to my agent.",
+      spec.kind === "reply" ? (local - 1.35) / 1.7 : 1,
+    );
     if (spec.kind === "comment") {
       desktop();
       $(".review-scene").style.opacity = ".24";
@@ -178,48 +168,24 @@ function render(value) {
       spec.kind === "snap-left" ||
       spec.kind === "snap-right"
     ) {
-      show("#drawer", 1);
+      show("#drawer", fade(local, 0, 0.5));
       const expand = spec.kind === "expand";
-      const p = expand ? fade(local, 0.5, 1.25) : 0;
-      const wide = expand ? fade(local, 0.5, 0.55) : 0;
-      const shell = $(".morphing-menu__shell"),
-        bar = $(".morphing-menu__bar"),
-        panel = $(".morphing-menu__panel");
-      shell.style.width = `${mix(184, 268, wide)}px`;
-      shell.style.height = `${mix(52, 192, p)}px`;
-      shell.style.borderRadius = `${mix(26, 22, p)}px`;
-      bar.style.opacity = 1 - fade(local, 0.5, 0.35) * (expand ? 1 : 0);
-      panel.style.opacity = expand ? 1 : 0;
-      $$(".morphing-menu__panel .morphing-menu__row").forEach((e, i) => {
-        const q = expand ? fade(local, 0.9 + i * 0.15, 0.6) : 0;
-        e.style.opacity = q;
-        e.style.transform = `translateY(${24 * (1 - q)}px)`;
-        e.style.filter = `blur(${3 * (1 - q)}px)`;
-      });
-      const direction = spec.kind === "snap-left" ? -1 : 1;
-      const q = expand ? 0 : spring(0.55, 1.05);
-      const x = expand ? 0 : direction * 450 * q;
-      const y = expand ? mix(5, 225, p) : 218 * fade(local, 1.05, 0.65);
-      move("#drawer", x, y, 3.3, 0);
-      const vertical = !expand ? fade(local, 1.05, 0.65) : 0;
-      shell.style.width = expand
-        ? shell.style.width
-        : `${mix(184, 52, vertical)}px`;
-      shell.style.height = expand
-        ? shell.style.height
-        : `${mix(52, 184, vertical)}px`;
-      bar.style.width = expand ? "184px" : `${mix(184, 52, vertical)}px`;
-      bar.style.height = expand ? "52px" : `${mix(52, 184, vertical)}px`;
-      bar.style.flexDirection = vertical > 0.5 ? "column" : "row";
-      $$(".morphing-menu__shortcut").forEach((e) => {
-        e.style.width = "44px";
-        e.style.height = "44px";
-      });
-      $("#drawer").classList.toggle("edge-left", spec.kind === "snap-left");
-      $("#drawer").classList.toggle("edge-right", spec.kind === "snap-right");
+      const edge =
+        expand || local < 0.45
+          ? "bottom"
+          : spec.kind === "snap-left"
+            ? "left"
+            : "right";
+      window.launchDrawer.update(
+        edge,
+        expand && local >= 0.6 && local < 3.2,
+        true,
+      );
+    } else {
+      window.launchDrawer.update("bottom", false, false);
     }
     if (spec.kind === "sidebar" || spec.kind === "copy") {
-      show("#sidebar", 1);
+      show("#sidebar", spec.kind === "copy" ? 1 : fade(local, 0, 0.7));
       const q = spec.kind === "copy" ? 1 : spring(0, 1.1);
       move("#sidebar", 70 * (1 - q), 0, 0.97 + 0.03 * q);
       $$("#sidebar .fixture-card").forEach((e, i) => {
@@ -227,6 +193,13 @@ function render(value) {
         e.style.opacity = p;
         e.style.transform = `translateY(${26 * (1 - p)}px)`;
       });
+      $$("#sidebar .fixture-card p").forEach((e, i) =>
+        typeText(
+          e,
+          ["Make the button lavender.", "Loosen the headline spacing."][i],
+          spec.kind === "copy" ? 1 : (local - 0.5 - i * 0.45) / 1.6,
+        ),
+      );
       const copied = spec.kind === "copy" && local >= 1;
       $(".side-copy").classList.toggle("is-copied", copied);
       $(".side-copy svg").style.opacity = copied ? 0 : 1;
@@ -244,6 +217,16 @@ function render(value) {
       move(".coding-window", 0, 0, 1.45);
       $(".coding-window").style.filter = "none";
       show(".coding-user", fade(local, 0));
+      typeText(
+        ".coding-user p",
+        "Make the button lavender.",
+        (local - 0.25) / 1.1,
+      );
+      typeText(
+        ".coding-response p",
+        "Updated the button styles.",
+        (local - 1.7) / 1.1,
+      );
       show(".coding-response", fade(local, 1.5));
       show(".coding-result", fade(local, 2.8));
       move(".coding-user", 0, 20 * (1 - spring()));
@@ -251,8 +234,8 @@ function render(value) {
       $(".coding-response p").style.clipPath = "none";
     }
     if (spec.kind === "improve") {
-      desktop(-180, -105, 1.65);
-      $(".review-scene").style.opacity = "1";
+      desktop(-180 - 30 * (1 - fade(local, 0, 0.8)), -105, 1.65);
+      $(".review-scene").style.opacity = fade(local, 0, 0.5);
       const p = fade(local, 1, 0.8);
       $(".hero-studio-heading").style.gap = `${mix(13, 40, p)}px`;
       $(".hero-studio-button").style.background =
@@ -273,7 +256,7 @@ function render(value) {
     }
   }
   lastScene = index;
-  for (const a of document.getAnimations()) {
+  for (const a of $("#intro").getAnimations({ subtree: true })) {
     a.pause();
     a.currentTime = Math.max(0, local) * 700;
   }

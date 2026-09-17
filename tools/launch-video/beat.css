@@ -773,15 +773,7 @@ body.beat-studio {
   --mm-panel-width: 268px;
   --mm-count: 4;
 }
-#drawer .morphing-menu__shell {
-  bottom: 0;
-}
-#drawer .morphing-menu__row {
-  min-height: 44px;
-}
-#drawer .morphing-menu__panel {
-  height: 192px;
-}
+
 #sidebar {
   left: 535px;
   top: 115px;
@@ -950,4 +942,29 @@ body.beat-studio {
 }
 #film[data-focus="snap-right"] #story::before {
   right: 405px;
+}
+
+#drawer {
+  transform: scale(3.3);
+  pointer-events: none;
+}
+#drawer .morphing-menu {
+  --mm-bar-width: 184px;
+  --mm-panel-width: 268px;
+}
+#film .fixture-card p {
+  min-height: 1.3em;
+}
+.is-typing::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  margin-left: 3px;
+  background: currentColor;
+  vertical-align: -0.08em;
+  opacity: 0.65;
+}
+#film #title-hit h1 {
+  will-change: transform, opacity, filter;
 }

@@ -79,6 +79,19 @@ const menu = html(
     ],
   }),
 );
+await build({
+  entryPoints: [new URL("./drawer-runtime.tsx", import.meta.url).pathname],
+  outfile: new URL("./drawer-runtime.js", out).pathname,
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  minify: true,
+  jsx: "automatic",
+  nodePaths: [
+    new URL("../../packages/komo/node_modules", import.meta.url).pathname,
+  ],
+  define: { "process.env.NODE_ENV": '"production"' },
+});
 const menuStyles = await readFile(
   new URL("../../packages/komo/src/morphing-menu-styles.ts", import.meta.url),
   "utf8",
@@ -89,7 +102,15 @@ const cssLiteral = Function(
     "const morphingMenuStyles =",
   ) + ";return morphingMenuStyles;",
 )();
-await writeFile(new URL("./menu.css", out), cssLiteral);
+const productStyles = await readFile(
+  new URL("../../packages/komo/src/styles.ts", import.meta.url),
+  "utf8",
+);
+const edgeStyles = productStyles.slice(
+  productStyles.indexOf('.morphing-menu[data-vertical="true"]'),
+  productStyles.indexOf('.emoji-choice[aria-checked="true"]'),
+);
+await writeFile(new URL("./menu.css", out), cssLiteral + edgeStyles);
 await cp(
   new URL("../../packages/komo-site/src/site.css", import.meta.url),
   new URL("./site.css", out),
@@ -112,10 +133,7 @@ const logo = (id) =>
   `<span class="komo-logo intro" data-motion="soft"><img class="komo-symbol" src="favicon.svg">${svg.replaceAll("komo-mask", `komo-mask-${id}`)}</span>`;
 const card = (who, initial, body, extra = "") =>
   `<article class="agent-card fixture-card"><div class="agent-message"><span class="agent-avatar">${initial}</span><div><div class="agent-meta"><strong>${who}</strong><span>now</span></div><p>${body}</p></div></div>${extra}</article>`;
-const comments = [
-  "Make the button lavender.",
-  "Loosen the headline spacing.",
-];
+const comments = ["Make the button lavender.", "Loosen the headline spacing."];
 const reply = `<div class="fixture-reply"><span class="agent-avatar reply-avatar">E</span><div><strong>Engineer</strong><p>On it. Sending to my agent.</p></div></div>`;
 const main = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>komo launch film · fixture demonstration</title><link rel="stylesheet" href="site.css"><link rel="stylesheet" href="logo.css"><link rel="stylesheet" href="menu.css"><link rel="stylesheet" href="film.css"></head><body class="home"><main id="film"><header><a class="brand">${logo("small")}</a><span>Comments, where they belong.</span><span class="beta">public beta</span></header><section id="intro"><div class="intro-logo brand">${logo("intro")}</div><h1>Less “which button?”<br><span>More “that one.”</span></h1><p>Website feedback, right where it belongs.</p></section><section id="story"><div class="chapter"><span id="chapter-number">01 / POINT</span><h1 id="headline">Point. Comment. Keep the context.</h1></div><div id="review">${decorate(scene)}<div id="drawer">${menu}</div><div id="card-one">${card("Designer", "D", comments[0], `<div id="reaction"><span aria-label="thumbs up">👍</span><span>1</span></div>${reply}`)}</div><div id="card-two">${card("Reviewer", "R", comments[1])}</div><aside id="sidebar"><div class="side-top"><strong>All comments</strong><span id="open-count">2 open</span></div><div class="side-page">Studio /</div>${card("Designer", "D", comments[0])}${card("Reviewer", "R", comments[1])}<div class="side-copy">${icons.copy}<span>Copy all comments for agent</span></div></aside><div id="resolved">${icons.check} Both changes verified. Resolved.</div></div><div id="workflow">${decorate(promptExample)}</div><div id="cursor">${icons.multiplayer}<span>Designer</span></div></section><section id="outro"><div class="outro-logo brand">${logo("outro")}</div><h1>A little feedback.<br><span>A better website.</span></h1><div class="install"><code>npm install @tjcages/komo</code>${icons.copy}</div><pre><span>import</span> { useKomo } <span>from</span> '@tjcages/komo/react';\n<span>// Inside your React component</span>\nuseKomo({ project: 'YOUR_PROJECT_KEY' });</pre><p class="key-note">Get your project key with komo init.</p><a class="cta">komo.offbr.co <span>↗</span></a></section><footer><span id="caption"></span><span id="disclosure">Choreographed demo · fixture feedback</span></footer><div id="progress"></div></main><script src="timeline.js"></script></body></html>`;
 const beatPage = main
@@ -138,7 +156,7 @@ const beatPage = main
     <span id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i></span><output id="beat-readout" aria-label="Current beat">01 / 64</output>
     <button id="fullscreen" aria-label="Fullscreen animation">⛶</button>
     <input id="scrub" type="range" min="0" max="64" step="0.01" value="0" aria-label="Scrub beats">
-  </div><script src="beat.js"></script>`,
+  </div><script src="drawer-runtime.js"></script><script src="beat.js"></script>`,
   );
 await writeFile(new URL("./index.html", out), beatPage);
 for (const f of ["film.css", "timeline.js", "beat.css", "beat.js"])

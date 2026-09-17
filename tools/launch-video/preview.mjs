@@ -9,6 +9,7 @@ for (const f of [
   "film.css",
   "beat.css",
   "beat.js",
+  "drawer-runtime.js",
   "site.css",
   "logo.css",
   "menu.css",
