@@ -522,7 +522,7 @@ small {
   display: grid;
   gap: 14px;
 }
-.account h3 {
+.account h2 {
   font-size: 17px;
 }
 .sr-only {
@@ -1007,7 +1007,7 @@ ${morphingMenuStyles}
 .dialog:has(.resolved-note) .messages {
   padding-top: 6px;
 }
-.account h3 {
+.account h2 {
   font-size: 16px;
 }
 .account {
@@ -1602,7 +1602,7 @@ ${morphingMenuStyles}
   padding: 36px 24px 24px;
   gap: 20px;
 }
-.account h3 {
+.account h2 {
   font-size: 20px;
   letter-spacing: -0.025em;
   font-weight: 500;
@@ -2368,7 +2368,7 @@ textarea {
 .approved-sites { display: grid; gap: 8px; font-size: 12px; overflow-wrap: anywhere; color: #ddd; }
 .approved-sites:empty { display: none; }
 .account-usage { min-height: 144px; box-sizing: border-box; align-content: start; display: grid; gap: 14px; padding: 16px; border-radius: 14px; background: #ffffff05; box-shadow: inset 0 0 0 1px #ffffff09; }
-.account-usage h4 { line-height: 18px; margin: 0; font-size: 12px; font-weight: 500; color: #aaa; }
+.account-usage h3 { line-height: 18px; margin: 0; font-size: 12px; font-weight: 500; color: #aaa; }
 .usage-skeleton { display: block; height: 10px; border-radius: 4px; background: #ffffff0b; }
 .usage-skeleton-heading { height: 18px; display: flex; align-items: center; }
 .usage-skeleton-title { width: 70px; }
@@ -2425,7 +2425,7 @@ textarea {
  :host(.review-open) .panel::before { content:""; position:absolute; top:9px; left:calc(50% - 16px); width:32px; height:4px; border-radius:4px; background:#ffffff24; }
  :host(.review-open) .panel .list { overscroll-behavior:contain; padding-bottom:calc(100px + env(safe-area-inset-bottom,0px)); }
  :host(.review-open) .toolbar { bottom:calc(16px + env(safe-area-inset-bottom,0px)); }
- :host(.review-open) .account-layer { top:var(--review-sheet-top,42%); bottom:0; width:100%; padding:calc(24px + env(safe-area-inset-top,0px)) 12px calc(24px + env(safe-area-inset-bottom,0px)); border-radius:24px 24px 0 0; overflow:hidden; }
+ :host(.review-open) .account-layer { position:absolute; top:var(--review-sheet-top,42%); bottom:0; width:100%; padding:calc(24px + env(safe-area-inset-top,0px)) 12px calc(24px + env(safe-area-inset-bottom,0px)); border-radius:24px 24px 0 0; overflow:hidden; }
  .account-layer .account-dialog { max-height:100%; min-height:0; overscroll-behavior:contain; }
  .account-layer .account { padding:28px 20px 20px; }
  .panel-head .icon { min-width:40px; min-height:40px; }

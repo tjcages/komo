@@ -42,7 +42,7 @@ These are local synthetic measurements, not guarantees across devices. Backgroun
 
 iPhone 17 Pro Simulator, iOS 26.5 Safari: the deployed preview loads; the account opens centered; the new-comment composer sits above the software keyboard without focus zoom. A typed draft remains visible after scrolling, and dismissing it restores the page. No test comment was posted to the public demo.
 
-Remaining simulator issue: Safari’s keyboard accessory/address controls overlap the account Continue row while the name field is focused. Dismissing the keyboard restores access. Owner cleanup and Google sign-in have not been exercised in the simulator.
+The 0.3.2 patch fixes the account keyboard overlap by anchoring the mobile overlay to the widget’s visual-viewport-sized host. In a dedicated iPhone 17 Pro simulator, Continue remains above the software keyboard and completes guest registration. Guest comment creation, reply submission, and resolution also pass against disposable local data. Google sign-in and owner cleanup have not been exercised in the simulator.
 
 Physical iPhone Safari, Android Chrome, and assistive-technology testing remain outstanding. Simulator checks validate iOS browser behavior, not physical-device performance.
 
@@ -51,3 +51,16 @@ Physical iPhone Safari, Android Chrome, and assistive-technology testing remain 
 Apply migration `0011_project_management.sql` before deploying the API. Existing projects retain link access. Existing Google users must sign in again to provide a verified email before accepting an invitation.
 
 Self-hosted customers update the package and run `komo deploy`; it copies and applies new packaged migrations before deployment. Roll back Worker code if necessary; the additive tables can remain. Do not reverse schema or restore a database over new customer writes without a separate recovery plan.
+
+## 0.3.2 beta audit
+
+- Includes the compact-avatar containment and unblurred half-peek fixes merged after 0.3.1.
+- Account keyboard navigation excludes hidden/inert controls and includes disclosures and selects; forward and reverse wrapping checked in-browser.
+- Account and usage headings follow h2/h3 hierarchy. Automated axe scans cover guest account, owner settings, and cleanup confirmation; these do not replace screen-reader usability testing.
+- All 10 built marketing pages have valid internal page and fragment links.
+- Production dependency audit reports zero known advisories. This is not a comprehensive security certification.
+- Build, type checks, 91 tests, and size budgets pass. A clean 0.3.2 tarball install exposes initKomo/initComments and CLI schema.
+- Physical devices are excluded at the user's request. Testing uses the dedicated komo Beta QA iOS 26.5 simulator and desktop Chromium.
+- Automated axe scans report no violations for the corrected homepage, install, configuration, hosting, agent prompts, FAQ, guest account, owner account, and cleanup confirmation states.
+- Marketing captions and muted inline code now meet the audited contrast thresholds without changing layout.
+- First-comment onboarding preserves the draft, asks for the guest name after Send, and creates the original comment after Continue; verified in the local browser fixture.
