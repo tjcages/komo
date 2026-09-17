@@ -14,3 +14,7 @@ The copy scene is a macro punch-in. Other scene changes switch subjects. The bra
 ## Revised interaction cut
 
 Keep the 14-second timeline. Reactions replace each message’s native smiley button. The card fades out before a separate review workspace enters: page scale 0.9, 380px sidebar, 24px gap, native 250ms easing. A continuous camera moves from wide workspace to centered sidebar, followed by incoming fixture feedback and search. The drawer changes orientation, collapses to its pointer, expands horizontally, opens with its existing spring, then provides the agent prompt. The generic light composer pastes the complete real formatter output and sends it as a user message. Finish with the website’s symbol and letter intro keyframes. All exterior backgrounds match; final and first frames are blank and identical.
+
+## Pacing revision
+
+The owner approved up to 20 seconds: this cut is 19.5 seconds. Preserve the established story while separating motions that previously competed. Show the slower sidebar entrance before moving the camera, space incoming rows 300ms apart, use the real search icon-to-field morph, and let the drawer settle before its zoom. Hold Copy for at least half a second before and after the click. Scale the agent composer in; use the native send SVG; fade the composer away and hold the sent message. Preserve the approved logo motion.

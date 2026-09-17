@@ -22,7 +22,10 @@ export function RemotionRoot() {
       <Composition
         id="komo-promo"
         component={Film}
-        durationInFrames={420}
+        durationInFrames={edit.cuts.reduce(
+          (sum, cut) => sum + cut.out - cut.in,
+          0,
+        )}
         width={1920}
         height={1080}
         fps={30}

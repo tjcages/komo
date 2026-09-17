@@ -185,7 +185,7 @@ function Context() {
   );
 }
 function Conversation() {
-  const f = useCurrentFrame();
+  const f = (useCurrentFrame() * 66) / 78;
   const entry = spring({
     frame: f,
     fps: FPS,
@@ -245,16 +245,21 @@ function Conversation() {
   );
 }
 function SidebarStage({ f }: { f: number }) {
-  const open = interpolate(f, [2, 10], [0, 1], {
+  const open = interpolate(f, [4, 18], [0, 1], {
     ...clamp,
     easing: Easing.bezier(0.32, 0.72, 0, 1),
   });
-  const zoom = move(f, [15, 31], [1, 2.05], "arrive");
-  const x = move(f, [15, 31], [0, -2245], "arrive"),
-    y = move(f, [15, 31], [0, 0], "arrive");
-  const count = Math.min(8, Math.max(0, Math.floor((f - 27) / 4) + 1));
-  const search = f >= 66,
-    query = "contrast".slice(0, Math.max(0, Math.floor((f - 67) / 1.5)));
+  const zoom = move(f, [26, 49], [1, 2.05], "arrive");
+  const x = move(f, [26, 49], [0, -2245], "arrive"),
+    y = move(f, [26, 49], [0, 0], "arrive");
+  const count = Math.min(8, Math.max(0, Math.floor((f - 49) / 9) + 1));
+  const search = f >= 120,
+    query = "contrast".slice(0, Math.max(0, Math.floor((f - 126) / 2)));
+  const nativeEase = Easing.bezier(0.22, 1, 0.36, 1);
+  const searchMotion = interpolate(f, [120, 128.4], [0, 1], {
+    ...clamp,
+    easing: nativeEase,
+  });
   return (
     <Canvas>
       <div
@@ -314,11 +319,31 @@ function SidebarStage({ f }: { f: number }) {
               }
               .native .sidebar-search {
                 display: grid !important;
-                grid-template-rows: ${ramp(f, [66, 72])}fr!important;
-                opacity: ${ramp(f, [66, 72])}!important;
+                grid-template-rows: ${interpolate(f, [120, 127.5], [0, 1], {
+                  ...clamp,
+                  easing: nativeEase,
+                })}fr!important;
+                opacity: ${interpolate(f, [120, 127.5], [0, 1], {
+                  ...clamp,
+                  easing: nativeEase,
+                })}!important;
               }
               .native .sidebar-search-inner {
-                overflow: hidden !important;
+                overflow: visible !important;
+              }
+              .native .sidebar-search-field {
+                transform: translate(
+                  ${286 * (1 - searchMotion)}px,
+                  ${-50 * (1 - searchMotion)}px
+                ) !important;
+                width: ${24 + 308 * searchMotion}px!important;
+                height: ${24 + 14 * searchMotion}px!important;
+                border-radius: ${12 - 2 * searchMotion}px!important;
+                opacity: ${search ? 0.4 + 0.6 * searchMotion : 0}!important;
+              }
+              .native .sidebar-search-field input,
+              .native .search-cancel {
+                opacity: ${ramp(f, [124, 130])}!important;
               }
             `}
           >
@@ -339,15 +364,23 @@ function SidebarStage({ f }: { f: number }) {
                       ...native.rows.slice(8),
                     ]
                 ).map((r, i) => {
-                  const age = f - (27 + (count - i - 1) * 4);
+                  const age = f - (49 + (count - i - 1) * 9);
                   const q =
                     query.length > 3 || i >= count
                       ? 1
-                      : ramp(age, [0, 7], "arrive");
+                      : interpolate(age, [0, 7.5], [0, 1], {
+                          ...clamp,
+                          easing: nativeEase,
+                        });
                   return (
                     <div
                       key={r}
-                      style={{ height: 96 * q, opacity: q, overflow: "hidden" }}
+                      style={{
+                        height: 96,
+                        opacity: q,
+                        transform: `translateY(${count === 0 ? 0 : i === 0 ? 8 * (1 - q) : -40 * (1 - interpolate(f - (49 + (count - 1) * 9), [0, 7.5], [0, 1], { ...clamp, easing: nativeEase }))}px)`,
+                        overflow: "hidden",
+                      }}
                       dangerouslySetInnerHTML={html(r)}
                     />
                   );
@@ -357,7 +390,7 @@ function SidebarStage({ f }: { f: number }) {
           </Native>
         </div>
       </div>
-      {f >= 44 && <Pointer frame={f} start={44} click={65} at={[1206, 242]} />}
+      {f >= 98 && <Pointer frame={f} start={98} click={119} at={[1206, 242]} />}
     </Canvas>
   );
 }
@@ -365,7 +398,7 @@ function Sidebar() {
   return <SidebarStage f={useCurrentFrame()} />;
 }
 function Feed() {
-  return <SidebarStage f={useCurrentFrame() + 24} />;
+  return <SidebarStage f={useCurrentFrame() + 42} />;
 }
 function DrawerBody({
   f,
@@ -454,7 +487,10 @@ function Drawer() {
   return (
     <Canvas>
       <Center
-        scale={move(f, [64, 74], [2.2, 3.3], "arrive")}
+        scale={interpolate(f, [72, 88], [2.2, 3.3], {
+          ...clamp,
+          easing: Easing.bezier(0.22, 1, 0.36, 1),
+        })}
         opacity={ramp(f, [0, 6])}
       >
         <DrawerBody f={f} />
@@ -468,30 +504,36 @@ function Copy() {
   return (
     <Canvas>
       <Center scale={3.3}>
-        <DrawerBody f={90} opened copied={f >= 11} />
+        <DrawerBody f={90} opened copied={f >= 28} />
       </Center>
       <style>{`.native{--copy-hover:${f >= 4 ? "#ffffff12" : "transparent"}}`}</style>
-      <Pointer frame={f} start={-10} click={11} at={[1010, 685]} />
+      <Pointer frame={f} start={-8} click={28} at={[1010, 685]} />
     </Canvas>
   );
 }
 function Agent() {
   const f = useCurrentFrame(),
-    paste = f >= 16,
-    sent = f >= 43;
-  const send = ramp(f, [25, 40], "arrive");
+    paste = f >= 22,
+    sent = f >= 53;
+  const send = ramp(f, [33, 50], "arrive");
   const px = 700 + 911 * send,
     py = 450 + 264 * send;
   return (
     <Canvas>
-      <Center opacity={ramp(f, [0, 6]) * (1 - ramp(f, [55, 60]))}>
+      <Center
+        scale={interpolate(f, [0, 13], [0.9, 1], {
+          ...clamp,
+          easing: Easing.bezier(0.22, 1, 0.36, 1),
+        })}
+        opacity={ramp(f, [0, 8]) * (1 - ramp(f, [83, 90]))}
+      >
         <div style={{ width: 1420, height: 460, position: "relative" }}>
           {sent && (
             <div
               style={{
                 position: "absolute",
-                right: 20,
-                top: 0,
+                right: move(f, [53, 67], [20, 160], "arrive"),
+                top: move(f, [53, 67], [0, 70], "arrive"),
                 width: 1000,
                 height: 260,
                 background: "#e8e6eb",
@@ -499,7 +541,8 @@ function Agent() {
                 padding: 32,
                 boxSizing: "border-box",
                 overflow: "hidden",
-                opacity: ramp(f, [43, 47]),
+                opacity: ramp(f, [53, 61]),
+                transform: `scale(${move(f, [53, 66], [0.96, 1.08], "arrive")})`,
                 fontSize: 24,
                 lineHeight: 1.5,
                 whiteSpace: "pre-wrap",
@@ -514,7 +557,8 @@ function Agent() {
               position: "absolute",
               bottom: 0,
               width: 1420,
-              height: move(f, [43, 48], [460, 130], "arrive"),
+              height: 460,
+              opacity: 1 - ramp(f, [53, 61]),
               background: "#fff",
               border: "1px solid #dcd9e0",
               borderRadius: 38,
@@ -525,16 +569,16 @@ function Agent() {
           >
             <div
               style={{
-                height: sent ? 35 : 308,
+                height: 308,
                 overflow: "hidden",
                 fontSize: 26,
                 lineHeight: 1.48,
                 whiteSpace: "pre-wrap",
                 maskImage: "linear-gradient(black 80%, transparent)",
-                color: paste && !sent ? INK : "#99949e",
+                color: paste ? INK : "#99949e",
               }}
             >
-              {paste && !sent ? extra.prompt : "Ask your agent…"}
+              {paste ? extra.prompt : "Ask your agent…"}
             </div>
             <span
               style={{
@@ -559,21 +603,32 @@ function Agent() {
                 fontSize: 43,
                 lineHeight: "58px",
                 textAlign: "center",
-                transform: `scale(${f === 43 ? 0.85 : 1})`,
+                transform: `scale(${1 - 0.12 * ramp(f, [52, 54]) * (1 - ramp(f, [54, 58]))})`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              ↑
+              <span
+                style={{ display: "flex", width: 34, height: 34 }}
+                dangerouslySetInnerHTML={html(
+                  native.composer
+                    .match(/<svg[\s\S]*?<\/svg>/)![0]
+                    .replaceAll('width="24"', 'width="34"')
+                    .replaceAll('height="24"', 'height="34"'),
+                )}
+              />
             </div>
           </div>
         </div>
       </Center>
-      <div style={{ opacity: ramp(f, [1, 6]) * (1 - ramp(f, [47, 51])) }}>
+      <div style={{ opacity: ramp(f, [1, 6]) * (1 - ramp(f, [55, 61])) }}>
         <Cursor
           kind="soft"
           size={76}
           x={px + 19}
           y={py + 21}
-          press={f === 14 || f === 43 ? 1 : 0}
+          press={f === 20 || f === 53 ? 1 : 0}
         />
       </div>
     </Canvas>
@@ -581,7 +636,7 @@ function Agent() {
 }
 function Logo() {
   const f = useCurrentFrame(),
-    fade = 1 - ramp(f, [41, 47]);
+    fade = 1 - ramp(f, [46, 53]);
   const k = (t: number, values: number[], points = [0, 22, 43, 64, 83, 100]) =>
     interpolate(
       t,
@@ -639,22 +694,22 @@ export const PARTS = [
   "logo",
 ];
 const defs = [
-  ["context", Context, 66, "context", "PUSH", "pins", "entrance"],
+  ["context", Context, 72, "context", "PUSH", "pins", "entrance"],
   [
     "conversation",
     Conversation,
-    66,
+    78,
     "tension",
     "CLOSE",
     "conversation",
     "reveal",
   ],
-  ["sidebar", Sidebar, 24, "action", "PUSH", "sidebar", "reveal"],
-  ["feed", Feed, 60, "action", "CLOSE", "sidebar", "reveal"],
-  ["drawer", Drawer, 75, "action", "CLOSE", "drawer", "interaction"],
-  ["copy", Copy, 21, "action", "MACRO", "copy", "interaction"],
-  ["agent", Agent, 60, "consequence", "CLOSE", "agent", "interaction"],
-  ["logo", Logo, 48, "consequence", "PUSH", "logo", "entrance"],
+  ["sidebar", Sidebar, 42, "action", "PUSH", "sidebar", "reveal"],
+  ["feed", Feed, 114, "action", "CLOSE", "sidebar", "reveal"],
+  ["drawer", Drawer, 90, "action", "CLOSE", "drawer", "interaction"],
+  ["copy", Copy, 45, "action", "MACRO", "copy", "interaction"],
+  ["agent", Agent, 90, "consequence", "CLOSE", "agent", "interaction"],
+  ["logo", Logo, 54, "consequence", "PUSH", "logo", "entrance"],
 ] as const;
 export const SCENES: Scene[] = defs.map(
   ([id, component, length, beat, tier, subject, activity]) => ({
