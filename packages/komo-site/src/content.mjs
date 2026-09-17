@@ -41,7 +41,7 @@ export const pages = [
     body: `<h1>Install komo.</h1><p class="lede">Requires Node.js 22 or newer. Works with React, Astro, Vue, and plain JavaScript.</p>
  ${section("01 · Install the package", code("npm install @tjcages/komo"))}
  ${section("02 · Create your project", `${code("npx @tjcages/komo init")}<p>Open the setup link, sign in with Google, and create a project. Copy your public project key from the terminal.</p>`)}
- ${section("03 · Mount on the client", `${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY' });")}<p>Call this once after your page mounts. Pass any configuration directly into <code>initKomo</code>.</p><details><summary>React</summary>${code("import { useEffect } from 'react';\nimport { initKomo } from '@tjcages/komo';\n\nuseEffect(() => {\n  const review = initKomo({ project: 'YOUR_PROJECT_KEY' });\n  return () => review.destroy();\n}, []);")}</details><details><summary>Astro</summary>${code("<script>\n  import { initKomo } from '@tjcages/komo';\n  initKomo({ project: 'YOUR_PROJECT_KEY' });\n</script>")}<p>With Astro’s client router, remount after page navigation.</p></details>`)}
+ ${section("03 · Mount on the client", `${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY' });")}<p>Call this once after your page mounts. Pass any configuration directly into <code>initKomo</code>.</p><details><summary>React</summary>${code("'use client';\nimport { useKomo } from '@tjcages/komo/react';\n\nexport function Komo() {\n  useKomo({ project: 'YOUR_PROJECT_KEY' });\n  return null;\n}")}<p>Render <code>&lt;Komo /&gt;</code> once in your app or layout. The hook handles cleanup and Strict Mode. Inline options work; memoize callback options with <code>useCallback</code>. Set <code>enabled: false</code> to remove the tool.</p></details><details><summary>Astro</summary>${code("<script>\n  import { initKomo } from '@tjcages/komo';\n  initKomo({ project: 'YOUR_PROJECT_KEY' });\n</script>")}<p>With Astro’s client router, remount after page navigation.</p></details>`)}
  ${section("04 · Approve your preview", `<p>Localhost is ready by default. Open your setup link, expand <strong>Approved sites</strong>, and add your deployed site address. No DNS record is needed.</p><p>Share that preview with a teammate. They can read feedback, leave a name to reply, or sign in with Google.</p><a class="text-link" href="/configuration/">Configuration options <span data-icon="arrow"></span></a>`)}
  ${section("Keep it on preview builds", `${code("initKomo({\n  project: 'YOUR_PROJECT_KEY',\n  enabled: import.meta.env.DEV ||\n    import.meta.env.PUBLIC_PREVIEW === 'true',\n});")}<p>Use your framework’s public environment flag. Hosted komo uses its own API by default. For self-hosting, pass the API URL as <code>endpoint</code>.</p>`)} `,
   },
@@ -51,41 +51,41 @@ export const pages = [
     title: "Configuration.",
     description:
       "Configure project and branch scope, preview environments, source links, and reviewer sessions.",
-    body: `<h1>Configuration.</h1><p class="lede">Pass your project key and any options when you initialize komo.</p>${code("import { initKomo } from '@tjcages/komo';\n\ninitKomo({\n  project: 'YOUR_PROJECT_KEY',\n  pageRoot: document.querySelector('#app'),\n  scope: 'branch',\n  branch: 'preview/navigation',\n});")}
+    body: `<h1>Configuration.</h1><p class="lede">Pass your project key and any options when you initialize komo.</p><p><code>YOUR_PROJECT_KEY</code> is a placeholder for a string. For hosted komo, copy the key returned by <code>komo init</code>. For self-hosting, use the project identifier configured on your server. Reuse the same key wherever you want to share feedback.</p>${code("import { initKomo } from '@tjcages/komo';\n\ninitKomo({\n  project: 'YOUR_PROJECT_KEY',\n  pageRoot: document.querySelector('#app'),\n  scope: 'branch',\n  branch: 'preview/navigation',\n});")}
  ${section(
    "Client options",
-   `<div class="table-scroll"><table><thead><tr><th>Option</th><th>Default / behavior</th></tr></thead><tbody>${[
-     ["endpoint", "Hosted komo API by default. Override for self-hosting."],
-     ["project", "Generated public project key. Not a credential."],
+   `<div class="table-scroll"><table><thead><tr><th>Option</th><th>Type</th><th>Default / behavior</th></tr></thead><tbody>${[
+     ["endpoint", "string", "Hosted komo API by default. Override for self-hosting."],
+     ["project", "string", "Required. Use the string returned by setup. Public, not a credential."],
      [
-       "repo",
+       "repo", "string",
        "Defaults to the project key. Pass owner/repo to enrich agent prompts.",
      ],
      [
-       "scope",
+       "scope", "\"project\" | \"branch\"",
        "project: feedback shared across deployments. Use branch to isolate it.",
      ],
      [
-       "branch",
+       "branch", "string",
        "Detected at build time by komo sync when branch scope is enabled.",
      ],
-     ["enabled", "true. Set false to omit the widget."],
+     ["enabled", "boolean", "true. Set false to omit the widget."],
      [
-       "pageRoot",
+       "pageRoot", "HTMLElement",
        "Page content wrapper. Set explicitly when your layout has one.",
      ],
-     ["page", "Current pathname. Query strings and fragments excluded."],
-     ["drawerContainer", "Optional element to center the drawer within."],
-     ["autoHideDrawer", "true. Set false to keep the drawer visible."],
-     ["pollInterval", "4000 ms while the page is visible."],
-     ["source", "Element → repository-relative source file path."],
-     ["sourceUrl", "Source path and branch → editor or repository URL."],
+     ["page", "() => string", "Current pathname. Query strings and fragments excluded."],
+     ["drawerContainer", "HTMLElement", "Optional element to center the drawer within."],
+     ["autoHideDrawer", "boolean", "true. Set false to keep the drawer visible."],
+     ["pollInterval", "number", "4000 ms while the page is visible."],
+     ["source", "(element: Element) => string | undefined", "Element → repository-relative source file path."],
+     ["sourceUrl", "(source: string, branch: string) => string", "Source path and branch → editor or repository URL."],
      [
-       "sessionDomain",
+       "sessionDomain", "string",
        "Optional parent domain you own. Never a public suffix.",
      ],
    ]
-     .map(([k, v]) => `<tr><td><code>${k}</code></td><td>${v}</td></tr>`)
+     .map(([k, type, v]) => `<tr><td><code>${k}</code></td><td><code>${escape(type)}</code></td><td>${v}</td></tr>`)
      .join("")}</tbody></table></div>`
  )}
  ${section("Branch scope", `${code("npx @tjcages/komo init --branch-scope")}<p>Use this when feedback belongs to a particular change. Without it, matching page paths share comments across deployments.</p><p>For automatic branch detection, import <code>initKomo</code> from the optional generated <code>komo.config.js</code> helper and run <code>komo sync</code> before your build. It checks deployment environment variables and Git. Set <code>KOMO_BRANCH</code> when neither can identify the branch.</p>`)}

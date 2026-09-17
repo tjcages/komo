@@ -43,7 +43,23 @@ initKomo({
 });
 ```
 
-The **endpoint is the comments API**, not your website or preview URL. Hosted komo supplies the default API URL. For self-hosting, pass the Worker URL as `endpoint`. Your current page comes from the browser. Setup detects repository metadata from Git; include its printed `repo` value to enrich agent prompts.
+### React
+
+With React 18.2 or 19, call the hook once near your app root:
+
+```tsx
+'use client'; // Required for Next.js App Router client components.
+import { useKomo } from '@tjcages/komo/react';
+
+export function Komo() {
+  useKomo({ project: 'YOUR_PROJECT_KEY' });
+  return null;
+}
+```
+
+Render `<Komo />` in your app or layout. The hook handles mounting, cleanup, and React Strict Mode. Inline configuration objects are supported; unchanged values do not restart komo. Changing configuration remounts it, and `enabled: false` removes it. Memoize callback options with `useCallback` and pass stable DOM elements for `pageRoot` or `drawerContainer`. Mount only one hook per page; do not combine it with a separate `initKomo()` call. Server rendering does not mount the tool.
+
+The **endpoint is the comments API**, not your website or preview URL. Hosted komo defaults to `https://komo.offbr.co`. Google sign-in returns to `https://komo.offbr.co/auth/google/callback`, regardless of the website embedding komo. Existing installations using the original workers.dev endpoint continue to work. For self-hosting, pass the Worker URL as `endpoint`. Your current page comes from the browser. Setup detects repository metadata from Git; include its printed `repo` value to enrich agent prompts.
 
 Comments are shared across deployments by default. Use `pnpm exec komo init --branch-scope` to separate them by branch. For automatic branch detection, import from the optional generated `komo.config.js` helper and run `komo sync` before builds. It detects the current branch from deployment environment variables or Git; set `KOMO_BRANCH` if neither is available. It fails rather than silently grouping unknown branches.
 
@@ -167,28 +183,30 @@ Self-hosted storage belongs to your Cloudflare account; its service limits and c
 
 ### Client options
 
-Pass these to `initKomo(config)` from `@tjcages/komo`:
+Pass these to `initKomo(config)` from `@tjcages/komo` or `useKomo(config)` from `@tjcages/komo/react`.
 
-| Option | Default | Purpose |
-| --- | --- | --- |
-| `endpoint` | Hosted komo API | Comments API root; HTTPS outside localhost. |
-| `project` | Generated | Public workspace identifier. |
-| `repo` | Project key | Repository identifier, usually `owner/repo`. |
-| `scope` | `"project"` | `"project"` shares comments; `"branch"` separates branches. |
-| `branch` | Inferred by `komo sync` | Required only for branch scope. |
-| `enabled` | `true` | Set from your build environment to restrict review UI. |
-| `pageRoot` | Body content wrapper | Element to scale when opening the sidebar. Exclude komo itself. |
-| `source(element)` | Anchor metadata | Return a repository-relative source path. |
-| `sourceUrl(source, branch)` | GitHub viewer | Custom source or editor link. |
-| `page()` | `location.pathname` | Canonical page identifier. |
-| `drawerContainer` | Viewport | Element used to center the drawer before it is dragged. |
-| `autoHideDrawer` | `true` | Set `false` to keep the drawer visible away from the pointer. |
-| `pollInterval` | `4000` | Refresh interval in milliseconds, minimum 2000. |
-| `sessionDomain` | Current origin only | Trusted parent domain for cross-preview sessions. |
+`YOUR_PROJECT_KEY` is a placeholder for a string. Hosted komo generates the key during `komo init`; copy that value. For self-hosting, use the project identifier configured on your server. Reuse the same key across sites that should share feedback.
+
+| Option | Type | Default | Purpose |
+| --- | --- | --- | --- |
+| `endpoint` | `string` | Hosted komo API | Comments API root; HTTPS outside localhost. |
+| `project` | `string` | Required | Public project identifier returned by setup. |
+| `repo` | `string` | Project key | Repository identifier, usually `owner/repo`. |
+| `scope` | `"project" \| "branch"` | `"project"` | `"project"` shares comments; `"branch"` separates branches. |
+| `branch` | `string` | Inferred by `komo sync` | Required only for branch scope. |
+| `enabled` | `boolean` | `true` | Set from your build environment to restrict review UI. |
+| `pageRoot` | `HTMLElement` | Body content wrapper | Element to scale when opening the sidebar. Exclude komo itself. |
+| `source(element)` | `(element: Element) => string \| undefined` | Anchor metadata | Return a repository-relative source path. |
+| `sourceUrl(source, branch)` | `(source: string, branch: string) => string` | GitHub viewer | Custom source or editor link. |
+| `page()` | `() => string` | `location.pathname` | Canonical page identifier. |
+| `drawerContainer` | `HTMLElement` | Viewport | Element used to center the drawer before it is dragged. |
+| `autoHideDrawer` | `boolean` | `true` | Set `false` to keep the drawer visible away from the pointer. |
+| `pollInterval` | `number` | `4000` | Refresh interval in milliseconds, minimum 2000. |
+| `sessionDomain` | `string` | Current origin only | Trusted parent domain for cross-preview sessions. |
 
 The lower-level `initComments` export remains available. It requires explicit `endpoint`, `project`, `repo`, and `branch`; it does not infer scope. Existing integrations keep their branch grouping.
 
-The returned controller has `open()`, `close()`, `comment(element)`, `refresh()`, and `destroy()`. Repeated initialization returns the current controller; destroy it before switching projects. SSR returns a no-op controller. In React, initialize in an effect and destroy on cleanup. With Astro view transitions, destroy before swapping the document and initialize after navigation.
+The returned controller has `open()`, `close()`, `comment(element)`, `refresh()`, and `destroy()`. Repeated initialization returns the current controller; destroy it before switching projects. SSR returns a no-op controller. In React, use the `useKomo` hook. With Astro view transitions, destroy before swapping the document and initialize after navigation.
 
 ### CLI
 
@@ -257,6 +275,23 @@ The dock adapts [Danny Williams’s morphing menu](https://dannyjpwilliams.com/p
 ## License
 
 MIT.
+
+## Development
+
+```sh
+pnpm install
+pnpm build
+pnpm typecheck
+pnpm test
+pnpm size
+pnpm dev
+```
+
+The npm package, CLI and API live in `packages/komo`; the website lives in `packages/komo-site`. `pnpm dev:api` starts a local API. Production deployments retain the existing hosted database; local development uses a separate database.
+
+## Source
+
+Extracted from the komo product at source commit `f57f3521` in the Cloudflare marketing workspace. Product development now lives in [tjcages/komo](https://github.com/tjcages/komo). Third-party credits are preserved in each package’s NOTICE.md.
 
 
 ## Project management

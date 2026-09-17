@@ -22,7 +22,12 @@ execFileSync("tsc", ["-p", "tsconfig.json", "--emitDeclarationOnly"], {
   stdio: "inherit",
 });
 const result = await build({
-  entryPoints: ["src/index.ts", "src/setup.ts", "src/agent-prompt.ts"],
+  entryPoints: [
+    "src/index.ts",
+    "src/setup.ts",
+    "src/agent-prompt.ts",
+    "src/react.ts",
+  ],
   outdir: "dist",
   bundle: true,
   splitting: true,
@@ -62,12 +67,12 @@ for (const input of Object.keys(result.metafile.inputs)) {
       packages.add(dir);
       const pkg = JSON.parse(await readFile(join(dir, "package.json"), "utf8"));
       const licenses = files.filter((file) =>
-        /^licen[cs]e(?:\.|$)/i.test(file)
+        /^licen[cs]e(?:\.|$)/i.test(file),
       );
       if (!licenses.length)
         throw new Error(`Missing license for bundled dependency ${pkg.name}`);
       notices.push(
-        `${pkg.name}@${pkg.version}\n\n${(await Promise.all(licenses.map((file) => readFile(join(dir, file), "utf8")))).join("\n")}`
+        `${pkg.name}@${pkg.version}\n\n${(await Promise.all(licenses.map((file) => readFile(join(dir, file), "utf8")))).join("\n")}`,
       );
       break;
     }
