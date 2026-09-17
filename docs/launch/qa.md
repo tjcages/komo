@@ -54,3 +54,11 @@ Local build, typecheck, 111 tests and size checks pass. Initial/all-feature gzip
 [Preview](https://abdf39ab.komo-wb5.pages.dev/launch-demo/?bpm=144). Verified a partially transparent/rising opening headline at beat 4.25, actual nearby thread at beat 8, and incoming fixture comment at beat 41.1 preceding existing sidebar rows. The product supplies row entrance/displacement. The camera remains still for the native sidebar opening before zooming in. Preview-only WAAPI adds entrance motion to actual pin nodes; product markup/styles are unchanged. Comment/composer camera scale increased to 2.2.
 
 Sequence extended to 72 beats (30 seconds at 144 BPM), with final URL held for 12 beats/five seconds and looping off by default. Inspected final frame near beat 72. Local build, typecheck, 111 tests and size checks pass; browser bundle sizes unchanged. Video export remains deferred.
+
+## Comment-to-agent narrative — 2026-09-17
+
+[Preview](https://574b9dc4.komo-wb5.pages.dev/launch-demo/?bpm=144). Visually inspected the title with two opposing real pins and unnamed cursor/click pulse, centered real three-person conversation, second detail-thread close-up, actual sidebar additions plus editorial emoji burst, centered native drawer, its Copied prompt confirmation, and readable captured feedback in the reused site agent window. Pin entrance progress survives product DOM replacement instead of being lost when pins redraw.
+
+Clipboard writes are intercepted only inside the isolated fixture iframe; the real agentPrompt formatter runs, and excerpts of its output appear in the agent window. No agent executes changes. The 76-beat sequence retains a five-second ending at 144 BPM. Replay/backward seeking reset fixture data; paused framing continues to follow settling product UI.
+
+Build/typecheck/111 tests/size checks pass; final isolated bundle build and JS syntax check pass. Production package sizes remain unchanged. No video files rendered.

@@ -101,8 +101,8 @@ const controller = initComments({
 const root = () =>
   document.querySelector("[data-branch-comments]")!.shadowRoot!;
 const seeds = [
-  ["#headline", "Love this direction."],
-  ["#hero-cta", "Can we try lavender here?"],
+  ["#headline-right", "Love this direction."],
+  ["#headline-left", "Can we try lavender here?"],
   ["#detail-title", "This is the bit I meant."],
   ["#detail-card", "Keep this little detail."],
   ["#bottom-title", "One more thought down here."],
@@ -118,7 +118,7 @@ function seed(n: number) {
       anchor: {
         selector,
         text: e.textContent ?? "",
-        x: 0.6,
+        x: i === 0 ? 1 : i === 1 ? 0 : 0.6,
         y: 0.5,
         width: 0,
         height: 0,
@@ -144,20 +144,31 @@ function seed(n: number) {
   });
 }
 // Preview-only entrances on actual product pins; no replacement markup/styles.
-const seenPins = new Set<string>();
+const seenPins = new Map<string, number>();
+const animatedPinNodes = new WeakSet<HTMLElement>();
 new MutationObserver(() => {
   for (const pin of root().querySelectorAll<HTMLElement>(".pin[data-thread]")) {
     const id = pin.dataset.thread!;
-    if (seenPins.has(id)) continue;
-    seenPins.add(id);
-    pin.animate([
+    if (animatedPinNodes.has(pin)) continue;
+    animatedPinNodes.add(pin);
+    const started = seenPins.get(id) ?? performance.now();
+    seenPins.set(id, started);
+    const elapsed = performance.now() - started;
+    if (elapsed >= 360) continue;
+    const entrance = pin.animate([
       { opacity: 0, scale: "0.55", translate: "0 8px" },
       { opacity: 1, scale: "1.08", translate: "0 -2px", offset: 0.72 },
       { opacity: 1, scale: "1", translate: "0 0" },
     ], { duration: 360, easing: "cubic-bezier(.22,1,.36,1)" });
+    entrance.currentTime = elapsed;
   }
 }).observe(root(), { childList: true, subtree: true });
-let incoming = 0;
+let copied = "", didCopy = false;
+// Capture the real generated prompt locally without touching the user's clipboard.
+Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+  writeText: async (text: string) => { copied = text; }
+}});
+let incoming = 0, replyCount = 0, reactionCount = 0, lastBeat = -1;
 let posted = false;
 let count = -1,
   mode = "",
@@ -173,7 +184,13 @@ async function apply() {
       if (s.count < count) seenPins.clear();
       count = s.count;
       incoming = 0;
+      const existing = threads;
       seed(count);
+      if (count > 2) for (const t of threads) {
+        const old = existing.find(item => item.id === t.id);
+        if (old) t.comments = old.comments;
+      }
+      if (count === 0) { replyCount = 0; reactionCount = 0; didCopy = false; copied = ""; }
       await controller.refresh();
     }
     if (s.incoming > incoming) {
@@ -184,9 +201,25 @@ async function apply() {
         threads.push({ ...template, id: `incoming-${incoming}`, createdAt: now, updatedAt: now,
           comments: [{ ...template.comments[0], id: `incoming-comment-${incoming}`,
             author: other, createdAt: now,
-            body: incoming === 1 ? "This feels really good." : "One tiny thought here…" }] });
+            body: ["This feels really good.", "One tiny thought here…", "Yes. Keep this detail."][incoming - 1] }] });
       }
       await controller.refresh(); // The product animates new rows and moves existing rows.
+    }
+    if (s.replies > replyCount) {
+      const t = threads.find(t => t.id === "demo-0")!;
+      while (replyCount < s.replies) {
+        const n = ++replyCount;
+        t.comments.push({ id: `quick-reply-${n}`, body: n === 1 ? "Same. The type feels right." : "Agreed. Let's keep it.",
+          author: n === 1 ? other : { ...me, id: "demo-jamie", name: "Jamie", accentColor: "#efb695" },
+          createdAt: Date.now(), editedAt: null, reactions: {} });
+      }
+      await controller.refresh();
+    }
+    if (s.reaction > reactionCount) {
+      reactionCount = s.reaction;
+      const t = threads.find(t => t.id === "demo-2");
+      if (t) t.comments[0].reactions = { "💜": Array.from({length: reactionCount}, (_, i) => `fixture-${i}`) };
+      await controller.refresh();
     }
     if (s.mode !== mode) {
       if (mode === "drawer")
@@ -209,12 +242,18 @@ async function apply() {
         root()
           .querySelector<HTMLButtonElement>('.pin[data-thread="demo-2"]')
           ?.click();
+      if (mode === "thread-two")
+        root().querySelector<HTMLButtonElement>('.pin[data-thread="demo-3"]')?.click();
       if (mode === "compose")
         controller.comment(document.querySelector("#detail-card")!);
       if (mode === "drawer")
         root()
           .querySelector<HTMLButtonElement>('[data-menu-item="more"]')
           ?.click();
+    }
+    if (s.copy && !didCopy) {
+      const button = root().querySelector<HTMLButtonElement>('[data-menu-item="copy-prompts"]');
+      if (button) { didCopy = true; button.click(); }
     }
     if (mode === "compose") {
       const input = root().querySelector<HTMLTextAreaElement>(
@@ -238,18 +277,35 @@ async function apply() {
 }
 (window as any).widgetDemo = {
   update(s: any) {
+    if (s.beat < lastBeat) {
+      count = -1; mode = ""; incoming = 0; replyCount = 0; reactionCount = 0; threads = [];
+      seenPins.clear(); didCopy = false; copied = "";
+      root().querySelector<HTMLButtonElement>('[data-menu-item="close"]')?.click();
+      controller.close();
+    }
+    lastBeat = s.beat;
     desired = s;
-    const enter = Math.max(0, Math.min(1, (s.beat - 4) / 1.25));
+    const enter = Math.max(0, Math.min(1, s.beat / 1.25));
     const q = 1 - (1 - enter) ** 3;
     const hero = document.querySelector<HTMLElement>(".website-hero")!;
     hero.style.opacity = String(q);
     hero.style.transform = `translateY(${30 * (1 - q)}px) scale(${0.96 + q * 0.04})`;
 
+    document.body.dataset.scene = s.mode;
     const surface = document.querySelector<HTMLElement>("#website")!;
+    surface.style.opacity = s.isolated ? "0" : "1";
+    surface.style.transition = "opacity 160ms ease-out";
+    const nav = root().querySelector<HTMLElement>(".morphing-menu");
+    if (nav) nav.style.opacity = s.beat < 16 || (s.isolated && s.mode !== "drawer") ? "0" : "1";
+    const pins = root().querySelector<HTMLElement>(".pins");
+    if (pins) pins.style.visibility = s.isolated ? "hidden" : "visible";
     if (surface.style.position === "fixed") surface.scrollTop = s.scroll;
     else window.scrollTo(0, s.scroll);
     void apply();
   },
+  get copied() { return copied; },
+  pinRect(id: string) { return root().querySelector<HTMLElement>(`.pin[data-thread="${id}"]`)?.getBoundingClientRect(); },
+  focusRect(kind: string) { return root().querySelector<HTMLElement>(kind === "drawer" ? ".morphing-menu__shell" : ".dialog")?.getBoundingClientRect(); },
   get state() {
     return { count, mode, ready };
   },

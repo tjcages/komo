@@ -116,3 +116,10 @@ body {
 .website-hero h1 { margin: 0; max-width: 1000px; font-size: 94px; }
 .website-hero .eyebrow, .website-hero p, .site-art { display: none; }
 .website-hero button { margin-top: 48px; }
+.website-hero { padding: 150px 110px 120px; }
+.website-hero h1 { font-size: 82px; text-align: center; }
+#headline-right, #headline-left { display: inline-block; }
+.site-nav { visibility: hidden; }
+.website-hero button { visibility: hidden; }
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display:none; }

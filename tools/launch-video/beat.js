@@ -3,24 +3,16 @@ const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const params = new URLSearchParams(location.search);
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-const TOTAL = 72;
+const TOTAL = 76;
 const beats = [
-  { kind: "logo" },
-  { kind: "pins" },
-  { kind: "pins" },
-  { title: "Chat on any website." },
-  { kind: "scroll" },
-  { kind: "scroll" },
-  { kind: "thread" },
-  { kind: "compose" },
-  { kind: "drawer" },
-  { kind: "sidebar" },
-  { kind: "sidebar" },
-  { kind: "sidebar" },
+  { kind: "pins" }, { kind: "pins" },
+  { kind: "conversation" }, { kind: "conversation" },
+  { kind: "scroll" }, { kind: "thread" }, { kind: "thread-two" },
+  { kind: "sidebar" }, { kind: "sidebar" }, { kind: "sidebar" },
   { title: "Every comment. One place." },
-  { kind: "scroll-end" },
-  { kind: "logo" },
-  { title: "komo.offbr.co", tone: "dark" },
+  { kind: "drawer" }, { kind: "copy" },
+  { kind: "agent" }, { kind: "agent" },
+  { kind: "logo" }, { title: "komo.offbr.co", tone: "dark" },
 ];
 let bpm = Number(params.get("bpm")) || 144;
 bpm = Math.min(240, Math.max(60, bpm));
@@ -73,10 +65,10 @@ function typeText(selector, text, p) {
 }
 function render(value) {
   beat = Math.max(0, Math.min(TOTAL, value));
-  const index = Math.min(15, Math.floor(beat / 4)),
+  const index = Math.min(beats.length - 1, Math.floor(beat / 4)),
     local = beat - index * 4,
     spec = beats[index];
-  for (const s of ["#intro", "#outro", "#story", "#title-hit", "#beat-rings"])
+  for (const s of ["#intro", "#outro", "#story", "#title-hit", "#beat-rings", "#agent-handoff", "#demo-cursor", "#click-ring", "#emoji-burst", "#copy-title"])
     show(s, 0);
   if (spec.title) {
     show("#title-hit", 1);
@@ -91,82 +83,83 @@ function render(value) {
       e.style.transform = `scale(${0.65 + p * 1.65})`;
       e.style.opacity = (1 - p) * 0.75;
     });
+  } else if (spec.kind === "agent") {
+    show("#agent-handoff", ease((beat - 52) / 0.8));
+    move("#agent-handoff", 0, 35 * (1 - ease((beat - 52) / 0.8)));
+    const handoff = $("#product-frame").contentWindow.widgetDemo;
+    const copied = handoff?.copied || "";
+    if (!copied) handoff?.update({ beat, count: 4, incoming: 3, scroll: 850, mode: "drawer", isolated: true, replies: 2, reaction: 12, copy: true });
+    const excerpts = [...copied.matchAll(/\*\*(?:Requested change|Reply)[^\n]*\*\*\n> ([^\n]+)/g)].map(m => m[1]);
+    $("#agent-handoff .coding-user p").textContent = excerpts.slice(0, 4).join("\n\n");
+    $("#agent-handoff .prompt-attachment").textContent = `${copied.match(/Threads: (\d+) open/)?.[1] || "7"} comments · page context`;
+    show("#agent-handoff .coding-user", ease((beat - 53.5) / 0.6));
   } else {
     show("#story", 1);
-    let count = 2,
-      scroll = 0,
-      mode = "page",
-      typing = 0,
-      scale = 1.75,
-      x = -100,
-      y = -80;
+    let count = 4, scroll = 850, mode = "page", scale = 1.7, x = -70, y = -65;
+    let incoming = 0, replies = 0, reaction = 0, isolated = false;
     if (spec.kind === "pins") {
-      count = beat < 6 ? 0 : beat < 10 ? 1 : 2;
-      mode = beat >= 7 ? "hero-thread" : "page";
-      scale = 1.7;
-      x = -70;
-      y = -65;
+      scroll = 0;
+      count = beat < 2.5 ? 0 : beat < 4 ? 1 : 2;
+      show("#story", ease(beat / 0.8) * (1 - ease((beat - 7.5) / 0.5)));
+    }
+    if (spec.kind === "conversation") {
+      scroll = 0; count = 2; mode = "hero-thread"; isolated = true;
+      replies = beat >= 13 ? 2 : beat >= 10.5 ? 1 : 0;
+      scale = 2.55;
+      show("#story", ease((beat - 8) / 0.55) * (1 - ease((beat - 15.5) / 0.5)));
     }
     if (spec.kind === "scroll") {
-      scroll = 850 * ease((beat - 16) / 7);
-      count = beat < 18 ? 2 : beat < 21 ? 3 : 4;
+      scroll = 850 * ease((beat - 16) / 1.5);
+      count = beat < 17.8 ? 2 : beat < 18.6 ? 3 : 4;
+      show("#story", ease((beat - 16) / 0.5));
     }
-    if (spec.kind === "thread" || spec.kind === "compose") {
-      scroll = 850;
-      count = 4;
-      mode = spec.kind;
-      typing = clip((local - 0.6) / 2.5);
-      x = -530;
-      y = -100;
-      scale = 2.2;
-    }
-    if (spec.kind === "compose") {
-      x = -155;
-      y = -410;
-    }
-    if (spec.kind === "drawer") {
-      scroll = 850;
-      count = 4;
-      mode = "drawer";
-      scale = 1.6;
-      x = -100;
-      y = -40;
+    if (spec.kind === "thread" || spec.kind === "thread-two") {
+      mode = spec.kind; scale = 2.15; x = -530; y = -100;
+      if (mode === "thread-two") { x = -160; y = -320; }
     }
     if (spec.kind === "sidebar") {
-      scroll = 850;
-      count = 4;
-      mode = beat >= 45 ? "sidebar-thread" : "sidebar";
-      const p = ease((beat - 38) / 2);
-      scale = mix(1.6, 2, p);
-      x = mix(-100, -640, p);
-      y = -40 * (1 - p);
-      if (mode === "sidebar-thread") {
-        const q = ease((beat - 45) / 1.5);
-        scale = mix(2, 1.65, q);
-        x = mix(-640, -180, q);
-        y = -20 * q;
+      mode = "sidebar";
+      incoming = beat < 32 ? 0 : beat < 33.5 ? 1 : beat < 35 ? 2 : 3;
+      reaction = Math.max(0, Math.min(12, Math.floor((beat - 36) * 4)));
+      const p = ease((beat - 30) / 1.5);
+      scale = mix(1.7, 2, p); x = mix(-70, -640, p); y = mix(-65, 0, p);
+    }
+    if (spec.kind === "drawer" || spec.kind === "copy") {
+      mode = "drawer"; isolated = true; scale = 2.6;
+      incoming = 3;
+      show("#story", ease((beat - 44) / 0.65));
+      if (spec.kind === "copy") {
+        show("#copy-title", ease(local / 0.6));
+        $("#copy-title").textContent = "Copy all comments.";
       }
     }
-    if (spec.kind === "scroll-end") {
-      count = 5;
-      scroll = 850 + 600 * ease(local / 3);
-      x = -180;
+    const frame = $("#product-frame"), demo = frame.contentWindow.widgetDemo;
+    demo?.update({ beat, count, incoming, scroll, mode, replies, reaction, isolated,
+      copy: spec.kind === "copy" && local >= 1 });
+    if (isolated) {
+      const r = demo?.focusRect(mode === "drawer" ? "drawer" : "comment");
+      if (r) { x = 960 - (r.x + r.width / 2) * scale; y = (mode === "drawer" ? 590 : 540) - (r.y + r.height / 2) * scale; }
     }
-    // New focuses enter; continuous desktop/sidebar actions remain visible.
-    const starts = { pins: 4, scroll: 16, thread: 24, compose: 28, drawer: 32, "scroll-end": 52 };
-    if (starts[spec.kind] !== undefined)
-      show("#story", ease((beat - starts[spec.kind]) / 0.75));
-    const frame = $("#product-frame");
     frame.style.transform = `translate(${x}px,${y}px) scale(${scale})`;
-    frame.contentWindow.widgetDemo?.update({
-      beat,
-      count,
-      incoming: spec.kind === "sidebar" ? (beat >= 43 ? 2 : beat >= 41 ? 1 : 0) : 0,
-      scroll,
-      mode,
-      typing,
-      submit: spec.kind === "compose" && local >= 3.5,
-    });
+    if (spec.kind === "pins" && beat >= 5.5) {
+      const r = demo?.pinRect("demo-0");
+      if (r) {
+        const p = ease((beat - 5.5) / 1.25), tx = x + (r.x + r.width / 2) * scale, ty = y + (r.y + r.height / 2) * scale;
+        show("#demo-cursor", ease((beat - 5.5) / 0.35));
+        move("#demo-cursor", mix(1750, tx, p), mix(950, ty, p), beat >= 7 && beat < 7.25 ? 0.78 : 1);
+        const click = clip((beat - 7) / 0.5);
+        show("#click-ring", beat >= 7 ? 1 - click : 0);
+        move("#click-ring", tx - 48, ty - 48, 0.5 + click * 1.3);
+      }
+    }
+    if (spec.kind === "sidebar" && beat >= 36) {
+      show("#emoji-burst", 1);
+      $$("#emoji-burst i").forEach((e, i) => {
+        const p = clip((beat - 36 - (i % 6) * 0.18) / 2.4);
+        e.style.opacity = Math.sin(p * Math.PI);
+        e.style.transform = `translate(${1330 + Math.sin(i * 2.4) * p * 250}px,${470 - p * (350 + i * 13)}px) rotate(${(i % 2 ? 1 : -1) * p * 28}deg) scale(${0.6 + Math.sin(p * Math.PI) * 0.65})`;
+      });
+    }
   }
   lastScene = index;
   for (const a of $("#intro").getAnimations({ subtree: true })) {
@@ -354,6 +347,8 @@ function frame(now) {
       }
     }
     render(b);
+  } else {
+    render(beat);
   }
   requestAnimationFrame(frame);
 }

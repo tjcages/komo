@@ -153,18 +153,18 @@ let beatPage = main
     <label class="tempo">BPM <input id="bpm" type="number" min="60" max="240" value="144" inputmode="numeric"></label>
     <input id="tempo-range" type="range" min="60" max="240" value="144" aria-label="Tempo">
     <label><input id="ramp" type="checkbox">Ramp</label><label><input id="click-track" type="checkbox">Click</label><label><input id="loop" type="checkbox">Loop</label>
-    <span id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i></span><output id="beat-readout" aria-label="Current beat">01 / 72</output>
+    <span id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i></span><output id="beat-readout" aria-label="Current beat">01 / 76</output>
     <button id="fullscreen" aria-label="Fullscreen animation">⛶</button>
-    <input id="scrub" type="range" min="0" max="72" step="0.01" value="0" aria-label="Scrub beats">
+    <input id="scrub" type="range" min="0" max="76" step="0.01" value="0" aria-label="Scrub beats">
   </div><script src="beat.js"></script>`,
   );
 beatPage = beatPage.replace(
   /<section id="story">[\s\S]*?(?=<section id="outro">)/,
-  '<section id="story"><iframe id="product-frame" title="Live komo on a fixture website" src="widget-frame.html"></iframe></section>',
+  `<section id="story"><iframe id="product-frame" title="Live komo on a fixture website" src="widget-frame.html"></iframe></section><div id="demo-cursor">${icons.multiplayer}</div><div id="click-ring"></div><div id="emoji-burst">${Array.from({length:18},(_,i)=>`<i>${["💜","👍","🔥","✨"][i%4]}</i>`).join("")}</div><h1 id="copy-title"></h1><section id="agent-handoff"><h1>Paste into your agent.</h1>${decorate(promptExample).match(/<section class="desktop-window coding-window"[\s\S]*?<\/section>/)[0].replace(/<div class="coding-response">[\s\S]*?<\/div>/, "").replace("2 comments", "Website feedback")}</section>`,
 );
 await writeFile(
   new URL("./widget-frame.html", out),
-  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="widget-frame.css"></head><body><main id="website"><nav class="site-nav"><strong>studio</strong><span>Work &nbsp; About &nbsp; Contact</span></nav><section class="website-hero"><div class="eyebrow">A LITTLE STUDIO</div><h1 id="headline">Good things.<br>Made together.</h1><p>A thoughtful place for your next idea.</p><button id="hero-cta">Let's talk</button><div class="site-art"><img src="favicon.svg" alt=""></div></section><section class="detail"><div class="eyebrow">THE DETAILS</div><h2 id="detail-title">Small things.<br>Big difference.</h2><div class="detail-grid"><div class="detail-card" id="detail-card">Room for a new perspective.</div><div class="detail-card">A little more personality.</div></div></section><section class="detail bottom"><div class="eyebrow">WHAT'S NEXT</div><h2 id="bottom-title">Something worth<br>talking about.</h2><div class="detail-card">It starts with a conversation.</div></section></main><script src="widget-runtime.js"></script></body></html>`,
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="widget-frame.css"></head><body><main id="website"><nav class="site-nav"><strong>studio</strong><span>Work &nbsp; About &nbsp; Contact</span></nav><section class="website-hero"><div class="eyebrow">A LITTLE STUDIO</div><h1 id="headline"><span id="headline-right">Good things.</span><br><span id="headline-left">Made together.</span></h1><p>A thoughtful place for your next idea.</p><button id="hero-cta">Let's talk</button><div class="site-art"><img src="favicon.svg" alt=""></div></section><section class="detail"><div class="eyebrow">THE DETAILS</div><h2 id="detail-title">Small things.<br>Big difference.</h2><div class="detail-grid"><div class="detail-card" id="detail-card">Room for a new perspective.</div><div class="detail-card">A little more personality.</div></div></section><section class="detail bottom"><div class="eyebrow">WHAT'S NEXT</div><h2 id="bottom-title">Something worth<br>talking about.</h2><div class="detail-card">It starts with a conversation.</div></section></main><script src="widget-runtime.js"></script></body></html>`,
 );
 await cp(
   new URL("./widget-frame.css", import.meta.url),

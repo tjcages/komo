@@ -986,3 +986,18 @@ body.beat-studio {
 #film[data-scene] #story::before {
   display: none;
 }
+#demo-cursor, #click-ring, #emoji-burst, #copy-title, #agent-handoff { position: absolute; pointer-events: none; z-index: 20; }
+#demo-cursor { top:0; left:0; width:70px; height:70px; color:#b99cfa; filter:drop-shadow(0 5px 6px #29252f40); transform-origin:10% 10%; }
+#demo-cursor svg { width:100%; height:100%; fill:#b99cfa; stroke:#fff; stroke-width:1.6px; }
+#click-ring { top:0; left:0; width:96px; height:96px; border:5px solid #b99cfa; border-radius:50%; }
+#emoji-burst { inset:0; }
+#emoji-burst i { position:absolute; left:0; top:0; font-style:normal; font-size:52px; }
+#copy-title { inset:65px 0 auto; text-align:center; font-size:80px; letter-spacing:-4px; }
+#agent-handoff { inset:0; background:#eee8f4; }
+#agent-handoff > h1 { text-align:center; margin:90px 0 0; font-size:85px; letter-spacing:-4px; }
+#film #agent-handoff .coding-window { position:absolute; left:310px; top:285px; width:1300px; height:670px; opacity:1; transform:none; animation:none; }
+#film #agent-handoff .coding-body { padding:35px; }
+#film #agent-handoff .coding-user { opacity:1; transform:none; animation:none; }
+#film #agent-handoff .coding-user p { white-space:pre-wrap; max-height:480px; overflow:hidden; font-family:ui-monospace,monospace; font-size:22px !important; line-height:1.4 !important; }
+#film #agent-handoff .coding-user p { font-family:inherit; font-size:38px !important; line-height:1.5 !important; padding-top:20px; }
+#film #agent-handoff .prompt-attachment { font-size:25px; color:#cdb6ef; }
