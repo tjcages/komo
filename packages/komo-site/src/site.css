@@ -894,7 +894,7 @@ summary {
 .layout { display:grid; grid-template-columns:160px minmax(0,620px); gap:64px; max-width:940px; padding:64px 28px 0; }
 .navigation { display:block; position:sticky; top:64px; align-self:start; }
 .navigation .brand { display:flex; align-items:center; gap:9px; font-size:26px; letter-spacing:-1px; }
-.navigation .brand img { width:25px; height:25px; }
+.navigation .brand img { width:22px; height:22px; }
 .nav-caption { margin-top:12px; font-size:11px; }
 .navigation nav { margin-top:28px; }
 .navigation nav a { font-size:13px; padding:8px 12px; }
