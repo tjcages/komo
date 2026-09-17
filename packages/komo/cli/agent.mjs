@@ -308,7 +308,7 @@ async function login(config, path, flags) {
       const safe = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
       return send(
         200,
-        `<!doctype html><meta charset="utf-8"><title>Sign in to komo</title><style>body{background:#191919;color:#eee;font:16px system-ui;max-width:420px;margin:18vh auto;padding:24px}button{font:inherit;padding:14px 20px;border:0;border-radius:12px;background:#c8b5f4}p{line-height:1.5;color:#aaa}</style><h1>Connect your agent</h1><p id="project"></p><p>The CLI can read and update comments as you. Your session stays on this computer.</p><button>Continue with Google</button><p id="status"></p><script nonce="${nonce}">document.querySelector('#project').textContent=${safe(config.project)};let popup;document.querySelector('button').onclick=()=>{popup=window.open(${safe(authUrl)},'komo-cli-auth','width=500,height=700')};window.addEventListener('message',async e=>{if(e.origin!==${safe(new URL(config.endpoint).origin)}||e.source!==popup||e.data?.type!=='branch-comments:auth')return;const response=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:e.data.token})});document.querySelector('#status').textContent=await response.text();if(response.ok)document.querySelector('button').disabled=true});</script>`,
+        `<!doctype html><meta charset="utf-8"><title>Sign in to komo</title><style>body{background:#191919;color:#eee;font:16px system-ui;max-width:420px;margin:18vh auto;padding:24px}button{font:inherit;padding:14px 20px;border:0;border-radius:12px;background:#c8b5f4}p{line-height:1.5;color:#aaa}</style><h1>Connect your agent</h1><p id="project"></p><p>The CLI can read and update comments as you. Your session stays on this computer.</p><button>Continue with Google</button><p id="status"></p><script nonce="${nonce}">document.querySelector('#project').textContent=${safe(config.project)};let popup;document.querySelector('button').onclick=()=>{popup=window.open(${safe(authUrl)},'komo-cli-auth','width=500,height=700')};window.addEventListener('message',async e=>{if(e.origin!==${safe(new URL(config.endpoint).origin)}||e.source!==popup||e.data?.type!=='branch-comments:auth')return;const response=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:e.data.token})});document.querySelector('#status').textContent=await response.text();if(response.ok){document.querySelector('button').disabled=true;setTimeout(()=>window.close(),400)}});</script>`,
         "text/html"
       );
     }
@@ -333,7 +333,7 @@ async function login(config, path, flags) {
       if (!user.verified) throw Error("Use Google sign-in to connect the CLI.");
       await saveToken(path, token);
       res.once("finish", () => complete(user));
-      send(200, "Connected. Return to your terminal.");
+      send(200, "Connected. You can close this tab.");
     } catch {
       send(400, "Sign-in failed. Please try again.");
     }

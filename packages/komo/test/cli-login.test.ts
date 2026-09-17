@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
 import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
@@ -76,7 +77,52 @@ it("keeps login credentials private and rejects a foreign callback origin", asyn
     expect(page.headers.get("content-security-policy")).toContain(
       "frame-ancestors 'none'"
     );
-    expect(await page.text()).toContain("Continue with Google");
+    const html = await page.text();
+    expect(html).toContain("Continue with Google");
+    const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/)![1];
+    for (const ok of [false, true]) {
+      let listener: (event: unknown) => Promise<void>;
+      let closed = false;
+      const popup = {};
+      const nodes = new Map<
+        string,
+        { textContent?: string; disabled?: boolean; onclick?: () => void }
+      >();
+      runInNewContext(script, {
+        document: {
+          querySelector: (selector: string) => {
+            if (!nodes.has(selector)) nodes.set(selector, {});
+            return nodes.get(selector);
+          },
+        },
+        window: {
+          open: () => popup,
+          close: () => {
+            closed = true;
+          },
+          addEventListener: (_: string, callback: typeof listener) => {
+            listener = callback;
+          },
+        },
+        location: { pathname: new URL(url).pathname },
+        fetch: async () => ({
+          ok,
+          text: async () =>
+            ok ? "Connected. You can close this tab." : "Sign-in failed.",
+        }),
+        setTimeout: (callback: () => void) => callback(),
+      });
+      nodes.get("button")!.onclick!();
+      await listener!({
+        origin: endpoint,
+        source: popup,
+        data: { type: "branch-comments:auth", token: "fixture" },
+      });
+      expect(closed).toBe(ok);
+      expect(nodes.get("#status")!.textContent).toBe(
+        ok ? "Connected. You can close this tab." : "Sign-in failed."
+      );
+    }
     const post = (origin: string, token: string) =>
       fetch(url, {
         method: "POST",
