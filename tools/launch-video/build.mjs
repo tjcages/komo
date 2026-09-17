@@ -1,0 +1,126 @@
+import { readFile, writeFile, mkdir, cp } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { scene } from "../../packages/komo-site/src/scene.mjs";
+import { promptExample } from "../../packages/komo-site/src/feature-scenes.mjs";
+const require = createRequire(
+  new URL("../../packages/komo/package.json", import.meta.url),
+);
+const { build } = require("esbuild");
+const { createElement: h } = require("react");
+const { renderToStaticMarkup: html } = require("react-dom/server");
+const out = new URL("./dist/", import.meta.url);
+await mkdir(out, { recursive: true });
+const names = {
+  copy: "Copy01",
+  check: "Check",
+  multiplayer: "Cursor02",
+  comment: "MessageChatCircle",
+  dots: "DotsHorizontal",
+  terminal: "Terminal",
+  overview: "LayoutAlt01",
+  replay: "RefreshCcw01",
+  pause: "PauseCircle",
+  pointer: "Cursor01",
+  plus: "Plus",
+};
+const icons = Object.fromEntries(
+  Object.entries(names).map(([k, n]) => [
+    k,
+    html(h(require(`@untitledui/icons/${n}`)[n], { width: 24, height: 24 })),
+  ]),
+);
+const decorate = (s) =>
+  s.replace(
+    /<span data-icon="(\w+)"><\/span>/g,
+    (_, n) => `<span class="glyph">${icons[n] || ""}</span>`,
+  );
+await build({
+  entryPoints: [
+    new URL("../../packages/komo/src/MorphingMenu.tsx", import.meta.url)
+      .pathname,
+  ],
+  outfile: new URL("./menu.cjs", out).pathname,
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  external: ["react", "react-dom", "motion", "motion/react"],
+});
+// Resolve React and motion from the product workspace for this recording-only bundle.
+const menuCode = await readFile(new URL("./menu.cjs", out), "utf8");
+await writeFile(
+  new URL("./menu.cjs", out),
+  menuCode.replace(
+    /require\("(react(?:\/jsx-runtime)?|react-dom|motion|motion\/react)"\)/g,
+    (_, name) => `require(${JSON.stringify(require.resolve(name))})`,
+  ),
+);
+const { MorphingMenu } = require(new URL("./menu.cjs", out).pathname);
+const menu = html(
+  h(MorphingMenu, {
+    label: "komo tools",
+    items: [
+      {
+        id: "point",
+        label: "Comment",
+        icon: h("span", { dangerouslySetInnerHTML: { __html: icons.pointer } }),
+      },
+      {
+        id: "all",
+        label: "All comments",
+        icon: h("span", {
+          dangerouslySetInnerHTML: { __html: icons.overview },
+        }),
+      },
+      {
+        id: "copy",
+        label: "Copy for agent",
+        icon: h("span", { dangerouslySetInnerHTML: { __html: icons.copy } }),
+      },
+    ],
+  }),
+);
+const menuStyles = await readFile(
+  new URL("../../packages/komo/src/morphing-menu-styles.ts", import.meta.url),
+  "utf8",
+);
+const cssLiteral = Function(
+  menuStyles.replace(
+    "export const morphingMenuStyles =",
+    "const morphingMenuStyles =",
+  ) + ";return morphingMenuStyles;",
+)();
+await writeFile(new URL("./menu.css", out), cssLiteral);
+await cp(
+  new URL("../../packages/komo-site/src/site.css", import.meta.url),
+  new URL("./site.css", out),
+);
+await cp(
+  new URL("../../packages/komo-site/src/logo.css", import.meta.url),
+  new URL("./logo.css", out),
+);
+await cp(
+  new URL("../../packages/komo-site/public/favicon.svg", import.meta.url),
+  new URL("./favicon.svg", out),
+);
+const svg = (
+  await readFile(
+    new URL("../../packages/komo-site/src/logo.svg", import.meta.url),
+    "utf8",
+  )
+).replace('class="wordmark"', 'class="komo-wordmark"');
+const logo = (id) =>
+  `<span class="komo-logo intro" data-motion="soft"><img class="komo-symbol" src="favicon.svg">${svg.replaceAll("komo-mask", `komo-mask-${id}`)}</span>`;
+const card = (who, initial, body, extra = "") =>
+  `<article class="agent-card fixture-card"><div class="agent-message"><span class="agent-avatar">${initial}</span><div><div class="agent-meta"><strong>${who}</strong><span>now</span></div><p>${body}</p></div></div>${extra}</article>`;
+const comments = [
+  "Give the headline more room to breathe.",
+  "Make the primary button easier to find.",
+];
+const reply = `<div class="fixture-reply"><span class="agent-avatar reply-avatar">E</span><div><strong>Engineer</strong><p>Agreed. I’ll pass both changes to my agent.</p></div></div>`;
+const main = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>komo launch film · fixture demonstration</title><link rel="stylesheet" href="site.css"><link rel="stylesheet" href="logo.css"><link rel="stylesheet" href="menu.css"><link rel="stylesheet" href="film.css"></head><body class="home"><main id="film"><header><a class="brand">${logo("small")}</a><span>Comments, where they belong.</span><span class="beta">public beta</span></header><section id="intro"><div class="intro-logo brand">${logo("intro")}</div><h1>Less “which button?”<br><span>More “that one.”</span></h1><p>Website feedback, right where it belongs.</p></section><section id="story"><div class="chapter"><span id="chapter-number">01 / POINT</span><h1 id="headline">Point. Comment. Keep the context.</h1></div><div id="review">${decorate(scene)}<div id="drawer">${menu}</div><div id="card-one">${card("Designer", "D", comments[0], `<div id="reaction"><span aria-label="thumbs up">👍</span><span>1</span></div>${reply}`)}</div><div id="card-two">${card("Reviewer", "R", comments[1])}</div><aside id="sidebar"><div class="side-top"><strong>All comments</strong><span id="open-count">2 open</span></div><div class="side-page">Studio /</div>${card("Designer", "D", comments[0])}${card("Reviewer", "R", comments[1])}<div class="side-copy">${icons.copy}<span>Copy all comments for agent</span></div></aside><div id="resolved">${icons.check} Both changes verified. Resolved.</div></div><div id="workflow">${decorate(promptExample)}</div><div id="cursor">${icons.multiplayer}<span>Designer</span></div></section><section id="outro"><div class="outro-logo brand">${logo("outro")}</div><h1>A little feedback.<br><span>A better website.</span></h1><div class="install"><code>npm install @tjcages/komo</code>${icons.copy}</div><pre><span>import</span> { useKomo } <span>from</span> '@tjcages/komo/react';\n<span>// Inside your React component</span>\nuseKomo({ project: 'YOUR_PROJECT_KEY' });</pre><p class="key-note">Get your project key with komo init.</p><a class="cta">komo.offbr.co <span>↗</span></a></section><footer><span id="caption"></span><span id="disclosure">Choreographed demo · fixture feedback</span></footer><div id="progress"></div></main><script src="timeline.js"></script></body></html>`;
+await writeFile(new URL("./index.html", out), main);
+for (const f of ["film.css", "timeline.js"])
+  await cp(new URL(f, import.meta.url), new URL(f, out));
+console.log(
+  "Built isolated film from site scene, prompt windows, logo and product MorphingMenu.",
+);
