@@ -1,0 +1,69 @@
+/* Follow the system in CSS so the first paint and live preference changes agree. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #1b1b1e;
+    --surface: #262629;
+    --fg: #eeeef0;
+    --fg2: #b0afb7;
+    --fg3: #a4a2ad;
+    --accent: #d3bdf5;
+    --theme-border: #ffffff12;
+    --theme-raised: #303034;
+  }
+  body, #site-content { background: var(--bg); }
+  ::selection { background: #d3bdf53d; color: #fff; }
+  .brand, .home-brand { color: var(--accent); }
+  .skip:focus { background: var(--surface); }
+  p a, .text-link { box-shadow: 0 1px 0 #ffffff26; }
+  .install-wrap, .home-install .install-wrap,
+  .home .tool-card .install-wrap, .mini-thread, .prompt-preview,
+  .self-host-icon { background: var(--surface); }
+  .copy-btn:hover { background: #ffffff0c; }
+  .copy-btn.copied { color: #9ad5ad; }
+  .pill, .home .pill { background: var(--accent); color: #352a50; box-shadow: inset 0 1px 0 #ffffff24, 0 2px 4px #0002; }
+  .pill:hover, .home .pill:hover { background: #dfcdfa; color: #352a50; }
+  .tool-card, .try-section, .closing, footer { box-shadow: 0 -1px var(--theme-border); }
+  .feature-rows article, td, th, .faq { box-shadow: 0 1px var(--theme-border); }
+  .feature-rows article:last-child { box-shadow: none; }
+  .feature-example, .try-block { background: #242427; box-shadow: inset 0 0 0 1px var(--theme-border); }
+  .try-block { color: var(--fg); }
+  .try-block:hover { background: #2a2731; }
+  .try-icon { background: #38313f; }
+  .try-caption, .example-header, .example-footer, .self-host-icon,
+  .scene-bar, .scene-bottom, .scene-controls button,
+  .hero-site-label, .desktop-titlebar, .queue-count { color: var(--fg3); }
+  .home .try-section > .beta-badge { background: #d3bdf51c; color: var(--accent); box-shadow: inset 0 0 0 1px #d3bdf52e; }
+  .review-scene { background: #242427; box-shadow: 0 0 0 1px var(--theme-border), 0 12px 30px -16px #0008; }
+  .review-scene .scene-stage { background: #242427; }
+  .scene-bar, .scene-bottom { background: #29292c; box-shadow: inset 0 -1px var(--theme-border); }
+  .scene-controls button:hover { background: #ffffff0d; color: var(--fg); }
+  .scene-bottom { box-shadow: inset 0 1px var(--theme-border); }
+  .hero-browser, .website-window { background: var(--theme-raised); box-shadow: 0 0 0 1px #ffffff16, 0 12px 24px -10px #0006; }
+  .hero-browser .desktop-titlebar, .website-window .desktop-titlebar { background: #36363b; box-shadow: inset 0 -1px var(--theme-border); }
+  .abstract-address, .abstract-site-nav span, .hero-site-nav span,
+  .hero-studio-copy, .hero-product-info span { background: #ffffff16; }
+  .abstract-site-nav i, .hero-site-nav i, .hero-dashboard-nav i { background: #ffffff20; }
+  .abstract-headline, .hero-studio-heading i, .hero-product-info i,
+  .hero-dashboard-content > span { background: #ffffff35; }
+  .abstract-media, .hero-metrics i { background: #ffffff09; }
+  .hero-studio-art { background: #42394f; }
+  .hero-product-art { background: #344251; }
+  .hero-product-art i { background: #829db9; }
+  .hero-chart { background: #32423a; }
+  .hero-chart i { background: #89b697; }
+  .hero-dashboard-nav i:first-child { background: #98bda1; }
+  .window-complete { color: var(--accent); }
+  .workflow-steps button { color: var(--fg2); }
+  .workflow-steps button > span { background: #ffffff0c; }
+  .workflow-steps button[aria-pressed="true"] { color: var(--accent); background: #d3bdf514; }
+  .example-dots button::before { background: #ffffff26; }
+  .example-dots button[aria-pressed="true"]::before { background: var(--accent); }
+  .scene-pin { box-shadow: 0 0 0 2px var(--theme-raised), 0 3px 10px #0004; }
+  .scene-pin[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--theme-raised), 0 0 0 3px var(--agent-color), 0 3px 10px #0004; }
+  @media (min-width: 701px) {
+    .navigation nav a { color: var(--fg2); }
+    .navigation nav a[aria-current] { color: var(--accent); background: #d3bdf50d; }
+    .navigation nav a:hover { color: var(--fg); background: #ffffff08; }
+  }
+}
