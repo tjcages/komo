@@ -1468,6 +1468,71 @@ export function initComments(options: CommentsOptions): CommentsController {
       renderList();
     }, 2000);
   }
+  let cleanupIdentity: string | null | undefined;
+  let cleanupOwner = false;
+  function confirmResolvedCleanup(trigger: HTMLButtonElement) {
+    if (!cleanupOwner || optimistic.busy) return;
+    const ids = filtered()
+      .filter((thread) => thread.resolved)
+      .map((thread) => thread.id);
+    if (!ids.length) return;
+    const prompt = el("div", "cleanup-confirm");
+    prompt.popover = "auto";
+    prompt.setAttribute("role", "alertdialog");
+    prompt.setAttribute("aria-label", "Delete resolved comments permanently");
+    prompt.append(
+      el(
+        "strong",
+        "",
+        `Delete ${ids.length} resolved ${ids.length === 1 ? "thread" : "threads"}?`
+      ),
+      el("p", "", "Their replies will be deleted too. This can’t be undone.")
+    );
+    const actions = el("div", "cleanup-actions");
+    const close = () => {
+      prompt.hidePopover();
+      trigger.focus({ preventScroll: true });
+    };
+    actions.append(
+      button("Cancel", close, "secondary"),
+      button(
+        "Delete permanently",
+        () => {
+          close();
+          run(async () => {
+            try {
+              for (let offset = 0; offset < ids.length; offset += 250) {
+                const batch = ids.slice(offset, offset + 250);
+                const removed = new Set(batch);
+                await optimistic.submit(
+                  (state) => state.filter((thread) => !removed.has(thread.id)),
+                  async () => {
+                    await api.request("project/clear-resolved", "POST", {
+                      confirm: options.project,
+                      threadIds: batch,
+                    });
+                  }
+                );
+              }
+            } finally {
+              await refresh();
+            }
+          });
+        },
+        "secondary destructive"
+      )
+    );
+    prompt.append(actions);
+    sidebar.append(prompt);
+    prompt.addEventListener("toggle", () => {
+      if (!prompt.matches(":popover-open")) prompt.remove();
+    });
+    prompt.showPopover();
+    const rect = trigger.getBoundingClientRect();
+    prompt.style.left = `${Math.max(12, Math.min(rect.right - prompt.offsetWidth, innerWidth - prompt.offsetWidth - 12))}px`;
+    prompt.style.top = `${Math.max(12, Math.min(rect.bottom + 8, innerHeight - prompt.offsetHeight - 12))}px`;
+    actions.querySelector<HTMLButtonElement>("button")?.focus();
+  }
   function renderList() {
     if (options.onboarding) {
       sidebar.replaceChildren();
@@ -1560,7 +1625,12 @@ export function initComments(options: CommentsOptions): CommentsController {
       tools.append(
         button(
           "Copy this page’s comments for agent",
-          () => run(() => copyPrompt("page")),
+          () =>
+            filter === "resolved"
+              ? confirmResolvedCleanup(
+                  panel!.querySelector<HTMLButtonElement>(".copy-page-prompt")!
+                )
+              : run(() => copyPrompt("page")),
           "icon copy-page-prompt",
           "copy"
         ),
@@ -1607,7 +1677,29 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     const copyPage =
       panel.querySelector<HTMLButtonElement>(".copy-page-prompt")!;
-    const copyGlyph = copiedPrompt === "page" ? "check" : "copy";
+    if (filter === "resolved" && cleanupIdentity !== api.token) {
+      cleanupIdentity = api.token;
+      cleanupOwner = false;
+      const identity = cleanupIdentity;
+      if (identity)
+        void api
+          .request("project")
+          .then(() => {
+            if (api.token !== identity) return;
+            cleanupOwner = true;
+            renderList();
+          })
+          .catch(() => {});
+    }
+    const deleting = filter === "resolved";
+    copyPage.disabled =
+      deleting && (!cleanupOwner || optimistic.busy || !filtered().length);
+    copyPage.classList.toggle("destructive", deleting);
+    const copyGlyph = deleting
+      ? "trash"
+      : copiedPrompt === "page"
+        ? "check"
+        : "copy";
     if (copyPage.dataset.glyph !== copyGlyph) {
       const previous = copyPage.querySelector("svg:not([data-leaving])");
       const next = icon(copyGlyph);
@@ -1636,8 +1728,11 @@ export function initComments(options: CommentsOptions): CommentsController {
         next.animate([hidden, visible], timing);
       } else copyPage.replaceChildren(next);
     }
-    copyPage.title =
-      copiedPrompt === "page"
+    copyPage.title = deleting
+      ? cleanupOwner
+        ? "Delete resolved comments permanently"
+        : "Only the project owner can delete resolved comments"
+      : copiedPrompt === "page"
         ? "Copied prompt"
         : "Copy this page’s comments for agent";
     copyPage.setAttribute("aria-label", copyPage.title);

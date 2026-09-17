@@ -274,7 +274,7 @@ Projects default to link access. Private projects require Google sign-in and own
 
 ### Quota recovery and migration
 
-Export first, then permanently clear resolved threads with `npx @tjcages/komo project clear-resolved --confirm PROJECT_KEY`. This reclaims stored-comment quota. `project delete --confirm PROJECT_KEY` permanently deletes a hosted project and frees its project slot. Both are owner-only. The account panel also offers these actions with typed confirmation.
+Export first, then permanently clear resolved threads with `npx @tjcages/komo project clear-resolved --confirm PROJECT_KEY`. This reclaims stored-comment quota. In the sidebar’s Resolved view, owners can also use the trash button to permanently delete only the currently filtered threads and their replies after confirmation. `project delete --confirm PROJECT_KEY` permanently deletes a hosted project and frees its project slot. Both are owner-only. The account panel also offers these actions with typed confirmation.
 
 To migrate, export from your source, set up a destination using `npx @tjcages/komo init --self-host` in another directory, then sign in there and run:
 

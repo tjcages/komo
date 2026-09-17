@@ -115,7 +115,7 @@ async function body(request: Request): Promise<Record<string, unknown>> {
             ? ["email"]
             : path === "/project/members"
               ? ["user"]
-              : ["access", "confirm"]
+              : ["access", "confirm", "threadIds"]
       : ["/auth/google/start", "/auth/github/start"].includes(path)
         ? ["returnOrigin"]
         : path === "/setup/start"

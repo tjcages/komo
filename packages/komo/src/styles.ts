@@ -12,6 +12,14 @@ export const styles: string = `
 .project-help { color:var(--accent,#c8b5f4); font-size:12px; }
 .project-management .destructive { color:#fda29b; }
 
+.cleanup-confirm { position:fixed; margin:0; width:min(296px,calc(100vw - 24px)); box-sizing:border-box; padding:16px; border:0; border-radius:16px; background:#242424; color:#eee; font:13px/1.5 ui-sans-serif,system-ui,sans-serif; box-shadow:inset 0 0 0 1px #ffffff18,0 12px 40px #0005; }
+.cleanup-confirm p { margin:8px 0 16px; color:#aaa; }
+.cleanup-actions { display:flex; justify-content:flex-end; gap:8px; }
+.cleanup-actions button { border:0; border-radius:9px; padding:8px 10px; background:#ffffff0b; color:#ddd; font:inherit; cursor:pointer; }
+.cleanup-actions button:hover { background:#ffffff15; }
+.cleanup-actions button:focus-visible { outline:2px solid var(--accent,#c8b5f4); outline-offset:2px; }
+.cleanup-actions .destructive, .panel-head .copy-page-prompt.destructive { color:#fda29b; }
+.copy-page-prompt:disabled { opacity:.4; cursor:default; }
 :host {
   all: initial;
   font-family: var(

@@ -1459,6 +1459,66 @@ describe("owner management and private projects", () => {
       ).threads
     ).toHaveLength(1);
   });
+  it("cleans only selected resolved threads, preserving open and other-project feedback", async () => {
+    const create = async (body: string) =>
+      (
+        await (
+          await call("/threads", "POST", { page: "/cleanup", anchor, body })
+        ).json()
+      ).id;
+    const chosen = await create("Delete this resolved thread");
+    const other = await create("Keep this resolved thread");
+    const open = await create("Keep this open thread");
+    await call(`/threads/${chosen}`, "PATCH", { resolved: true });
+    await call(`/threads/${other}`, "PATCH", { resolved: true });
+    const destination = (
+      await (
+        await call(
+          "/threads",
+          "GET",
+          undefined,
+          "destination-owner",
+          "destination"
+        )
+      ).json()
+    ).threads[0].id;
+    const data = { confirm: "managed", threadIds: [chosen, open, destination] };
+    expect(
+      (await call("/project/clear-resolved", "POST", data, "managed-stranger"))
+        .status
+    ).toBe(403);
+    expect(
+      (
+        await call("/project/clear-resolved", "POST", {
+          confirm: "managed",
+          threadIds: [],
+        })
+      ).status
+    ).toBe(400);
+    const result = await (
+      await call("/project/clear-resolved", "POST", data)
+    ).json();
+    expect(result.deleted).toBe(1);
+    const remaining = (await (await call("/threads")).json()).threads.map(
+      (t: { id: string }) => t.id
+    );
+    expect(remaining).toContain(open);
+    expect(remaining).toContain(other);
+    expect(remaining).not.toContain(chosen);
+    expect(
+      (
+        await (
+          await call(
+            "/threads",
+            "GET",
+            undefined,
+            "destination-owner",
+            "destination"
+          )
+        ).json()
+      ).threads
+    ).toHaveLength(1);
+  });
   it("deletes only the confirmed owned workspace and restores its owner slot", async () => {
     expect(
       (await call("/project", "DELETE", { confirm: "destination" })).status

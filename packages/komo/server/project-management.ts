@@ -230,10 +230,22 @@ export async function manageProject(
       400,
       "Confirm the project key to permanently remove resolved threads."
     );
+    const ids = data.threadIds;
+    check(
+      ids === undefined ||
+        (Array.isArray(ids) &&
+          ids.length > 0 &&
+          ids.length <= 250 &&
+          ids.every((id) => typeof id === "string" && id.length <= 100)),
+      400,
+      "Choose 1–250 resolved threads."
+    );
     const result = await env.DB.prepare(
-      "DELETE FROM threads WHERE project=? AND resolved=1 RETURNING id"
+      "DELETE FROM threads WHERE project=? AND resolved=1" +
+        (ids ? " AND id IN (SELECT value FROM json_each(?))" : "") +
+        " RETURNING id"
     )
-      .bind(project)
+      .bind(...(ids ? [project, JSON.stringify(ids)] : [project]))
       .all();
     return Response.json({ ok: true, deleted: result.results.length });
   }
