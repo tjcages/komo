@@ -28,3 +28,9 @@ The current deliverable is the [animated webpage](https://483be0f8.komo-wb5.page
 - Browser console showed no errors. Deployed route loaded and autoplayed at 144 BPM.
 - Local build, typecheck, 111 tests and bundle budgets pass. Initial/all-feature gzip remains 93,609 / 186,726 bytes.
 - Audio click is optional, off by default; music selection/mixing and final video exports are deferred. No new mobile-device or screen-reader coverage claimed.
+
+## Close-up revision — 2026-09-17
+
+[Current preview](https://dfbbdb3b.komo-wb5.pages.dev/launch-demo/?bpm=144). One large primary element per shot replaces the wider compositions. Inspected readable comment/reply, drawer expansion, left-edge snap, sidebar, agent handoff and cropped desktop improvement. The desktop is 1920×1080, viewed at 1.55–1.65×. Fixture request “Make the button lavender” precedes agent action and the matching button change. BPM controls and 64-beat timing remain intact. No new video export.
+
+Local build, typecheck, all 111 tests and size budgets pass again. Production browser/package code is unchanged.

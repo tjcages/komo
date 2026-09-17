@@ -6,18 +6,18 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const TOTAL = 64;
 const beats = [
   { kind: "logo" },
-  { kind: "point" },
-  { kind: "area" },
-  { title: "Right. There." },
+  { kind: "comment" },
   { kind: "reply" },
-  { kind: "resolve" },
-  { title: "Keep it moving.", tone: "dark" },
-  { kind: "dock" },
+  { title: "Right. There." },
+  { kind: "expand" },
+  { kind: "snap-left" },
+  { kind: "snap-right" },
+  { title: "Make yourself at home." },
   { kind: "sidebar" },
+  { kind: "copy" },
   { title: "Your agent. Your code." },
   { kind: "agent" },
   { kind: "improve" },
-  { title: "A little better.", tone: "light" },
   { kind: "done" },
   { kind: "logo" },
   { title: "komo.offbr.co", tone: "dark" },
@@ -63,10 +63,9 @@ $(".hero-studio-copy").textContent = "";
 $(".hero-studio-button").textContent = "";
 $(".hero-site-nav i").textContent = "";
 $(".hero-site-nav span").textContent = "";
-$("#card-one .agent-message p").textContent = "";
-$("#card-two .agent-message p").textContent = "";
-$(".coding-user p").textContent = "";
-$(".coding-response p").textContent = "";
+
+$(".coding-user p").textContent = "Make the button lavender.";
+$(".coding-response p").textContent = "Updated the button styles.";
 $(".abstract-headline").textContent = "";
 $(".abstract-headline.short").textContent = "";
 $("#resolved").setAttribute("aria-label", "Feedback verified and resolved");
@@ -97,40 +96,40 @@ function render(value) {
   beat = Math.max(0, Math.min(TOTAL, value));
   const index = Math.min(15, Math.floor(beat / 4)),
     local = beat - index * 4,
-    spec = beats[index],
-    unit = beat % 1;
-  const enter = reduced.matches ? 1 : pop(local / 0.65),
-    pulse = reduced.matches ? 0 : Math.exp(-unit * 8);
+    spec = beats[index];
+  const spring = (at = 0, d = 0.8) =>
+    reduced.matches ? 1 : pop((local - at) / d);
   for (const s of ["#intro", "#outro", "#story", "#title-hit", "#beat-rings"])
     show(s, 0);
   if (spec.title) {
     show("#title-hit", 1);
     $("#title-hit").dataset.tone = spec.tone || "lavender";
-    if (lastScene !== index) {
+    if (lastScene !== index)
       $("#title-hit h1").replaceChildren(
         ...spec.title.split(" ").map((w, i) => {
-          const span = document.createElement("span");
-          span.className = "word";
-          span.textContent = (i ? " " : "") + w;
-          return span;
+          const e = document.createElement("span");
+          e.className = "word";
+          e.textContent = (i ? " " : "") + w;
+          return e;
         }),
       );
-    }
-    $$("#title-hit .word").forEach((el, i) =>
-      titleMotion(el, (local - i * 0.09) / 1.15),
+    $$("#title-hit .word").forEach((e, i) =>
+      titleMotion(e, (local - i * 0.09) / 1.15),
     );
   } else if (spec.kind === "logo") {
     show("#intro", 1);
     show("#beat-rings", 1);
-    $$("#beat-rings i").forEach((el, i) => {
+    $$("#beat-rings i").forEach((e, i) => {
       const p = clip((local - i * 0.4) / 2.8);
-      el.style.transform = `scale(${0.65 + p * 1.65})`;
-      el.style.opacity = (1 - p) * 0.75;
+      e.style.transform = `scale(${0.65 + p * 1.65})`;
+      e.style.opacity = (1 - p) * 0.75;
     });
   } else {
     show("#story", 1);
+    show("#review", 1);
+    move("#review");
     for (const s of [
-      "#review",
+      ".review-scene",
       "#workflow",
       "#card-one",
       "#card-two",
@@ -144,198 +143,136 @@ function render(value) {
       "#cursor",
     ])
       show(s, 0);
-    show("#review", 1);
-    move("#review", 0, 0, 1 + 0.035 * enter);
-    move("#card-one", 0, 18 * (1 - enter), 0.94 + 0.06 * enter);
-    move("#card-two", 0, 0, 1);
-    move("#sidebar");
-    move("#drawer");
-    $("#drawer").style.translate = "none";
-    $("#drawer").style.scale = "";
-    $(".hero-studio-heading").style.gap = "13px";
-    $(".hero-studio-button").style.background = "#e6deef";
-    $(".hero-studio-button").style.width = "165px";
-    $(".scene-target").style.setProperty("left", "112px", "important");
-    $(".scene-target").style.setProperty("top", "176px", "important");
-    $(".scene-target").style.setProperty("width", "680px", "important");
-    $(".scene-target").style.setProperty("height", "144px", "important");
-    $(".pin-design").style.setProperty("left", "110px", "important");
-    $(".pin-design").style.setProperty("top", "176px", "important");
-    const cursor = (x, y, a = 1) => {
-      show("#cursor", a);
-      $("#cursor").style.left = `${x}px`;
-      $("#cursor").style.top = `${y}px`;
-      move("#cursor", 0, 0, 1 - 0.13 * pulse);
+    $("#film").dataset.focus = spec.kind;
+    // A real 16:9 desktop, cropped by the camera. It never fits inside the stage.
+    const desktop = (x = -180, y = -60, scale = 1.55) => {
+      show(".review-scene", 1);
+      move(".review-scene", x, y, scale);
     };
-    const target = (x, y, w, h) => {
-      for (const [k, v] of Object.entries({
-        left: x,
-        top: y,
-        width: w,
-        height: h,
-      }))
-        $(".scene-target").style.setProperty(k, `${v}px`, "important");
+    const card = (reply = false) => {
+      show("#card-one", 1);
+      move(
+        "#card-one",
+        0,
+        (reply ? 125 * (1 - fade(local, 1.1, 0.8)) : 125) + 24 * (1 - spring()),
+        0.96 + 0.04 * spring(),
+      );
+      show("#reaction", reply ? fade(local, 0.4) : 0);
+      show(".fixture-reply", reply ? fade(local, 1.1) : 0);
+      $("#card-one .fixture-card").style.height = reply
+        ? `${mix(250, 500, fade(local, 1.1, 0.8))}px`
+        : "250px";
+      move("#reaction", 0, 0, 0.94 + 0.06 * spring(0.4, 0.5));
+      move(".fixture-reply", 0, 18 * (1 - fade(local, 1.1)), 1);
     };
-    switch (spec.kind) {
-      case "point": {
-        move("#review", 35, -10, 1.12);
-        show(".scene-target", fade(local, 0.15));
-        show(".pin-design", fade(local, 1));
-        show("#card-one", fade(local, 2));
-        cursor(
-          mix(430, 785, fade(local, 0, 1)),
-          mix(365, 495, fade(local, 0, 1)),
-        );
-        move(
-          "#card-one",
-          0,
-          20 * (1 - fade(local, 2)),
-          0.94 + 0.06 * pop((local - 2) / 0.7),
-        );
-        break;
-      }
-      case "area": {
-        const p = fade(local, 0.2, 1.5);
-        target(110, 350, 20 + 250 * p, 15 + 95 * p);
-        show(".scene-target", 1);
-        show("#card-one", 1);
-        show("#card-two", fade(local, 2));
-        $(".pin-design").style.setProperty("top", "365px", "important");
-        show(".pin-design", fade(local, 1.5));
-        cursor(270 + 250 * p, 595 + 95 * p);
-        move(
-          "#card-two",
-          10 * (1 - fade(local, 2)),
-          30 * (1 - fade(local, 2)),
-          0.94 + 0.06 * pop((local - 2) / 0.6),
-        );
-        break;
-      }
-      case "reply": {
-        show("#card-one", 1);
-        show("#reaction", fade(local, 0.75));
-        show(".fixture-reply", fade(local, 1.75));
-        move("#review", -150, -60, 1.3);
-        move("#card-one", -260, 35, 1.13);
-        $("#reaction").style.transform =
-          `scale(${0.9 + 0.1 * pop((local - 0.75) / 0.5) + 0.06 * pulse})`;
-        cursor(1085, local < 1.7 ? 550 : 670);
-        break;
-      }
-      case "resolve": {
-        const gone = fade(local, 1.5, 0.6);
-        show("#card-one", 1 - gone);
-        show("#reaction", 1);
-        show(".fixture-reply", 1);
-        move("#card-one", 0, -30 * gone, 1 - 0.1 * gone);
-        show("#resolved", fade(local, 1.7));
-        move(
-          "#resolved",
-          0,
-          10 * (1 - fade(local, 1.7)),
-          0.94 + 0.06 * pop((local - 1.7) / 0.65),
-        );
-        show("#card-two", fade(local, 2.75));
-        move("#card-two", -80, -65 * fade(local, 2.75), 1);
-        break;
-      }
-      case "dock": {
-        show("#drawer", 1);
-        move("#review", 0, 0, 0.94);
-        show(".pin-design", 1);
-        const key = Math.floor(local),
-          p = fade(local, key, 0.7);
-        const stops = [
-          [640, 0],
-          [70, -190],
-          [1070, -190],
-          [640, 0],
-        ];
-        const a = stops[Math.max(0, key - 1)],
-          b = stops[Math.min(3, key)];
-        move(
-          "#drawer",
-          mix(a[0], b[0], p) - 640,
-          mix(a[1], b[1], p),
-          2.4 + 0.06 * pulse,
-        );
-        cursor(920 + mix(a[0], b[0], p) - 640, 840 + mix(a[1], b[1], p));
-        break;
-      }
-      case "sidebar": {
-        const p = fade(local, 0, 0.8);
-        show("#sidebar", 1);
-        move("#sidebar", 120 * (1 - p), 0, 0.98 + 0.02 * p);
-        move("#review", -35, 0, 1.04);
-        $$("#sidebar .fixture-card").forEach((el, i) => {
-          const q = fade(local, 0.4 + i * 0.4);
-          el.style.opacity = q;
-          el.style.transform = `translateX(${30 * (1 - q)}px)`;
-        });
-        $(".side-copy").style.transform =
-          `scale(${1 - 0.07 * (1 - fade(local % 1, 0, 0.5))})`;
-        $(".side-copy svg").style.opacity = local >= 2 ? 0 : 1;
-        $(".side-copy").classList.toggle("is-copied", local >= 2);
-        cursor(1500, 795);
-        break;
-      }
-      case "agent":
-      case "improve": {
-        show("#review", 0);
-        show("#workflow", 1);
-        const improving = spec.kind === "improve";
-        const p = fade(local, 0, 0.7);
-        move("#workflow", 0, 0, 0.97 + 0.03 * enter);
-        $(".website-window").style.zIndex = improving ? "5" : "2";
-        $(".coding-window").style.zIndex = improving ? "2" : "5";
-        move(
-          ".website-window",
-          improving ? 0 : -60 * p,
-          improving ? -15 : 0,
-          improving ? 1 : 0.96,
-        );
-        move(
-          ".coding-window",
-          improving ? 20 : 0,
-          improving ? 15 : -20 * p,
-          improving ? 0.95 : 1,
-        );
-        $(".coding-window").style.filter = improving
-          ? "brightness(.84)"
-          : "none";
-        show(".coding-user", improving ? 1 : fade(local, 0.8));
-        move(".coding-user", 0, improving ? 0 : 20 * (1 - fade(local, 0.8)));
-        show(".coding-response", improving ? 1 : fade(local, 2));
-        move(".coding-response");
-        show(".coding-result", improving ? 1 : fade(local, 3));
-        $(".coding-response p").style.clipPath =
-          `inset(0 ${improving ? 0 : 100 * (1 - fade(local, 2, 1))}% 0 0)`;
-        const better = improving ? fade(local, 1, 1) : 0;
-        $(".abstract-hero").style.gap = `${13 + 25 * better}px`;
-        $(".abstract-cta").style.background =
-          improving && local >= 2 ? "#bfa3ee" : "#e6deef";
-        $(".abstract-cta").style.transform = `scaleX(${1 + 0.22 * better})`;
-        show(".window-complete", improving ? fade(local, 3) : 0);
-        move(".window-complete");
-        break;
-      }
-      case "done": {
-        $(".hero-studio-heading").style.gap = "36px";
-        $(".hero-studio-button").style.background = "#bfa3ee";
-        $(".hero-studio-button").style.width = "205px";
-        const p = fade(local, 1, 0.65);
-        show("#card-one", 1 - p);
-        show("#card-two", 1 - fade(local, 2, 0.65));
-        move("#card-one", 0, -40 * p, 1 - 0.09 * p);
-        move("#card-two", 0, -40 * fade(local, 2), 1 - 0.09 * fade(local, 2));
-        show("#resolved", fade(local, 2.5));
-        move("#resolved", 0, 0, 0.94 + 0.06 * pop((local - 2.5) / 0.7));
-        break;
-      }
+    if (spec.kind === "comment") {
+      desktop();
+      $(".review-scene").style.opacity = ".24";
+      card();
+    }
+    if (spec.kind === "reply") {
+      card(true);
+    }
+    if (
+      spec.kind === "expand" ||
+      spec.kind === "snap-left" ||
+      spec.kind === "snap-right"
+    ) {
+      show("#drawer", 1);
+      const expand = spec.kind === "expand";
+      const p = expand ? fade(local, 0.5, 1.25) : 0;
+      const wide = expand ? fade(local, 0.5, 0.55) : 0;
+      const shell = $(".morphing-menu__shell"),
+        bar = $(".morphing-menu__bar"),
+        panel = $(".morphing-menu__panel");
+      shell.style.width = `${mix(184, 268, wide)}px`;
+      shell.style.height = `${mix(52, 192, p)}px`;
+      shell.style.borderRadius = `${mix(26, 22, p)}px`;
+      bar.style.opacity = 1 - fade(local, 0.5, 0.35) * (expand ? 1 : 0);
+      panel.style.opacity = expand ? 1 : 0;
+      $$(".morphing-menu__panel .morphing-menu__row").forEach((e, i) => {
+        const q = expand ? fade(local, 0.9 + i * 0.15, 0.6) : 0;
+        e.style.opacity = q;
+        e.style.transform = `translateY(${24 * (1 - q)}px)`;
+        e.style.filter = `blur(${3 * (1 - q)}px)`;
+      });
+      const direction = spec.kind === "snap-left" ? -1 : 1;
+      const q = expand ? 0 : spring(0.55, 1.05);
+      const x = expand ? 0 : direction * 450 * q;
+      const y = expand ? mix(5, 225, p) : 218 * fade(local, 1.05, 0.65);
+      move("#drawer", x, y, 3.3, 0);
+      const vertical = !expand ? fade(local, 1.05, 0.65) : 0;
+      shell.style.width = expand
+        ? shell.style.width
+        : `${mix(184, 52, vertical)}px`;
+      shell.style.height = expand
+        ? shell.style.height
+        : `${mix(52, 184, vertical)}px`;
+      bar.style.width = expand ? "184px" : `${mix(184, 52, vertical)}px`;
+      bar.style.height = expand ? "52px" : `${mix(52, 184, vertical)}px`;
+      bar.style.flexDirection = vertical > 0.5 ? "column" : "row";
+      $$(".morphing-menu__shortcut").forEach((e) => {
+        e.style.width = "44px";
+        e.style.height = "44px";
+      });
+      $("#drawer").classList.toggle("edge-left", spec.kind === "snap-left");
+      $("#drawer").classList.toggle("edge-right", spec.kind === "snap-right");
+    }
+    if (spec.kind === "sidebar" || spec.kind === "copy") {
+      show("#sidebar", 1);
+      const q = spec.kind === "copy" ? 1 : spring(0, 1.1);
+      move("#sidebar", 70 * (1 - q), 0, 0.97 + 0.03 * q);
+      $$("#sidebar .fixture-card").forEach((e, i) => {
+        const p = spec.kind === "copy" ? 1 : fade(local, 0.3 + i * 0.4);
+        e.style.opacity = p;
+        e.style.transform = `translateY(${26 * (1 - p)}px)`;
+      });
+      const copied = spec.kind === "copy" && local >= 1;
+      $(".side-copy").classList.toggle("is-copied", copied);
+      $(".side-copy svg").style.opacity = copied ? 0 : 1;
+      $(".side-copy span").textContent = copied
+        ? "Copied for your agent"
+        : "Copy for agent";
+      $(".side-copy").style.transform =
+        `scale(${1 - 0.035 * (spec.kind === "copy" ? Math.exp(-Math.max(0, local - 1) * 9) : 0)})`;
+    }
+    if (spec.kind === "agent") {
+      show("#workflow", 1);
+      show(".website-window", 0);
+      show(".coding-window", 1);
+      move("#workflow");
+      move(".coding-window", 0, 0, 1.45);
+      $(".coding-window").style.filter = "none";
+      show(".coding-user", fade(local, 0));
+      show(".coding-response", fade(local, 1.5));
+      show(".coding-result", fade(local, 2.8));
+      move(".coding-user", 0, 20 * (1 - spring()));
+      move(".coding-response");
+      $(".coding-response p").style.clipPath = "none";
+    }
+    if (spec.kind === "improve") {
+      desktop(-180, -105, 1.65);
+      $(".review-scene").style.opacity = "1";
+      const p = fade(local, 1, 0.8);
+      $(".hero-studio-heading").style.gap = `${mix(13, 40, p)}px`;
+      $(".hero-studio-button").style.background =
+        local >= 1 ? "#bfa3ee" : "#e6deef";
+      $(".hero-studio-button").style.transform = `scale(${1 + 0.12 * p})`;
+    } else {
+      $(".hero-studio-heading").style.gap = "13px";
+      $(".hero-studio-button").style.transform = "none";
+      $(".hero-studio-button").style.background = "#e6deef";
+    }
+    if (spec.kind === "done") {
+      card(true);
+      const p = fade(local, 1.6, 0.6);
+      show("#card-one", 1 - p);
+      move("#card-one", 0, -35 * p, 1 - 0.04 * p);
+      show("#resolved", fade(local, 1.85));
+      move("#resolved", 0, 0, 0.94 + 0.06 * spring(1.85, 0.7));
     }
   }
   lastScene = index;
-  // Seek the site's exact logo keyframes against the beat clock, never a parallel timer.
   for (const a of document.getAnimations()) {
     a.pause();
     a.currentTime = Math.max(0, local) * 700;

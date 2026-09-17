@@ -15,23 +15,25 @@ Open `http://localhost:4392/`. Query options: `?bpm=180`, `?bpm=144&ramp=1`, `?c
 Each entry occupies four beats. Gestures inside each entry land on individual beats.
 
 1. Animated komo logo
-2. Point, pin, comment
-3. Area selection, second comment
+2. Large centered comment: “Make the button lavender.”
+3. Reaction and expanding reply
 4. “Right. There.”
-5. Reaction and reply
-6. Resolve and advance
-7. “Keep it moving.”
-8. Dock movement
-9. Sidebar and copy confirmation
-10. “Your agent. Your code.”
-11. Feedback arrives in agent window
-12. Website spacing and button improve
-13. “A little better.”
-14. Verify and resolve
+5. Drawer expands with staggered rows
+6. Drawer snaps into a vertical left-edge dock
+7. Drawer snaps into a vertical right-edge dock
+8. “Make yourself at home.”
+9. Large sidebar with readable fixture comments
+10. Copy confirmation
+11. “Your agent. Your code.”
+12. Agent receives feedback and updates styles
+13. Cropped desktop: spacing and lavender button improve
+14. Comment resolves into a checkmark
 15. Animated komo logo
 16. “komo.offbr.co”
 
-The existing website and product components supply the geometry, icons, windows, cards and logo. Fixture text becomes abstract bars; standalone titles contain at most four words. No customer data or live API calls. The coding agent is responsible for the website change.
+One primary element occupies each shot. The 1920×1080 desktop surface is camera-cropped at 1.55–1.65×; the entire desktop never appears. Comment, drawer and sidebar shots use large standalone product components. Titles remain at most four words; fixture comments intentionally contain readable text.
+
+The existing website and product components supply geometry, icons, windows, cards and logo. Drawer geometry and row reveals are sought by the beat clock against the server-rendered MorphingMenu markup. This is a choreographed illustration, not a live interactive product session. No customer data or live API calls. The coding agent is responsible for the website change.
 
 ## Deploy a review preview
 
