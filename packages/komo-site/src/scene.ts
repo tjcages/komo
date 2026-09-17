@@ -1,26 +1,26 @@
 const stories = [
   {
-    author: "Design agent",
+    author: "Designer",
     initial: "D",
     comment: "Give the headline a little more room to breathe.",
-    replyAuthor: "Frontend agent",
-    replyInitial: "F",
+    replyAuthor: "Engineer",
+    replyInitial: "E",
     reply: "On it. Adjusting the spacing without changing the mobile layout.",
   },
   {
-    author: "Frontend agent",
-    initial: "F",
+    author: "Engineer",
+    initial: "E",
     comment: "Make the add to cart button easier to find.",
-    replyAuthor: "Design agent",
+    replyAuthor: "Designer",
     replyInitial: "D",
     reply: "Updated the button contrast and spacing.",
   },
   {
-    author: "QA agent",
-    initial: "Q",
+    author: "PM",
+    initial: "P",
     comment: "Can we check the dashboard navigation with a keyboard?",
-    replyAuthor: "Frontend agent",
-    replyInitial: "F",
+    replyAuthor: "Engineer",
+    replyInitial: "E",
     reply: "Focus states are in. Tab order and Escape both checked.",
   },
 ];
@@ -47,21 +47,25 @@ export function mountScene() {
   }
   function alignTarget() {
     const target = stage.querySelector<HTMLElement>(
-      `[data-review-target="${story}"]`
+      `[data-review-target="${story}"]`,
     )!;
     const box = target.getBoundingClientRect();
     const frame = stage.getBoundingClientRect();
     const padding = 5;
     stage.style.setProperty(
       "--target-left",
-      `${box.left - frame.left - padding}px`
+      `${box.left - frame.left - padding}px`,
     );
     stage.style.setProperty(
       "--target-top",
-      `${box.top - frame.top - padding}px`
+      `${box.top - frame.top - padding}px`,
     );
     stage.style.setProperty("--target-width", `${box.width + padding * 2}px`);
     stage.style.setProperty("--target-height", `${box.height + padding * 2}px`);
+    stage.querySelectorAll<HTMLElement>(".scene-pin").forEach((pin) => {
+      pin.dataset.facing =
+        box.left - frame.left < frame.width / 2 ? "left" : "right";
+    });
   }
   new ResizeObserver(alignTarget).observe(stage);
   function render() {
@@ -70,7 +74,7 @@ export function mountScene() {
     stage.querySelectorAll<HTMLElement>("[data-site]").forEach((site) => {
       site.setAttribute(
         "aria-hidden",
-        String(Number(site.dataset.site) !== story)
+        String(Number(site.dataset.site) !== story),
       );
     });
     setText(".hero-site-label", ["Studio", "Store", "Dashboard"][story]!);
@@ -99,7 +103,7 @@ export function mountScene() {
           : `${item.replyAuthor} resolved the thread`;
     scene!
       .querySelectorAll<HTMLButtonElement>(
-        "[data-scene-step], button[data-story]"
+        "[data-scene-step], button[data-story]",
       )
       .forEach((button) => {
         if (button.matches(".scene-pin")) {
@@ -110,14 +114,14 @@ export function mountScene() {
         button.setAttribute(
           "aria-pressed",
           String(
-            Number(button.dataset.sceneStep ?? button.dataset.story) === story
-          )
+            Number(button.dataset.sceneStep ?? button.dataset.story) === story,
+          ),
         );
       });
     play.innerHTML = paused ? playIcon : pauseIcon;
     play.setAttribute(
       "aria-label",
-      paused ? "Play walkthrough" : "Pause walkthrough"
+      paused ? "Play walkthrough" : "Pause walkthrough",
     );
   }
   function schedule() {
@@ -142,16 +146,16 @@ export function mountScene() {
           { opacity: 0, transform: "translateY(5px) scale(.96)" },
           { opacity: 1, transform: "translateY(0) scale(1)" },
         ],
-        { duration: 220, easing: "cubic-bezier(.16,1,.3,1)" }
+        { duration: 220, easing: "cubic-bezier(.16,1,.3,1)" },
       );
   }
   scene
     .querySelectorAll<HTMLButtonElement>(
-      "[data-scene-step], button[data-story]"
+      "[data-scene-step], button[data-story]",
     )
     .forEach((button) => {
       button.addEventListener("click", () =>
-        choose(Number(button.dataset.sceneStep ?? button.dataset.story))
+        choose(Number(button.dataset.sceneStep ?? button.dataset.story)),
       );
     });
   play.addEventListener("click", () => {

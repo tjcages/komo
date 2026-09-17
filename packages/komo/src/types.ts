@@ -42,6 +42,7 @@ export interface Thread {
 }
 
 export interface OnboardingOptions {
+  invite?: string;
   code?: string;
   workspace?: string;
   claimKey?: string;

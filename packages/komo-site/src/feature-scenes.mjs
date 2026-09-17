@@ -11,13 +11,13 @@ const queueCard = (
  <div class="queue-resolved"><span data-icon="check"></span>Resolved</div>
 </article>`;
 export const commentExample = `<div class="feature-example comment-queue" data-example="comments" data-step="0" aria-label="Animated comment conversations">
- <div class="example-header"><span>A conversation that keeps moving.</span>${controls("comment example")}</div>
+ <div class="example-header">${controls("comment example")}</div>
  <div class="conversation-viewport"><div class="conversation-track">${[0, 1, 2].map(queueCard).join("")}</div></div>
  <div class="example-footer"><span data-example-status>New comments arrive</span><span class="queue-count">2 open</span></div>
 </div>`;
 const trafficLights = `<span class="window-lights" aria-hidden="true"><i></i><i></i><i></i></span>`;
 export const promptExample = `<div class="feature-example prompt-example" data-example="prompt" data-step="0" aria-label="Animated comments to website walkthrough">
- <div class="example-header"><span>From feedback to a fix</span>${controls("prompt example")}</div>
+ <div class="example-header">${controls("prompt example")}</div>
  <div class="desktop-stage">
   <section class="desktop-window website-window" aria-label="Website window">
    <div class="desktop-titlebar">${trafficLights}<span class="browser-address"><span class="abstract-address" aria-hidden="true"></span></span><span data-icon="replay"></span></div>

@@ -71,6 +71,10 @@ describe("agent prompt export", () => {
       "> Make this smaller.\n> Keep the label.",
       "Use 32px height.",
       "Reactions: 👍 × 1",
+      "90% or higher",
+      "keep the thread open",
+      "komo comments get THREAD_ID",
+      "verify the affected behavior",
     ])
       expect(prompt).toContain(text);
     expect(prompt).not.toContain("token=private");

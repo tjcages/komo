@@ -57,6 +57,10 @@ Comments are shared across deployments by default. Use `pnpm exec komo init --br
 
 ## Agent CLI
 
+`komo init` adds the default comment workflow to `AGENTS.md`, preserving existing instructions. For an existing project, run `komo agents setup` from its root. Commit the instructions so every agent uses them.
+
+Before editing, agents read open comments, export the relevant prompt, and read replies. After verifying a simple fix, an agent can reply with evidence and resolve it at **90%+ confidence**. Complex or uncertain work stays open with a question or progress reply. This is guidance for your coding agent; the CLI does not run an agent or measure its confidence.
+
 Requires komo 0.2.0 or later. Connect your coding agent to the same comments your team sees in the browser:
 
 ```sh
@@ -106,7 +110,7 @@ Every new hosted workspace has a Google-authenticated owner. Guests can review b
 
 The client polls every four seconds while visible. Revision checks avoid repeatedly loading unchanged threads. Successful writes refresh immediately. Sessions expire after 30 days and are revoked on sign-out. Local storage restores a reviewer on the same origin; unrelated preview domains cannot share browser storage. `sessionDomain` optionally shares a session across a parent domain you control and trust.
 
-These are link-accessible review workspaces, not private repository access controls. The public project key identifies a workspace; it is not a credential. Origin restrictions prevent unintended browser embedding but are not authentication. Use an access gateway when feedback must be private.
+Projects default to link access. Owners can restrict feedback to invited Google accounts in Account → Project settings. The public project key identifies a workspace; it is not a credential. Approved origins control embedding, and private-project membership controls feedback access. Your website and repository permissions remain separate.
 
 ## Hosted setup
 
@@ -135,7 +139,7 @@ Starter limits per owner/workspace:
 
 The storage budget accounts for text, anchors, reactions, and a fixed profile allowance per member. It is deliberately conservative, not a measurement of D1 disk usage. Soft-deleting or resolving a comment does not reset its quota. Inline file attachments are not supported; avatars have a bounded representation.
 
-The service also applies per-IP and per-user limits, database-enforced quotas, owner-approved site restrictions, payload validation, project suspension, hourly cleanup, and a global daily request ceiling. Edge rate limiting runs before database work. These controls bound ordinary abuse; Google accounts and CORS do not eliminate automated abuse. The service remains a starter offering, not an unlimited storage service. Export/migration tooling and billing upgrades are not implemented yet.
+The service also applies per-IP and per-user limits, database-enforced quotas, owner-approved site restrictions, payload validation, project suspension, hourly cleanup, and a global daily request ceiling. Edge rate limiting runs before database work. These controls bound ordinary abuse; Google accounts and CORS do not eliminate automated abuse. The service remains a starter offering, not an unlimited storage service. Project exports, imports, and quota recovery are available below. Billing upgrades are not implemented yet.
 
 ## Self-host
 
@@ -147,7 +151,7 @@ pnpm exec komo init --self-host --origin https://preview.example.com
 
 The CLI signs into Cloudflare, creates a dedicated D1 database, applies migrations, deploys a Worker, and prompts for the Google client secret through Wrangler. It writes the deployment configuration into `.komo/` so you own and can change it.
 
-Create a Google OAuth **Web application** client with `openid profile` access. Pass its public client ID with `--google-client-id`, or enter it when prompted. Add the callback printed after deployment:
+Create a Google OAuth **Web application** client with `openid profile email` access. Pass its public client ID with `--google-client-id`, or enter it when prompted. Add the callback printed after deployment:
 
 ```text
 https://YOUR-WORKER.workers.dev/auth/google/callback
@@ -157,7 +161,7 @@ Open the owner-claim link printed by setup and sign in with Google. The one-time
 
 If setup is interrupted, run `pnpm exec komo deploy` to resume the existing deployment. Do not rerun initialization to create another database. The generated `.komo/wrangler.json` supports explicit allowed preview domains and single-label wildcard origins. Only allow domains whose scripts you trust.
 
-Self-hosted storage belongs to your Cloudflare account; its service limits and charges apply. Manage migrations and exports with Wrangler. The hosted service and self-hosted installations use separate databases.
+Self-hosted storage belongs to your Cloudflare account; its service limits and charges apply. Use `komo deploy` for package migrations and `komo project export` for feedback backups. The hosted service and self-hosted installations use separate databases.
 
 ## Configuration
 
@@ -253,3 +257,31 @@ The dock adapts [Danny Williams’s morphing menu](https://dannyjpwilliams.com/p
 ## License
 
 MIT.
+
+
+## Project management
+
+Sign in as the Google owner with `npx @tjcages/komo login`. In the widget, open **Account → Project settings** to manage access, download feedback, clear resolved threads, or delete a hosted project.
+
+```sh
+npx @tjcages/komo project info
+npx @tjcages/komo project access --access private
+npx @tjcages/komo project invite --email teammate@example.com
+npx @tjcages/komo project export --out comments.json
+```
+
+Projects default to link access. Private projects require Google sign-in and owner-approved membership for reads and writes, including the CLI. Invitations match a verified email address, expire after seven days, and are single-use. Members can review; only owners manage access, export, import, or delete. Google accounts used before this release should sign out and back in to verify their email. Repository access is separate.
+
+### Quota recovery and migration
+
+Export first, then permanently clear resolved threads with `npx @tjcages/komo project clear-resolved --confirm PROJECT_KEY`. This reclaims stored-comment quota. In the sidebar’s Resolved view, owners can also use the trash button to permanently delete only the currently filtered threads and their replies after confirmation. `project delete --confirm PROJECT_KEY` permanently deletes a hosted project and frees its project slot. Both are owner-only. The account panel also offers these actions with typed confirmation.
+
+To migrate, export from your source, set up a destination using `npx @tjcages/komo init --self-host` in another directory, then sign in there and run:
+
+```sh
+npx @tjcages/komo project import --file /path/to/comments.json
+```
+
+Exports include threads, replies, reactions, anchors, and historical profiles across all pages and branches, including resolved feedback. They exclude sessions, credentials, verified emails, and membership. Imports use the destination repository and keep imported authors unverified. Retrying the same export is safe; existing imported records are not overwritten. Destination quotas still apply. Export retries are required if feedback changes while downloading. Keep export files private.
+
+Upgrade self-hosted deployments with `npm install @tjcages/komo@latest` then `npx @tjcages/komo deploy`; the CLI applies bundled database migrations before redeploying. Self-hosted project removal is controlled by your Worker configuration. Account-wide data requests remain available at ty@offbr.co.

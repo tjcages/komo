@@ -138,7 +138,26 @@ export function onboardingPanel(api: CommentsApi, options: OnboardingOptions) {
       panel.append(button("Retry", () => void showWorkspace(), "secondary"));
     }
   };
-  if (options.workspace) void showWorkspace();
+  if (options.invite) {
+    const join = button(
+      "Accept invitation",
+      async () => {
+        join.disabled = true;
+        try {
+          await api.request("project/join", "POST", { invite: options.invite });
+          options.invite = undefined;
+          panel.replaceChildren(
+            el("p", "", "You’re in. Return to the website to leave comments.")
+          );
+        } catch (error) {
+          fail(error);
+          join.disabled = false;
+        }
+      },
+      "primary"
+    );
+    panel.append(join, status);
+  } else if (options.workspace) void showWorkspace();
   else if (options.code || options.claimKey) {
     const create = button(
       options.code ? "Create project" : "Enable comments",

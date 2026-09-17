@@ -1,5 +1,25 @@
 import { morphingMenuStyles } from "./morphing-menu-styles.js";
-export const styles = `
+export const styles: string = `
+.project-management select { width:100%; padding:10px; border:0; border-radius:10px; background:#ffffff0a; color:inherit; font:inherit; }
+.project-management select option { background:#242424; color:#eee; }
+.project-management[hidden], .project-management [hidden] { display:none !important; }
+.project-management .account-sites-summary { justify-content: space-between; }
+.project-management .account-usage-status { padding: 0 16px; }
+.project-management summary { cursor:pointer; }
+.project-member { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; overflow-wrap:anywhere; }
+.project-danger { display:grid; gap:10px; font-size:12px; }
+.project-danger p { color:#999; line-height:1.5; }
+.project-help { color:var(--accent,#c8b5f4); font-size:12px; }
+.project-management .destructive { color:#fda29b; }
+
+.cleanup-confirm { position:fixed; margin:0; width:min(296px,calc(100vw - 24px)); box-sizing:border-box; padding:16px; border:0; border-radius:16px; background:#242424; color:#eee; font:13px/1.5 ui-sans-serif,system-ui,sans-serif; box-shadow:inset 0 0 0 1px #ffffff18,0 12px 40px #0005; }
+.cleanup-confirm p { margin:8px 0 16px; color:#aaa; }
+.cleanup-actions { display:flex; justify-content:flex-end; gap:8px; }
+.cleanup-actions button { border:0; border-radius:9px; padding:8px 10px; background:#ffffff0b; color:#ddd; font:inherit; cursor:pointer; }
+.cleanup-actions button:hover { background:#ffffff15; }
+.cleanup-actions button:focus-visible { outline:2px solid var(--accent,#c8b5f4); outline-offset:2px; }
+.cleanup-actions .destructive, .panel-head .copy-page-prompt.destructive { color:#fda29b; }
+.copy-page-prompt:disabled { opacity:.4; cursor:default; }
 :host {
   all: initial;
   font-family: var(
@@ -2208,11 +2228,15 @@ textarea {
   box-shadow: inset 0 0 0 1px #ffffff08;
 }
 
+.toolbar[data-intro="true"] > .morphing-menu {
+  filter: none;
+  clip-path: var(--drawer-peek-clip, inset(50% 0 0 0));
+}
 .toolbar[data-away="true"][data-peek="true"] > .morphing-menu {
   translate: calc(var(--drawer-away-x, 0px) / 3) calc(var(--drawer-away-y, 24px) / 3);
-  scale: .96;
-  opacity: .65;
-  filter: blur(1px);
+  scale: 1;
+  opacity: 1;
+  filter: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .toolbar[data-away="true"][data-peek="true"] > .morphing-menu {

@@ -1,5 +1,6 @@
 import { Copy01 } from "@untitledui/icons/Copy01";
 import { applyAccent } from "./accent.js";
+import { ChevronSelectorVertical } from "@untitledui/icons/ChevronSelectorVertical";
 import { ChevronDown } from "@untitledui/icons/ChevronDown";
 import { Edit05 } from "@untitledui/icons/Edit05";
 import { Trash01 } from "@untitledui/icons/Trash01";
@@ -34,6 +35,7 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 // Icon components are shared by the DOM and React surfaces.
 type IconName =
   | "chevron"
+  | "drawer"
   | "edit"
   | "trash"
   | "info"
@@ -54,6 +56,7 @@ type IconName =
   | "branch";
 export const icons: Record<IconName, ComponentType<SVGProps<SVGSVGElement>>> = {
   chevron: ChevronDown,
+  drawer: ChevronSelectorVertical,
   edit: Edit05,
   trash: Trash01,
   info: InfoCircle,

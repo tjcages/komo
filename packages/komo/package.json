@@ -1,6 +1,6 @@
 {
   "name": "@tjcages/komo",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "description": "Point, area, and threaded comments for website branches.",
   "type": "module",
   "license": "MIT",
@@ -20,7 +20,10 @@
     "cli",
     "server/workspaces.ts",
     "server/setup-page.ts",
-    "server/setup-client.txt"
+    "server/setup-client.txt",
+    "server/project-management.ts",
+    "server/import-project.ts",
+    "server/digest.ts"
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -70,10 +73,10 @@
     "esbuild": "^0.25.0",
     "motion": "^12.43.0",
     "emoji-picker-element": "^1.29.1",
-    "react-colorful": "^5.8.1"
+    "react-colorful": "^5.8.1",
+    "@untitledui/icons": "0.0.22"
   },
   "dependencies": {
-    "@untitledui/icons": "0.0.22",
     "emoji-regex": "^10.6.0",
     "react": "19.2.7",
     "react-dom": "19.2.7"

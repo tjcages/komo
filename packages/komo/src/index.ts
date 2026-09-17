@@ -1,5 +1,6 @@
 import { resolveConfig, type KomoConfig } from "./config.js";
 export type { KomoConfig } from "./config.js";
+import { pinDirection } from "./pin-direction.js";
 import { pinStacks } from "./pin-stacks.js";
 import { OptimisticQueue } from "./optimistic.js";
 import { accountUsage } from "./account-usage.js";
@@ -20,10 +21,10 @@ import {
   reviewLayout,
 } from "./review-layout.js";
 import { createElement } from "react";
-import { createRoot } from "react-dom/client";
-import { MorphingMenu, type MenuItem } from "./MorphingMenu.js";
+import { createToolbar } from "./lazy-toolbar.js";
+import type { MenuItem } from "./MorphingMenu.js";
 import { canonicalPage } from "./page.js";
-import { CommentsApi } from "./api.js";
+import { ApiError, CommentsApi } from "./api.js";
 import { captureAnchor, locateAnchor as measureAnchor } from "./anchors.js";
 import {
   age,
@@ -236,6 +237,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     control.prepend(googleLogo());
     return control;
   }
+  let accessError = "";
   let google = false;
   let movingThread: string | null = null;
   let github = false,
@@ -350,7 +352,17 @@ export function initComments(options: CommentsOptions): CommentsController {
   let hoverFrame = 0;
   const live = el("div", "sr-only");
   live.setAttribute("aria-live", "polite");
-  const toolbarRoot = createRoot(toolbar);
+  const toolbarRoot = createToolbar(toolbar, (id) => {
+    if (id === "account") {
+      if (!api.user) return icon("person");
+      const portrait = avatar(api.user);
+      portrait.classList.add("review-avatar");
+      return portrait;
+    }
+    return icon(
+      id === "browse" ? "pointer" : id === "comment" ? "comment" : "expand"
+    );
+  });
   shadow.append(
     style,
     catcher,
@@ -734,6 +746,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         return;
       const changed = JSON.stringify(next) !== JSON.stringify(threads);
       const recovered = connection !== "Live";
+      accessError = "";
       connection = "Live";
       if (selected && !next.some((thread) => thread.id === selected))
         selected = null;
@@ -743,6 +756,15 @@ export function initComments(options: CommentsOptions): CommentsController {
         renderToolbar();
       }
     } catch (reason) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 401 || reason.status === 403)
+      ) {
+        accessError = reason.message;
+        selected = null;
+        lastRefresh = undefined;
+        optimistic.replace([], revision);
+      }
       connection = "Offline";
       renderList();
       renderToolbar();
@@ -1173,32 +1195,30 @@ export function initComments(options: CommentsOptions): CommentsController {
         showInBar: false,
         onSelect: () => run(refresh),
       });
-    toolbarRoot.render(
-      createElement(MorphingMenu, {
-        items: options.onboarding
-          ? items.filter(
-              (item) => item.id === "account" || item.id === "comments"
-            )
-          : items,
-        alignEnd:
-          !!toolbarPlacement && toolbarPlacement.y > window.innerHeight / 2,
-        edge:
-          toolbarPlacement?.edgeX ??
-          toolbarPlacement?.edgeY ??
-          (toolbarPlacement && toolbarPlacement.y < window.innerHeight / 2
-            ? "top"
-            : "bottom"),
-        activeId: account
-          ? "account"
-          : mode
-            ? "comment"
-            : expanded
-              ? "comments"
-              : "browse",
-        label: "Website review",
-        moreLabel: "More review tools",
-      })
-    );
+    toolbarRoot.render({
+      items: options.onboarding
+        ? items.filter(
+            (item) => item.id === "account" || item.id === "comments"
+          )
+        : items,
+      alignEnd:
+        !!toolbarPlacement && toolbarPlacement.y > window.innerHeight / 2,
+      edge:
+        toolbarPlacement?.edgeX ??
+        toolbarPlacement?.edgeY ??
+        (toolbarPlacement && toolbarPlacement.y < window.innerHeight / 2
+          ? "top"
+          : "bottom"),
+      activeId: account
+        ? "account"
+        : mode
+          ? "comment"
+          : expanded
+            ? "comments"
+            : "browse",
+      label: "Website review",
+      moreLabel: "More review tools",
+    });
   }
 
   let pinSnapshot = "";
@@ -1238,7 +1258,12 @@ export function initComments(options: CommentsOptions): CommentsController {
     const snapshot = JSON.stringify([
       selected,
       draft && locateAnchor(draft),
-      positions.map(({ thread, rect, blocked }) => [thread.id, rect, blocked]),
+      positions.map(({ thread, rect, blocked }) => [
+        thread.id,
+        rect,
+        blocked,
+        pinDirection(rect, window.innerWidth),
+      ]),
     ]);
     if (snapshot === pinSnapshot) return;
     pinSnapshot = snapshot;
@@ -1368,7 +1393,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         previewTimer = window.setTimeout(hidePreview, 120);
       });
       pin.dataset.thread = thread.id;
-      pin.dataset.pointer = rect.x < window.innerWidth / 2 ? "right" : "left";
+      pin.dataset.pointer = pinDirection(placement.rect, window.innerWidth);
       Object.assign(pin.style, { left: `${rect.x}px`, top: `${rect.y}px` });
       if (group && leader?.rect.attached && !leader.blocked) {
         let stack = stackElements.get(group[0].id);
@@ -1442,6 +1467,71 @@ export function initComments(options: CommentsOptions): CommentsController {
       renderToolbar();
       renderList();
     }, 2000);
+  }
+  let cleanupIdentity: string | null | undefined;
+  let cleanupOwner = false;
+  function confirmResolvedCleanup(trigger: HTMLButtonElement) {
+    if (!cleanupOwner || optimistic.busy) return;
+    const ids = filtered()
+      .filter((thread) => thread.resolved)
+      .map((thread) => thread.id);
+    if (!ids.length) return;
+    const prompt = el("div", "cleanup-confirm");
+    prompt.popover = "auto";
+    prompt.setAttribute("role", "alertdialog");
+    prompt.setAttribute("aria-label", "Delete resolved comments permanently");
+    prompt.append(
+      el(
+        "strong",
+        "",
+        `Delete ${ids.length} resolved ${ids.length === 1 ? "thread" : "threads"}?`
+      ),
+      el("p", "", "Their replies will be deleted too. This can’t be undone.")
+    );
+    const actions = el("div", "cleanup-actions");
+    const close = () => {
+      prompt.hidePopover();
+      trigger.focus({ preventScroll: true });
+    };
+    actions.append(
+      button("Cancel", close, "secondary"),
+      button(
+        "Delete permanently",
+        () => {
+          close();
+          run(async () => {
+            try {
+              for (let offset = 0; offset < ids.length; offset += 250) {
+                const batch = ids.slice(offset, offset + 250);
+                const removed = new Set(batch);
+                await optimistic.submit(
+                  (state) => state.filter((thread) => !removed.has(thread.id)),
+                  async () => {
+                    await api.request("project/clear-resolved", "POST", {
+                      confirm: options.project,
+                      threadIds: batch,
+                    });
+                  }
+                );
+              }
+            } finally {
+              await refresh();
+            }
+          });
+        },
+        "secondary destructive"
+      )
+    );
+    prompt.append(actions);
+    sidebar.append(prompt);
+    prompt.addEventListener("toggle", () => {
+      if (!prompt.matches(":popover-open")) prompt.remove();
+    });
+    prompt.showPopover();
+    const rect = trigger.getBoundingClientRect();
+    prompt.style.left = `${Math.max(12, Math.min(rect.right - prompt.offsetWidth, innerWidth - prompt.offsetWidth - 12))}px`;
+    prompt.style.top = `${Math.max(12, Math.min(rect.bottom + 8, innerHeight - prompt.offsetHeight - 12))}px`;
+    actions.querySelector<HTMLButtonElement>("button")?.focus();
   }
   function renderList() {
     if (options.onboarding) {
@@ -1535,7 +1625,12 @@ export function initComments(options: CommentsOptions): CommentsController {
       tools.append(
         button(
           "Copy this page’s comments for agent",
-          () => run(() => copyPrompt("page")),
+          () =>
+            filter === "resolved"
+              ? confirmResolvedCleanup(
+                  panel!.querySelector<HTMLButtonElement>(".copy-page-prompt")!
+                )
+              : run(() => copyPrompt("page")),
           "icon copy-page-prompt",
           "copy"
         ),
@@ -1582,7 +1677,29 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     const copyPage =
       panel.querySelector<HTMLButtonElement>(".copy-page-prompt")!;
-    const copyGlyph = copiedPrompt === "page" ? "check" : "copy";
+    if (filter === "resolved" && cleanupIdentity !== api.token) {
+      cleanupIdentity = api.token;
+      cleanupOwner = false;
+      const identity = cleanupIdentity;
+      if (identity)
+        void api
+          .request("project")
+          .then(() => {
+            if (api.token !== identity) return;
+            cleanupOwner = true;
+            renderList();
+          })
+          .catch(() => {});
+    }
+    const deleting = filter === "resolved";
+    copyPage.disabled =
+      deleting && (!cleanupOwner || optimistic.busy || !filtered().length);
+    copyPage.classList.toggle("destructive", deleting);
+    const copyGlyph = deleting
+      ? "trash"
+      : copiedPrompt === "page"
+        ? "check"
+        : "copy";
     if (copyPage.dataset.glyph !== copyGlyph) {
       const previous = copyPage.querySelector("svg:not([data-leaving])");
       const next = icon(copyGlyph);
@@ -1611,8 +1728,11 @@ export function initComments(options: CommentsOptions): CommentsController {
         next.animate([hidden, visible], timing);
       } else copyPage.replaceChildren(next);
     }
-    copyPage.title =
-      copiedPrompt === "page"
+    copyPage.title = deleting
+      ? cleanupOwner
+        ? "Delete resolved comments permanently"
+        : "Only the project owner can delete resolved comments"
+      : copiedPrompt === "page"
         ? "Copied prompt"
         : "Copy this page’s comments for agent";
     copyPage.setAttribute("aria-label", copyPage.title);
@@ -1737,16 +1857,22 @@ export function initComments(options: CommentsOptions): CommentsController {
         el(
           "strong",
           "",
-          connection === "Offline"
-            ? "Connection interrupted"
-            : search
-              ? "No matching comments"
-              : filter === "resolved"
-                ? "Nothing resolved yet"
-                : "No comments yet"
+          accessError
+            ? "Private project"
+            : connection === "Offline"
+              ? "Connection interrupted"
+              : search
+                ? "No matching comments"
+                : filter === "resolved"
+                  ? "Nothing resolved yet"
+                  : "No comments yet"
         )
       );
-      if (connection === "Offline")
+      if (accessError) {
+        empty.append(el("p", "", accessError));
+        if (!api.user?.verified)
+          empty.append(button("Sign in", openAccount, "secondary"));
+      } else if (connection === "Offline")
         empty.append(button("Retry", () => run(refresh), "secondary"));
       else if (!search && filter !== "resolved")
         empty.append(
@@ -2261,7 +2387,9 @@ export function initComments(options: CommentsOptions): CommentsController {
     closePicker?.(true);
     closePicker = undefined;
     const active = shadow.activeElement as
-      HTMLInputElement | HTMLTextAreaElement | null;
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | null;
     const focusKey = active?.dataset.focusKey;
     const caret = focusKey ? active?.selectionStart : null;
     const scroll = dialogs.querySelector(".messages")?.scrollTop ?? 0;
@@ -2323,7 +2451,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       exitingDialogs.set(previousDialog, undefined);
       const exit = previousDialog.animate(
         [from, { opacity: 0, transform: "translateY(4px) scale(.99)" }],
-        { duration: 150, easing: "cubic-bezier(.22,1,.36,1)", fill: "forwards" }
+        {
+          duration: 150,
+          easing: "cubic-bezier(.22,1,.36,1)",
+          fill: "forwards",
+        }
       );
       void exit.finished
         .catch(() => {})
@@ -2563,6 +2695,41 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (options.onboarding)
           content.append(onboardingPanel(api, options.onboarding));
         else content.append(accountUsage(api));
+        if (
+          api.user?.verified &&
+          !options.onboarding?.code &&
+          !options.onboarding?.claimKey &&
+          !options.onboarding?.invite
+        ) {
+          const settings = el("div");
+          content.append(settings);
+          void import("./project-management.js").then(
+            ({ projectManagement }) => {
+              if (settings.isConnected)
+                settings.replaceWith(
+                  projectManagement(
+                    api,
+                    options.onboarding?.workspace,
+                    (deleted) => {
+                      if (deleted) {
+                        selected = null;
+                        optimistic.replace([], optimistic.revision);
+                        content.querySelector(".account-usage")?.remove();
+                      } else {
+                        const path = options.onboarding?.workspace
+                          ? `usage?workspace=${encodeURIComponent(options.onboarding.workspace)}`
+                          : "usage";
+                        content
+                          .querySelector(".account-usage")
+                          ?.replaceWith(accountUsage(api, path));
+                        void refresh().catch(() => {});
+                      }
+                    }
+                  )
+                );
+            }
+          );
+        }
         content.addEventListener("submit", (event) => {
           event.preventDefault();
           queueProfileSave(profile, true);
@@ -3026,8 +3193,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         }
       }
       moved = true;
-      pin.dataset.pointer =
-        origin.x + dx < window.innerWidth / 2 ? "right" : "left";
+      pin.dataset.pointer = pinDirection(
+        { ...origin, x: origin.x + dx, y: origin.y + dy },
+        window.innerWidth
+      );
       pin.style.left = `${origin.x + dx}px`;
       pin.style.top = `${origin.y + dy}px`;
       draggedPin = { id: thread.id, x: origin.x + dx, y: origin.y + dy };
@@ -3460,7 +3629,16 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
   const observer = new ResizeObserver(geometry);
   observer.observe(surface);
-  const mutations = new MutationObserver(geometry);
+  let mutationTimer = 0;
+  const mutations = new MutationObserver(() => {
+    // Background host churn needs one refresh per burst, not per animation frame.
+    if (draft || selected || mode || activeNotice) return geometry();
+    if (!mutationTimer)
+      mutationTimer = window.setTimeout(() => {
+        mutationTimer = 0;
+        geometry();
+      }, 80);
+  });
   mutations.observe(surface, {
     childList: true,
     subtree: true,
@@ -3486,8 +3664,11 @@ export function initComments(options: CommentsOptions): CommentsController {
   document.addEventListener(
     "visibilitychange",
     () => {
-      if (document.hidden) mutations.disconnect();
-      else {
+      if (document.hidden) {
+        mutations.disconnect();
+        clearTimeout(mutationTimer);
+        mutationTimer = 0;
+      } else {
         mutations.observe(surface, {
           childList: true,
           subtree: true,
@@ -3501,6 +3682,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
   const controller: CommentsController = {
     destroy() {
+      clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
       clearTimeout(accountOpenTimer);
       clearTimeout(copiedPromptTimer);

@@ -81,6 +81,7 @@ export function locateAnchor(
   width: number;
   height: number;
   attached: boolean;
+  component?: { left: number; top: number; right: number; bottom: number };
 } {
   let element: Element | null = null;
   try {
@@ -111,6 +112,12 @@ export function locateAnchor(
         width: rect.width * anchor.width,
         height: rect.height * anchor.height,
         attached: true,
+        component: {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+        },
       };
   }
   return {

@@ -43,7 +43,7 @@ const result = await build({
       },
     },
   ],
-  external: ["react", "react-dom", "@untitledui/icons", "emoji-regex"],
+  external: ["react", "react-dom", "emoji-regex"],
 });
 const packages = new Set();
 const notices = [];

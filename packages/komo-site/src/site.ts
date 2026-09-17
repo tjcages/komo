@@ -1,4 +1,5 @@
 import "./site.css";
+import { createTryCursors } from "./try-cursors";
 const check =
   document.querySelector<HTMLTemplateElement>("#check-icon")!.innerHTML;
 document
@@ -35,7 +36,7 @@ function setNavigation(open: boolean, restoreFocus = false) {
   toggle.setAttribute("aria-expanded", String(open));
   toggle.setAttribute(
     "aria-label",
-    open ? "Close navigation" : "Open navigation"
+    open ? "Close navigation" : "Open navigation",
   );
   document.body.classList.toggle("nav-open", open);
   navigation.inert = compactNav.matches && !open;
@@ -46,7 +47,7 @@ function setNavigation(open: boolean, restoreFocus = false) {
   else if (restoreFocus) toggle.focus({ preventScroll: true });
 }
 toggle?.addEventListener("click", () =>
-  setNavigation(toggle.getAttribute("aria-expanded") !== "true")
+  setNavigation(toggle.getAttribute("aria-expanded") !== "true"),
 );
 document
   .querySelector("[data-nav-close]")
@@ -100,38 +101,20 @@ document.querySelectorAll("[data-try-komo]").forEach((button) => {
 });
 
 const tryBlock = document.querySelector<HTMLElement>("#try-komo");
-const tryMotion =
-  document.querySelector<HTMLButtonElement>("[data-try-motion]");
-if (tryBlock && tryMotion) {
+if (tryBlock) {
+  const cursors = createTryCursors(tryBlock);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  const pauseIcon = tryMotion.innerHTML;
-  const playIcon =
-    document.querySelector<HTMLTemplateElement>("#play-icon")!.innerHTML;
-  let paused = reduced.matches;
   let visible = false;
   const syncMotion = () => {
-    tryBlock.dataset.moving = String(
-      !paused && visible && !document.hidden && !reduced.matches
+    cursors.setPlaying(
+      visible && !document.hidden && !reduced.matches,
     );
-    tryMotion.innerHTML = paused ? playIcon : pauseIcon;
-    tryMotion.setAttribute(
-      "aria-label",
-      paused ? "Play agent cursors" : "Pause agent cursors"
-    );
-    tryMotion.hidden = reduced.matches;
   };
-  tryMotion.addEventListener("click", () => {
-    paused = !paused;
-    syncMotion();
-  });
   new IntersectionObserver(([entry]) => {
     visible = !!entry?.isIntersecting;
     syncMotion();
   }).observe(tryBlock);
   document.addEventListener("visibilitychange", syncMotion);
-  reduced.addEventListener("change", () => {
-    paused = reduced.matches;
-    syncMotion();
-  });
+  reduced.addEventListener("change", syncMotion);
   syncMotion();
 }
