@@ -43,7 +43,7 @@ initKomo({
 });
 ```
 
-The **endpoint is the comments API**, not your website or preview URL. Hosted komo supplies the default API URL. For self-hosting, pass the Worker URL as `endpoint`. Your current page comes from the browser. Setup detects repository metadata from Git; include its printed `repo` value to enrich agent prompts.
+The **endpoint is the comments API**, not your website or preview URL. Hosted komo defaults to `https://komo.offbr.co`. Google sign-in returns to `https://komo.offbr.co/auth/google/callback`, regardless of the website embedding komo. Existing installations using the original workers.dev endpoint continue to work. For self-hosting, pass the Worker URL as `endpoint`. Your current page comes from the browser. Setup detects repository metadata from Git; include its printed `repo` value to enrich agent prompts.
 
 Comments are shared across deployments by default. Use `pnpm exec komo init --branch-scope` to separate them by branch. For automatic branch detection, import from the optional generated `komo.config.js` helper and run `komo sync` before builds. It detects the current branch from deployment environment variables or Git; set `KOMO_BRANCH` if neither is available. It fails rather than silently grouping unknown branches.
 

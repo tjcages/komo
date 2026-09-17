@@ -150,7 +150,7 @@ async function configuration(flags, cwd, env) {
     flags.endpoint ||
       env.KOMO_ENDPOINT ||
       settings.endpoint ||
-      "https://komo-api.off-brand.workers.dev"
+      "https://komo.offbr.co"
   );
   const origin = safeUrl(
     flags.origin ||

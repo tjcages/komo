@@ -187,7 +187,7 @@ async function init() {
     let config;
     if (!selfHosted) {
       const endpoint =
-        flag("--endpoint") || "https://komo-api.off-brand.workers.dev";
+        flag("--endpoint") || "https://komo.offbr.co";
       const api = new URL(endpoint);
       if (
         api.protocol !== "https:" &&

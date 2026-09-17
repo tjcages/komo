@@ -6,7 +6,7 @@
     "build": "node scripts/build.mjs",
     "dev": "pnpm run build && python3 -m http.server 4340 -d dist",
     "deploy": "pnpm run build && wrangler deploy --config wrangler.jsonc",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "wrangler types worker/worker-configuration.d.ts && tsc -p tsconfig.json && tsc -p worker/tsconfig.json"
   },
   "dependencies": {
     "@tjcages/komo": "workspace:*"
