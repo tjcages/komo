@@ -17,3 +17,14 @@ Verified 2026-09-17.
 Remaining: owner review of the creative assets and public launch decision. Linear reconciliation remains blocked by the official connector's authorization error. Google branding review is still pending.
 
 Browser playback on the deployed gallery reached the clean ending for all three files: master 42s, portrait 42s, teaser 12s; all reported `ended: true` with no media error. The final immutable review gallery is linked from this folder's README.
+
+## Beat studio revision — 2026-09-17
+
+The current deliverable is the [animated webpage](https://483be0f8.komo-wb5.pages.dev/launch-demo/?bpm=144). No new video render. Previous media checks above apply only to the earlier film.
+
+- Visually inspected logo, comment/reaction/reply, sidebar/copy, jumbo title, agent/website improvement and held ending in Chrome.
+- Scrub pauses exactly; changing BPM synchronizes numeric and range controls without resetting the beat; ramp toggles; non-loop playback stops at beat 64 with the URL held.
+- Clock inverse checks pass at 60, 144, 180 and 240 BPM with both steady and ramp timing. Loop carries elapsed remainder to avoid cumulative frame drift.
+- Browser console showed no errors. Deployed route loaded and autoplayed at 144 BPM.
+- Local build, typecheck, 111 tests and bundle budgets pass. Initial/all-feature gzip remains 93,609 / 186,726 bytes.
+- Audio click is optional, off by default; music selection/mixing and final video exports are deferred. No new mobile-device or screen-reader coverage claimed.

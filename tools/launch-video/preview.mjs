@@ -7,6 +7,8 @@ await mkdir(out, { recursive: true });
 for (const f of [
   "index.html",
   "film.css",
+  "beat.css",
+  "beat.js",
   "site.css",
   "logo.css",
   "menu.css",

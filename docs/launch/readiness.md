@@ -31,28 +31,24 @@ Initial registry version was 0.3.2. The selected release is 0.4.0 because the Re
 
 Google Verification Center was refreshed on 2026-09-17 and still says “Your branding is currently under review.” No branding edits or resubmission occurred. Data access says verification is not required because no sensitive or restricted scopes are requested. Check the existing appeal for a decision; do not submit a duplicate.
 
-## Linear setup pending authentication
+## Linear tracking
 
-Official Linear MCP `list_teams` returned `UNAUTHORIZED` (`oauth_token_invalid_grant`) before and after the user reconnected. No project inventory or writes succeeded. Do not invent a project, team, issue URL, or completed setup. Resume through official MCP after the connection refreshes.
+Official MCP authentication succeeded after restart. Searches for komo, Komo and the repository found no existing project. Created [komo in Off-brand](https://linear.app/off-brand-studio/project/komo-9f81aa4f25a3), with release readiness, launch assets and beta rollout milestones. [Product guide](https://linear.app/off-brand-studio/document/komo-product-and-beta-launch-guide-6baf97d909c4).
 
-Use the README as the overview. Search `komo`, `Komo`, and the repository URL across projects, issues, and documents. Preserve existing work. If a project exists, inventory it and obtain the specific extension approvals required by `linear-setup`. If absent, bootstrap is authorized; ask for a team only if ambiguous.
+| Issue | Work | State |
+| --- | --- | --- |
+| [OFF-672](https://linear.app/off-brand-studio/issue/OFF-672) | Beat-driven launch webpage | Review in PR #10 |
+| [OFF-673](https://linear.app/off-brand-studio/issue/OFF-673) | Publish and verify 0.4.0 | Done |
+| [OFF-674](https://linear.app/off-brand-studio/issue/OFF-674) | Matching production docs | Done; depends on 673 |
+| [OFF-675](https://linear.app/off-brand-studio/issue/OFF-675) | Google branding appeal | Await external decision |
+| [OFF-676](https://linear.app/off-brand-studio/issue/OFF-676) | Deleted-project logout cleanup | Todo |
+| [OFF-677](https://linear.app/off-brand-studio/issue/OFF-677) | Announcement copy | In Review |
+| [OFF-678](https://linear.app/off-brand-studio/issue/OFF-678) | Remaining device/accessibility QA | Todo |
+| [OFF-679](https://linear.app/off-brand-studio/issue/OFF-679) | Owner rollout approval | Depends on 672, 677, 678 |
+| [OFF-680](https://linear.app/off-brand-studio/issue/OFF-680) | Export approved beat sequence | Deferred; depends on 672 |
+| [OFF-681](https://linear.app/off-brand-studio/issue/OFF-681) | Triage beta feedback | After approved rollout |
 
-## Proposed tracked work
-
-| Track             | Issue                            | Acceptance                                                                  | Dependency                   |
-| ----------------- | -------------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
-| Release readiness | Publish React hook release       | Clean 0.4.0 install from registry; exports and CLI pass                     | npm publication verification |
-| Release readiness | Deploy matching documentation    | Production hook/type docs available; API routing healthy                    | Published package            |
-| Release readiness | Verify beta setup journeys       | Hosted customer handoff and self-host artifact checks recorded accurately   | Published package            |
-| Release readiness | Follow Google branding appeal    | Record actual decision or requested follow-up                               | External review              |
-| Launch assets     | Prepare announcement copy        | Three posts, thread, replies, counts, owner review                          | Verified claims              |
-| Launch assets     | Render launch demo assets        | Landscape, portrait, teaser, poster, captions, render source; visual review | Timeline implementation      |
-| Launch assets     | Review launch assets             | Owner approves copy and video                                               | Rendered assets              |
-| Beta rollout      | Approve public beta announcement | Owner go/no-go with remaining QA limits visible                             | Release and asset review     |
-| Beta rollout      | Publish launch announcement      | Only after explicit posting approval                                        | Approved announcement        |
-| Beta rollout      | Collect first beta feedback      | Triage real feedback and choose next fixes                                  | Public rollout               |
-
-No dates, assignees, or traction claims have been invented. Backfill only useful completed milestones with source links. Add actual Linear IDs and URLs to AGENTS.md and this index only after authenticated discovery and authorized writes.
+The owner's revised direction is a fast animated webpage with adjustable BPM. No new video render in this pass. Existing films remain historical assets. No dates, assignees or traction claims invented. Merge and social publication still require explicit owner approval.
 
 ## QA limits
 
@@ -70,4 +66,4 @@ Physical-phone testing is excluded by user instruction. Prior simulator evidence
 
 ## Follow-up found during cleanup
 
-`komo logout` returns 404 after its project has already been deleted, leaving the local credential file. Server-side sessions are removed by project deletion, so this is a local cleanup/UX issue. Reproduce with a disposable project; accept 404 during logout and remove its local session file, with a regression test. Queue this in Linear after authentication is restored.
+`komo logout` returns 404 after its project has already been deleted, leaving the local credential file. Server-side sessions are removed by project deletion, so this is a local cleanup/UX issue. Reproduce with a disposable project; accept 404 during logout and remove its local session file, with a regression test. Tracked in OFF-676.

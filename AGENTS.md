@@ -13,8 +13,11 @@
 
 - Linear is the source of truth for project work. Follow `linear-discipline` and `linear-setup`; authenticate with official Linear MCP before reads or writes.
 - Search for `komo`, `Komo`, and `https://github.com/tjcages/komo` before creating a project or issue. Preserve existing work and obtain the skill's required approvals before extending an existing project.
-- Setup is pending: the official connector returned `UNAUTHORIZED` on 2026-09-17, including after reconnection. Team and project IDs are not yet known; do not invent them or treat this protocol as completed setup.
-- Resume from `docs/launch/readiness.md`. Install the verified team/project IDs, milestone names, and issue links here after authenticated discovery.
+- Official MCP authentication and search completed on 2026-09-17 after restart. Team: **Off-brand** (`OFF`), ID `7c1223a3-ebb1-42a3-9ba7-5f0a4a776933`.
+- Project: [komo](https://linear.app/off-brand-studio/project/komo-9f81aa4f25a3), ID `c75f51ee-3d39-43ad-b561-0034122e8d09`.
+- Milestones: Release readiness (`e4bb27cb-3cc8-4d77-aae3-b07e22e0e7f6`), Launch assets (`8966e200-be31-4a49-9f02-63984259aebc`), Beta rollout (`f4765f25-5c00-4b5b-b901-522f404ffd29`).
+- Active creative review: [OFF-672](https://linear.app/off-brand-studio/issue/OFF-672). Release evidence OFF-673/674; branding OFF-675; CLI cleanup OFF-676; copy OFF-677; QA OFF-678; rollout approval OFF-679; deferred export OFF-680; beta feedback OFF-681.
+- Read `docs/launch/readiness.md` and the [product guide](https://linear.app/off-brand-studio/document/komo-product-and-beta-launch-guide-6baf97d909c4). Search before creating. Use In Progress for active implementation, In Review for delivered work awaiting acceptance, Done only with evidence.
 - Track release readiness, launch assets, and beta rollout separately. Use real dependencies and evidence-backed Done states. Merged code, published packages, deployed docs, and approved announcements are distinct milestones.
 - Move active issues to In Progress; close the loop with evidence or an explicit blocker before ending work. Never post social content or merge a pull request without the owner's approval.
 

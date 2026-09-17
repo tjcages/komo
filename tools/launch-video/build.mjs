@@ -118,8 +118,30 @@ const comments = [
 ];
 const reply = `<div class="fixture-reply"><span class="agent-avatar reply-avatar">E</span><div><strong>Engineer</strong><p>Agreed. I’ll pass both changes to my agent.</p></div></div>`;
 const main = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>komo launch film · fixture demonstration</title><link rel="stylesheet" href="site.css"><link rel="stylesheet" href="logo.css"><link rel="stylesheet" href="menu.css"><link rel="stylesheet" href="film.css"></head><body class="home"><main id="film"><header><a class="brand">${logo("small")}</a><span>Comments, where they belong.</span><span class="beta">public beta</span></header><section id="intro"><div class="intro-logo brand">${logo("intro")}</div><h1>Less “which button?”<br><span>More “that one.”</span></h1><p>Website feedback, right where it belongs.</p></section><section id="story"><div class="chapter"><span id="chapter-number">01 / POINT</span><h1 id="headline">Point. Comment. Keep the context.</h1></div><div id="review">${decorate(scene)}<div id="drawer">${menu}</div><div id="card-one">${card("Designer", "D", comments[0], `<div id="reaction"><span aria-label="thumbs up">👍</span><span>1</span></div>${reply}`)}</div><div id="card-two">${card("Reviewer", "R", comments[1])}</div><aside id="sidebar"><div class="side-top"><strong>All comments</strong><span id="open-count">2 open</span></div><div class="side-page">Studio /</div>${card("Designer", "D", comments[0])}${card("Reviewer", "R", comments[1])}<div class="side-copy">${icons.copy}<span>Copy all comments for agent</span></div></aside><div id="resolved">${icons.check} Both changes verified. Resolved.</div></div><div id="workflow">${decorate(promptExample)}</div><div id="cursor">${icons.multiplayer}<span>Designer</span></div></section><section id="outro"><div class="outro-logo brand">${logo("outro")}</div><h1>A little feedback.<br><span>A better website.</span></h1><div class="install"><code>npm install @tjcages/komo</code>${icons.copy}</div><pre><span>import</span> { useKomo } <span>from</span> '@tjcages/komo/react';\n<span>// Inside your React component</span>\nuseKomo({ project: 'YOUR_PROJECT_KEY' });</pre><p class="key-note">Get your project key with komo init.</p><a class="cta">komo.offbr.co <span>↗</span></a></section><footer><span id="caption"></span><span id="disclosure">Choreographed demo · fixture feedback</span></footer><div id="progress"></div></main><script src="timeline.js"></script></body></html>`;
-await writeFile(new URL("./index.html", out), main);
-for (const f of ["film.css", "timeline.js"])
+const beatPage = main
+  .replace("<html>", '<html lang="en">')
+  .replace("komo launch film · fixture demonstration", "komo · beat studio")
+  .replace(
+    '<link rel="stylesheet" href="film.css">',
+    '<link rel="stylesheet" href="film.css"><link rel="stylesheet" href="beat.css">',
+  )
+  .replace('<body class="home">', '<body class="home beat-studio">')
+  .replace('<main id="film">', '<div id="screen"><main id="film">')
+  .replace(
+    '<div id="progress"></div></main><script src="timeline.js"></script>',
+    `<section id="title-hit" aria-hidden="true"><h1></h1></section><div id="beat-rings" aria-hidden="true"><i></i><i></i><i></i></div><div id="progress"></div></main></div>
+  <div class="transport" aria-label="Animation playback controls">
+    <button id="play" aria-label="Pause animation">Pause</button><button id="replay" aria-label="Replay animation">↺</button>
+    <label class="tempo">BPM <input id="bpm" type="number" min="60" max="240" value="144" inputmode="numeric"></label>
+    <input id="tempo-range" type="range" min="60" max="240" value="144" aria-label="Tempo">
+    <label><input id="ramp" type="checkbox">Ramp</label><label><input id="click-track" type="checkbox">Click</label><label><input id="loop" type="checkbox" checked>Loop</label>
+    <span id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i></span><output id="beat-readout" aria-label="Current beat">01 / 64</output>
+    <button id="fullscreen" aria-label="Fullscreen animation">⛶</button>
+    <input id="scrub" type="range" min="0" max="64" step="0.01" value="0" aria-label="Scrub beats">
+  </div><script src="beat.js"></script>`,
+  );
+await writeFile(new URL("./index.html", out), beatPage);
+for (const f of ["film.css", "timeline.js", "beat.css", "beat.js"])
   await cp(new URL(f, import.meta.url), new URL(f, out));
 console.log(
   "Built isolated film from site scene, prompt windows, logo and product MorphingMenu.",

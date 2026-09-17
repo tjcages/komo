@@ -6,6 +6,13 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 const root = resolve(import.meta.dirname, "dist"),
   output = resolve(import.meta.dirname, "output");
+if (
+  (await readFile(resolve(root, "index.html"), "utf8")).includes("beat-studio")
+) {
+  throw new Error(
+    "This revision is a webpage. Video export is deferred until the beat sequence is approved.",
+  );
+}
 await mkdir(output, { recursive: true });
 const server = createServer(async (req, res) => {
   try {

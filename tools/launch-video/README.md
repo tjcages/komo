@@ -1,43 +1,39 @@
-# komo launch film
+# komo beat studio
 
-A deterministic 42-second fixture demonstration, plus a separately composed portrait version and a 12-second teaser. Silent-first; no licensed audio or customer data.
-
-## Render
-
-From the repository root, using Node 22.12+ and ffmpeg with libx264:
+The current deliverable is an animated webpage, not a video render. One 64-beat clock drives all cuts, gestures, logo keyframes and jumbo titles. Default: 144 BPM (26.67 seconds). Controls: 60–240 BPM, optional 1.5× acceleration ramp, optional metronome click, loop, replay, pause, scrub and fullscreen. Reduced-motion users start paused. Click audio starts only after opt-in.
 
 ```sh
 pnpm install --frozen-lockfile
-npm ci --prefix tools/launch-video
-cd tools/launch-video
-npx playwright install chromium
-node build.mjs
-node render.mjs landscape --inspect
-node render.mjs vertical --inspect
-node render.mjs landscape
-node render.mjs vertical
-node render.mjs teaser
-node captions.mjs
-node copy.mjs
+node tools/launch-video/build.mjs
+python3 -m http.server 4392 --directory tools/launch-video/dist
 ```
 
-Outputs live in the ignored `tools/launch-video/output/` directory. Each full film contains 1,260 frames at 30fps. The teaser contains 360. H.264, CRF 18, yuv420p, faststart, no audio track. Thumbnails and render metadata sit beside the MP4s. Helvetica uses the existing site's system-font stack; identical pixels require the same OS/font environment and pinned Chromium.
+Open `http://localhost:4392/`. Query options: `?bpm=180`, `?bpm=144&ramp=1`, `?capture=1` (paused). The pure beat renderer exposes `window.seekBeat(beat)` for future export tooling. The previous seconds-based renderer deliberately refuses this new page; no new MP4 is produced in this revision.
 
-`timeline.js` exposes `window.seek(seconds)` and disables autonomous playback when `?capture=1` is present. Frames have no network dependencies beyond the local render server, no live customer data, no random paths, and no wall-clock state. `?format=vertical` selects the portrait composition. The website's logo CSS keyframes are paused and sought explicitly.
+## Choreography
 
-## Reuse
+Each entry occupies four beats. Gestures inside each entry land on individual beats.
 
-- Hero markup and website surface: `packages/komo-site/src/scene.mjs`.
-- Copy-to-agent windows: `packages/komo-site/src/feature-scenes.mjs`.
-- Comment cards, cursors, windows, typography and lavender: `site.css`, with recording-specific sizing and readable fixture copy.
-- Actual product drawer: server-rendered `MorphingMenu.tsx` and its own stylesheet.
-- Existing animated symbol and wordmark: `logo.svg`, `logo.css`, `favicon.svg`.
+1. Animated komo logo
+2. Point, pin, comment
+3. Area selection, second comment
+4. “Right. There.”
+5. Reaction and reply
+6. Resolve and advance
+7. “Keep it moving.”
+8. Dock movement
+9. Sidebar and copy confirmation
+10. “Your agent. Your code.”
+11. Feedback arrives in agent window
+12. Website spacing and button improve
+13. “A little better.”
+14. Verify and resolve
+15. Animated komo logo
+16. “komo.offbr.co”
 
-The fixture sidebar arranges the site's comment cards; it does not contact the product API. This is a choreographed workflow illustration, not an end-to-end recording or a claim that komo edits code. The film explicitly shows the coding agent making changes, followed by verification and resolution.
+The existing website and product components supply the geometry, icons, windows, cards and logo. Fixture text becomes abstract bars; standalone titles contain at most four words. No customer data or live API calls. The coding agent is responsible for the website change.
 
-Recording dependencies are a separate private npm project outside the pnpm workspace. No recording code enters the npm tarball or production browser bundle.
-
-## Review preview
+## Deploy a review preview
 
 ```sh
 pnpm build
@@ -46,21 +42,8 @@ node tools/launch-video/preview.mjs
 pnpm exec wrangler pages deploy packages/komo-site/dist --project-name komo --branch preview
 ```
 
-Open the returned deployment URL at `/launch-demo/`. Append `?format=vertical` for portrait playback. The preview route is assembled only by the explicit command above. A normal website build removes it. Build production docs afresh before deploying the website Worker.
+Open the returned URL at `/launch-demo/?bpm=144`. A normal site build removes the preview route. Recording dependencies remain isolated from the npm package and production browser runtime.
 
-## Timeline
+## Previous film pass
 
-| Seconds | Beat |
-| --- | --- |
-| 0–3 | Existing animated logo and the “which button?” hook |
-| 3–10 | Headline comment, then primary-button comment |
-| 10–15 | Reaction and engineer reply |
-| 15–20 | Drawer movement, all-comments panel, copied state |
-| 20–26 | Context pasted into the agent; explicit code-edit response |
-| 26–30 | Matching spacing and button improvements |
-| 30–35 | Engineer verification reply, then resolution |
-| 35–42 | Install, React entry point, setup key, and held URL |
-
-The portrait version stacks the website and agent windows and moves comments below the website. It is not a center crop. The teaser follows the same causal order with selected readable holds.
-
-After rendering, run `node tools/launch-video/assets.mjs` from the repository root before preview deployment to add `/launch-assets/`. This gallery includes playable MP4s, posters, captions, transcript, and launch copy. It is preview-only and is removed by a normal site build.
+The earlier 42-second landscape/portrait and 12-second teaser are historical review assets, not exports of the current beat sequence. Their immutable gallery is linked in `docs/launch/README.md`. Source remains in `timeline.js`, with previous render evidence in `docs/launch/render-evidence.json`. Revisit video composition only after this webpage is approved.
