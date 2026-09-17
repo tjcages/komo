@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" class="wordmark play" data-motion="ripple" viewBox="-14 -30 319 150" role="img" aria-label="komo" fill="currentColor"><style>
+<svg xmlns="http://www.w3.org/2000/svg" class="wordmark intro" data-motion="soft" viewBox="-14 -30 319 150" role="img" aria-label="komo" fill="currentColor"><style>
 .letter{transform-box:view-box}
 .letter-face{stroke:currentColor;stroke-width:0;stroke-linejoin:round}
 .play[data-motion="soft"] .letter-face{animation:weight 760ms cubic-bezier(.4,0,.2,1) both;animation-delay:calc(var(--i)*38ms)}
