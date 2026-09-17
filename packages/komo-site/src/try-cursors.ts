@@ -6,14 +6,34 @@ export function createTryCursors(block: HTMLElement) {
   let animations: Animation[] = [];
   let playing = false;
   let size = "";
-  const starts: Point[] = [
-    { x: 0.09, y: 0.18 },
-    { x: 0.76, y: 0.72 },
-    { x: 0.17, y: 0.65 },
-  ];
   const rebuild = (width: number, height: number) => {
     if (!width || !height || size === `${width}:${height}`) return;
     size = `${width}:${height}`;
+    const content = block.querySelector<HTMLElement>(".try-content");
+    const center = { x: width / 2, y: height / 2 };
+    const innerX = (content?.offsetWidth ?? 140) / 2 + 48;
+    const innerY = (content?.offsetHeight ?? 120) / 2 + 44;
+    const outerX = Math.max(innerX, width / 2 - 34);
+    const outerY = Math.max(innerY, height / 2 - 28);
+    const position = (phase: number, spread: number): Point => {
+      const x = Math.cos(phase),
+        y = Math.sin(phase);
+      // A rounded rectangular route clears the label without orbiting at a fixed speed.
+      return {
+        x:
+          (center.x +
+            Math.sign(x) *
+              Math.pow(Math.abs(x), 0.25) *
+              (innerX + (outerX - innerX) * spread)) /
+          width,
+        y:
+          (center.y +
+            Math.sign(y) *
+              Math.pow(Math.abs(y), 0.25) *
+              (innerY + (outerY - innerY) * spread)) /
+          height,
+      };
+    };
     const times = animations.map((animation) =>
       Number(animation.currentTime ?? 0),
     );
@@ -29,99 +49,82 @@ export function createTryCursors(block: HTMLElement) {
         seed = (seed * 1664525 + 1013904223) >>> 0;
         return seed / 4294967296;
       };
-      const points = [starts[index % starts.length]];
-      for (let i = 0; i < 9; i++) {
-        const previous = points.at(-1)!;
-        // Alternate broad gestures with the small corrections people make at a target.
-        points.push(
-          i % 3 === 1
-            ? {
-                x: Math.max(
-                  0.07,
-                  Math.min(0.86, previous.x + (random() - 0.5) * 0.1),
-                ),
-                y: Math.max(
-                  0.12,
-                  Math.min(0.8, previous.y + (random() - 0.5) * 0.14),
-                ),
-              }
-            : { x: 0.07 + random() * 0.79, y: 0.12 + random() * 0.68 },
-        );
-      }
-      points.push(points[0]);
       const frames: { point: Point; angle: number; time: number }[] = [];
       let time = 0;
       let angle = 0;
+      const startPhase = -2.6 + index * 2.1;
+      let phase = startPhase;
+      let spread = 0.6;
+      let previous = position(phase, spread);
       let firstAngle = 0;
       const turn = (target: number) =>
         angle + ((((target - angle + 180) % 360) + 360) % 360) - 180;
-
-      const add = (point: Point) => frames.push({ point, angle, time });
-      for (let leg = 0; leg < points.length - 1; leg++) {
-        const from = points[leg],
-          to = points[leg + 1];
-        const dx = to.x - from.x,
-          dy = to.y - from.y;
-        const bend = (random() - 0.5) * 0.55;
-        const a = {
-          x: from.x + dx * 0.3 - dy * bend,
-          y: from.y + dy * 0.3 + dx * bend,
-        };
-        const b = {
-          x: from.x + dx * 0.75 - dy * bend * 0.4,
-          y: from.y + dy * 0.75 + dx * bend * 0.4,
-        };
-        const heading = (x: number, y: number) =>
-          (Math.atan2(y * height, x * width) * 180) / Math.PI + 135;
-        if (!leg) {
-          angle = heading(a.x - from.x, a.y - from.y);
-          firstAngle = angle;
-          add(from);
-        }
+      const add = () => frames.push({ point: previous, angle, time });
+      add();
+      for (let leg = 0; leg < 10; leg++) {
+        const nextPhase =
+          leg === 9
+            ? phase +
+              Math.atan2(
+                Math.sin(startPhase - phase),
+                Math.cos(startPhase - phase),
+              )
+            : phase +
+              (random() > 0.25 ? 1 : -1) *
+                (leg % 3 === 1 ? 0.18 : 0.65 + random() * 1.25);
+        const nextSpread = leg === 9 ? 0.6 : 0.2 + random() * 0.8;
         time += 260 + random() * 850;
-        add(from);
-        // Turn during the pause so the pointer leads the next gesture.
-        time += 160;
-        angle = turn(heading(a.x - from.x, a.y - from.y));
-        add(from);
-        const duration =
-          380 + Math.hypot(dx * width, dy * height) * 1.65 + random() * 220;
-        const startTime = time;
-        for (let step = 1; step <= 40; step++) {
-          const progress = step / 40;
-          const t = progress * progress * (3 - 2 * progress),
-            u = 1 - t;
-          const point = {
-            x:
-              u ** 3 * from.x +
-              3 * u * u * t * a.x +
-              3 * u * t * t * b.x +
-              t ** 3 * to.x,
-            y:
-              u ** 3 * from.y +
-              3 * u * u * t * a.y +
-              3 * u * t * t * b.y +
-              t ** 3 * to.y,
-          };
-          angle = turn(
-            heading(
-              u * u * (a.x - from.x) +
-                2 * u * t * (b.x - a.x) +
-                t * t * (to.x - b.x),
-              u * u * (a.y - from.y) +
-                2 * u * t * (b.y - a.y) +
-                t * t * (to.y - b.y),
-            ),
+        add();
+        const sample = (t: number) =>
+          position(
+            phase + (nextPhase - phase) * t,
+            spread + (nextSpread - spread) * t,
           );
-          time = startTime + duration * progress;
-          add(point);
+        const lead = sample(0.01);
+        angle = turn(
+          (Math.atan2(
+            (lead.y - previous.y) * height,
+            (lead.x - previous.x) * width,
+          ) *
+            180) /
+            Math.PI +
+            135,
+        );
+        if (!leg) {
+          firstAngle = angle;
+          frames[0].angle = angle;
         }
+        time += 160;
+        add();
+        const duration =
+          380 + Math.abs(nextPhase - phase) * 430 + random() * 220;
+        const startTime = time;
+        const steps = Math.max(60, Math.ceil(Math.abs(nextPhase - phase) * 60));
+        for (let step = 1; step <= steps; step++) {
+          const progress = step / steps;
+          const t = progress * progress * (3 - 2 * progress);
+          const point = sample(t);
+          angle = turn(
+            (Math.atan2(
+              (point.y - previous.y) * height,
+              (point.x - previous.x) * width,
+            ) *
+              180) /
+              Math.PI +
+              135,
+          );
+          previous = point;
+          time = startTime + duration * progress;
+          add();
+        }
+        phase = nextPhase;
+        spread = nextSpread;
       }
       time += 500;
-      add(points[0]);
+      add();
       time += 220;
       angle = turn(firstAngle);
-      add(points[0]);
+      add();
       const positions = frames.map((frame) => ({
         offset: frame.time / time,
         transform: `translate(${frame.point.x * 100}%, ${frame.point.y * 100}%)`,

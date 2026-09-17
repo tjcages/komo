@@ -1063,7 +1063,7 @@ p, .lede, .home .hero-aside>p, .home .tool-card p { font-size:14px; line-height:
 .try-icon svg { width:21px; height:21px; }
 .try-block strong { font-size:16px; font-weight:500; letter-spacing:-.2px; }
 .try-caption { font-size:11px; color:#929297; }
-.try-cursors { position:absolute; inset:0; pointer-events:none; user-select:none; }
+.try-cursors { position:absolute; inset:0; z-index:3; pointer-events:none; user-select:none; }
 .try-cursor-track { position:absolute; inset:0; }
 .try-cursor-track .agent-cursor { left:0; top:0; scale:1.2; transform-origin:top left; transition:none; }
 .try-cursor-track .agent-cursor>.glyph { transform-origin:center; }
@@ -1398,4 +1398,4 @@ p, .lede, .home .hero-aside>p, .home .tool-card p { font-size:14px; line-height:
 .usage-example[role="button"] { cursor:pointer; }
 .usage-example[role="button"]:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
 
-.home .try-section>.beta-badge { width:fit-content; margin:12px auto 0; padding:4px 9px; border-radius:999px; background:#f1f0ee; color:#777; font-size:10px; font-weight:500; line-height:16px; box-shadow:inset 0 0 0 1px #00000006; }
+.home .try-section>.beta-badge { width:fit-content; margin:60px auto 0; padding:4px 9px; border-radius:999px; background:color-mix(in srgb,var(--accent) 24%,white); color:#675283; font-size:10px; font-weight:500; line-height:16px; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent); }
