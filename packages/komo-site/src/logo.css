@@ -1,5 +1,5 @@
 .komo-logo { display:inline-flex; align-items:center; gap:1px; width:112px; height:32px; flex:none; }
-.komo-logo .komo-symbol { width:24px; height:24px; flex:none; transform:translateY(17%); }
+.brand .komo-logo .komo-symbol, .home-brand .komo-logo .komo-symbol { width:24px; height:24px; flex:none; transform:translateY(17%); }
 .komo-logo .komo-wordmark { width:87px; height:auto; overflow:visible; flex:none; }
 
 .komo-logo .letter{transform-box:view-box}
