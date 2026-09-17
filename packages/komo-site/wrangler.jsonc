@@ -5,8 +5,47 @@
   "assets": {
     "directory": "./dist",
     "html_handling": "auto-trailing-slash",
-    "not_found_handling": "404-page"
+    "not_found_handling": "404-page",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/auth",
+      "/auth/*",
+      "/config",
+      "/config/*",
+      "/health",
+      "/health/*",
+      "/setup",
+      "/setup/*",
+      "/setup-client.js",
+      "/setup-client.js/*",
+      "/usage",
+      "/usage/*",
+      "/me",
+      "/me/*",
+      "/threads",
+      "/threads/*",
+      "/project",
+      "/project/*",
+      "/owner",
+      "/owner/*",
+      "/workspace",
+      "/workspace/*",
+    ],
   },
-  "routes": [{ "pattern": "komo.offbr.co", "custom_domain": true }],
-  "observability": { "enabled": true }
+  "routes": [
+    {
+      "pattern": "komo.offbr.co",
+      "custom_domain": true,
+    },
+  ],
+  "observability": {
+    "enabled": true,
+  },
+  "main": "worker/index.ts",
+  "services": [
+    {
+      "binding": "KOMO_API",
+      "service": "komo-api",
+    },
+  ],
 }

@@ -21,7 +21,7 @@ export function resolveConfig(config: KomoConfig): CommentsOptions {
     );
   return {
     ...options,
-    endpoint: options.endpoint || "https://komo-api.off-brand.workers.dev",
+    endpoint: options.endpoint || "https://komo.offbr.co",
     repo: config.repo || config.project,
     branch: scope === "branch" ? config.branch! : "shared",
   };
