@@ -5,6 +5,7 @@ import {
   useCurrentFrame,
   spring,
   interpolate,
+  Easing,
 } from "remotion";
 import { spring as nativeSpring } from "motion-dom";
 import { move, ramp, pop } from "./motion";
@@ -14,6 +15,7 @@ import { validateReadingHold } from "./text";
 import type { Scene } from "./scenes";
 import native from "./native.json";
 import edit from "./edit.json";
+import extra from "./extra.json";
 
 const FPS = 30,
   BG = "#f6f4f9",
@@ -193,7 +195,7 @@ function Conversation() {
     <Canvas>
       <Center
         scale={ZOOM.CLOSE * (0.88 + 0.12 * entry) + move(f, [0, 90], [0, 0.08])}
-        opacity={ramp(f, [0, 5])}
+        opacity={ramp(f, [0, 5]) * (1 - ramp(f, [57, 65]))}
       >
         <Native>
           <section className="dialog">
@@ -208,17 +210,28 @@ function Conversation() {
                     style={{
                       height: (i ? 73 : 76) * p,
                       opacity: p,
-                      overflow: "hidden",
+                      overflow: "visible",
                       transform: `scale(${0.98 + 0.02 * p})`,
                     }}
                     dangerouslySetInnerHTML={html(
-                      m.replace(
-                        /(<div class="message-text">)([^<]*)(<\/div>)/,
-                        (all, open, text, close) =>
-                          open +
-                          text.slice(0, Math.max(0, Math.floor((t - 2) * 3))) +
-                          close,
-                      ),
+                      m
+                        .replace(
+                          /(<button class="icon message-reaction")[\s\S]*?<\/button>/,
+                          (button) =>
+                            f < 39 + i * 5
+                              ? button
+                              : `<button class="icon message-reaction has-reactions"><span class="reaction-value" style="display:inline-block;transform:scale(${pop(f, FPS, 39 + i * 5)})">${["💜", "👍", "✨"][i]}</span></button>`,
+                        )
+                        .replace(
+                          /(<p class="message-text">)([^<]*)(<\/p>)/,
+                          (all, open, text, close) =>
+                            open +
+                            text.slice(
+                              0,
+                              Math.max(0, Math.floor((t - 2) * 3)),
+                            ) +
+                            close,
+                        ),
                     )}
                   />
                 );
@@ -228,85 +241,131 @@ function Conversation() {
           </section>
         </Native>
       </Center>
+    </Canvas>
+  );
+}
+function SidebarStage({ f }: { f: number }) {
+  const open = interpolate(f, [2, 10], [0, 1], {
+    ...clamp,
+    easing: Easing.bezier(0.32, 0.72, 0, 1),
+  });
+  const zoom = move(f, [15, 31], [1, 2.05], "arrive");
+  const x = move(f, [15, 31], [0, -2245], "arrive"),
+    y = move(f, [15, 31], [0, 0], "arrive");
+  const count = Math.min(8, Math.max(0, Math.floor((f - 27) / 4) + 1));
+  const search = f >= 66,
+    query = "contrast".slice(0, Math.max(0, Math.floor((f - 67) / 1.5)));
+  return (
+    <Canvas>
       <div
         style={{
           position: "absolute",
-          left: 1265,
-          top: 370,
-          transform: `scale(${pop(f, FPS, 43)})`,
-          opacity: ramp(f, [43, 47]),
-          fontSize: 58,
+          left: 110,
+          top: 130,
+          width: 1700,
+          height: 820,
+          background: "#080808",
+          borderRadius: 20,
+          overflow: "hidden",
+          opacity: ramp(f, [0, 5]),
+          transform: `translate(${x}px,${y}px) scale(${zoom})`,
+          transformOrigin: "top left",
         }}
       >
-        💜
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "#e6e5e8",
+            borderRadius: 12 * open,
+            transform: `translate(${-234 * open}px,${41 * open}px) scale(${1 - 0.1 * open})`,
+            transformOrigin: "top left",
+          }}
+        >
+          <Pin frame={f + 35} delay={0} x={450} y={250} />
+          <Pin frame={f + 35} delay={0} x={1000} y={520} blue />
+          <Pin frame={f + 35} delay={0} x={690} y={680} />
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            right: 0,
+            top: 36,
+            width: 380,
+            transform: `translateX(${404 * (1 - open)}px)`,
+          }}
+        >
+          <Native
+            className="review-open"
+            css={`
+              .native .panel {
+                width: 380px !important;
+                height: 720px !important;
+                background: transparent !important;
+                border-radius: 0 !important;
+                padding: 0 24px !important;
+                box-shadow: none !important;
+              }
+              .native .panel-head {
+                padding: 0 0 16px !important;
+              }
+              .native .list {
+                mask-image: linear-gradient(black 80%, transparent);
+              }
+              .native .sidebar-search {
+                display: grid !important;
+                grid-template-rows: ${ramp(f, [66, 72])}fr!important;
+                opacity: ${ramp(f, [66, 72])}!important;
+              }
+              .native .sidebar-search-inner {
+                overflow: hidden !important;
+              }
+            `}
+          >
+            <aside className="panel" data-search={search ? "true" : "false"}>
+              <div
+                dangerouslySetInnerHTML={html(
+                  native.sidebarHead.replace(
+                    '<input type="search"',
+                    `<input value="${query}" type="search"`,
+                  ),
+                )}
+              />
+              <div className="list">
+                {(query.length > 3
+                  ? [native.rows.find((r) => r.includes("contrast"))!]
+                  : [
+                      ...native.rows.slice(0, count).reverse(),
+                      ...native.rows.slice(8),
+                    ]
+                ).map((r, i) => {
+                  const age = f - (27 + (count - i - 1) * 4);
+                  const q =
+                    query.length > 3 || i >= count
+                      ? 1
+                      : ramp(age, [0, 7], "arrive");
+                  return (
+                    <div
+                      key={r}
+                      style={{ height: 96 * q, opacity: q, overflow: "hidden" }}
+                      dangerouslySetInnerHTML={html(r)}
+                    />
+                  );
+                })}
+              </div>
+            </aside>
+          </Native>
+        </div>
       </div>
+      {f >= 44 && <Pointer frame={f} start={44} click={65} at={[1206, 242]} />}
     </Canvas>
   );
 }
 function Sidebar() {
-  const f = useCurrentFrame();
-  const p = spring({
-    frame: f,
-    fps: FPS,
-    config: { stiffness: 260, damping: 26, mass: 0.45 },
-  });
-  const count = Math.min(8, Math.max(0, Math.floor((f - 10) / 6) + 1));
-  return (
-    <Canvas>
-      <Center
-        scale={ZOOM.CLOSE}
-        x={960 + move(f, [0, 26], [120, 0], "arrive")}
-        opacity={ramp(f, [0, 5])}
-      >
-        <Native className="review-open">
-          <aside
-            className="panel"
-            style={{ clipPath: `inset(0 ${100 * (1 - p)}% 0 0 round 20px)` }}
-          >
-            <div dangerouslySetInnerHTML={html(native.sidebarHead)} />
-            <div className="list">
-              {Array.from({ length: count }, (_, i) => {
-                const n = count - i - 1;
-                const age = f - (10 + n * 6);
-                const q = ramp(age, [0, 8], "arrive");
-                return (
-                  <div
-                    key={n}
-                    style={{ height: 90 * q, opacity: q, overflow: "hidden" }}
-                    dangerouslySetInnerHTML={html(native.rows[n])}
-                  />
-                );
-              })}
-              {native.rows.slice(8).map((m, i) => (
-                <div
-                  key={"old" + i}
-                  style={{ height: 90, overflow: "hidden" }}
-                  dangerouslySetInnerHTML={html(m)}
-                />
-              ))}
-            </div>
-          </aside>
-        </Native>
-      </Center>
-      {["💜", "👍", "✨"].map((e, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: 1330 + i * 45,
-            top: 590 - move(f, [34 + i * 5, 58 + i * 5], [0, 150], "arrive"),
-            opacity:
-              ramp(f, [34 + i * 5, 38 + i * 5]) *
-              (1 - ramp(f, [54 + i * 5, 64 + i * 5])),
-            fontSize: 48,
-            transform: `scale(${pop(f, FPS, 34 + i * 5)})`,
-          }}
-        >
-          {e}
-        </div>
-      ))}
-    </Canvas>
-  );
+  return <SidebarStage f={useCurrentFrame()} />;
+}
+function Feed() {
+  return <SidebarStage f={useCurrentFrame() + 24} />;
 }
 function DrawerBody({
   f,
@@ -317,56 +376,72 @@ function DrawerBody({
   opened?: boolean;
   copied?: boolean;
 }) {
+  const collapse = ramp(f, [15, 25], "arrive"),
+    horizontal = ramp(f, [30, 41], "arrive");
   const q = opened
     ? 1
     : nativeSpring({ keyframes: [0, 1], duration: 400, bounce: 0.24 }).next(
-        Math.max(0, ((f - 12) / FPS) * 1000),
+        Math.max(0, ((f - 54) / FPS) * 1000),
       ).value;
-  const compress = opened
-    ? 1
-    : 1 - 0.12 * ramp(f, [8, 11]) * (1 - ramp(f, [12, 16]));
-  const w = 228 + (268 - 228) * q,
-    h = 52 + (300 - 52) * q;
+  const w = (52 + 176 * horizontal) * (1 - q) + 268 * q;
+  const h = (52 + 176 * (1 - collapse)) * (1 - q) + 300 * q;
   return (
     <Native
       css={`
         .native .morphing-menu__shell {
           width: ${w}px!important;
-          height: ${h * compress}px!important;
+          height: ${h}px!important;
           left: ${(268 - w) / 2}px!important;
           top: ${(300 - h) / 2}px!important;
-          border-radius: ${26 - 2 * q}px!important;
+          overflow: hidden !important;
         }
         .native .morphing-menu__panel {
-          opacity: ${q}!important;
+          opacity: ${ramp(q, [0.2, 0.8])}!important;
         }
         .native .morphing-menu__bar {
-          opacity: ${1 - q}!important;
+          width: ${w}px!important;
+          height: ${h}px!important;
+          top: 0 !important;
+          bottom: auto !important;
+          opacity: ${1 - ramp(q, [0, 0.35])}!important;
+          display: block !important;
+        }
+        .native .morphing-menu__shortcut {
+          position: absolute !important;
+          width: 44px !important;
+          height: 44px !important;
+          padding: 10px !important;
         }
       `}
     >
       <div className="toolbar">
         <nav className="morphing-menu">
           <div className="morphing-menu__shell">
-            <div
-              className="morphing-menu__bar"
-              dangerouslySetInnerHTML={html(
-                native.bar.replace(/^<div[^>]*>|<\/div>$/g, ""),
-              )}
-            />
-            <div className="morphing-menu__panel">
-              {
+            <div className="morphing-menu__bar">
+              {extra.shortcuts.map((b, i) => (
                 <div
-                  dangerouslySetInnerHTML={html(
-                    copied
-                      ? native.drawerPanel.replaceAll(
-                          "Copy all comments for agent",
-                          "Copied prompt",
-                        )
-                      : native.drawerPanel,
-                  )}
+                  key={i}
+                  style={{
+                    position: "absolute",
+                    left: 4 + i * 44 * horizontal,
+                    top: 4 + i * 44 * (1 - collapse),
+                    opacity: i ? Math.max(1 - collapse, horizontal) : 1,
+                  }}
+                  dangerouslySetInnerHTML={html(b)}
                 />
-              }
+              ))}
+            </div>
+            <div className="morphing-menu__panel">
+              <div
+                dangerouslySetInnerHTML={html(
+                  copied
+                    ? native.drawerPanel.replaceAll(
+                        "Copy all comments for agent",
+                        "Copied prompt",
+                      )
+                    : native.drawerPanel,
+                )}
+              />
             </div>
           </div>
         </nav>
@@ -377,125 +452,180 @@ function DrawerBody({
 function Drawer() {
   const f = useCurrentFrame();
   return (
-    <Canvas color="#e9e0f6">
+    <Canvas>
       <Center
-        scale={ZOOM.CLOSE + move(f, [0, 80], [0, 0.1])}
-        opacity={ramp(f, [0, 5])}
+        scale={move(f, [64, 74], [2.2, 3.3], "arrive")}
+        opacity={ramp(f, [0, 6])}
       >
         <DrawerBody f={f} />
       </Center>
-      <Pointer frame={f} start={0} click={11} at={[1165, 540]} />
+      <Pointer frame={f} start={31} click={53} at={[1154, 540]} />
     </Canvas>
   );
 }
 function Copy() {
   const f = useCurrentFrame();
   return (
-    <Canvas color="#e9e0f6">
-      <Center scale={ZOOM.MACRO} y={540}>
-        <DrawerBody f={90} opened copied={f >= 22} />
+    <Canvas>
+      <Center scale={3.3}>
+        <DrawerBody f={90} opened copied={f >= 11} />
       </Center>
-      <style>{`.native{--copy-hover:${f >= 8 ? "#ffffff12" : "transparent"}}`}</style>
-      <Pointer frame={f} click={22} at={[1010, 685]} />
+      <style>{`.native{--copy-hover:${f >= 4 ? "#ffffff12" : "transparent"}}`}</style>
+      <Pointer frame={f} start={-10} click={11} at={[1010, 685]} />
     </Canvas>
   );
 }
 function Agent() {
-  const f = useCurrentFrame();
-  const p = ramp(f, [20, 30], "arrive");
+  const f = useCurrentFrame(),
+    paste = f >= 16,
+    sent = f >= 43;
+  const send = ramp(f, [25, 40], "arrive");
+  const px = 700 + 911 * send,
+    py = 450 + 264 * send;
   return (
     <Canvas>
-      <Center scale={1 + move(f, [0, 75], [0, 0.05])} opacity={ramp(f, [0, 7])}>
-        <div
-          style={{
-            width: 1120,
-            height: 130 + 150 * p,
-            background: "#242128",
-            color: "#f6f4f9",
-            borderRadius: 38,
-            boxShadow: "0 24px 70px #25183620",
-            padding: "42px 50px",
-            boxSizing: "border-box",
-            overflow: "hidden",
-            fontSize: 32,
-            border: "2px solid #ffffff22",
-          }}
-        >
-          {f < 22 ? (
-            <span style={{ color: "#9f96ac" }}>Ask your agent…</span>
-          ) : (
-            <>
-              <div style={{ fontSize: 19, color: LAV, marginBottom: 18 }}>
-                12 COMMENTS · WITH CONTEXT
-              </div>
-              <div style={{ lineHeight: 1.5, fontSize: 26 }}>
-                Love this direction.
-                <br />
-                Can we try lavender here?
-                <br />A little more contrast?
-              </div>
-            </>
+      <Center opacity={ramp(f, [0, 6]) * (1 - ramp(f, [55, 60]))}>
+        <div style={{ width: 1420, height: 460, position: "relative" }}>
+          {sent && (
+            <div
+              style={{
+                position: "absolute",
+                right: 20,
+                top: 0,
+                width: 1000,
+                height: 260,
+                background: "#e8e6eb",
+                borderRadius: 32,
+                padding: 32,
+                boxSizing: "border-box",
+                overflow: "hidden",
+                opacity: ramp(f, [43, 47]),
+                fontSize: 24,
+                lineHeight: 1.5,
+                whiteSpace: "pre-wrap",
+                maskImage: "linear-gradient(black 80%, transparent)",
+              }}
+            >
+              {extra.prompt}
+            </div>
           )}
           <div
             style={{
               position: "absolute",
-              right: 28,
-              bottom: 25,
-              width: 48,
-              height: 48,
-              borderRadius: 50,
-              background: LAV,
-              color: INK,
-              textAlign: "center",
-              lineHeight: "48px",
+              bottom: 0,
+              width: 1420,
+              height: move(f, [43, 48], [460, 130], "arrive"),
+              background: "#fff",
+              border: "1px solid #dcd9e0",
+              borderRadius: 38,
+              boxShadow: "0 20px 80px #24112e10",
+              padding: 38,
+              boxSizing: "border-box",
             }}
           >
-            ↑
+            <div
+              style={{
+                height: sent ? 35 : 308,
+                overflow: "hidden",
+                fontSize: 26,
+                lineHeight: 1.48,
+                whiteSpace: "pre-wrap",
+                maskImage: "linear-gradient(black 80%, transparent)",
+                color: paste && !sent ? INK : "#99949e",
+              }}
+            >
+              {paste && !sent ? extra.prompt : "Ask your agent…"}
+            </div>
+            <span
+              style={{
+                position: "absolute",
+                bottom: 25,
+                left: 38,
+                fontSize: 40,
+              }}
+            >
+              +
+            </span>
+            <div
+              style={{
+                position: "absolute",
+                right: 28,
+                bottom: 25,
+                width: 62,
+                height: 62,
+                borderRadius: 50,
+                background: INK,
+                color: "white",
+                fontSize: 43,
+                lineHeight: "58px",
+                textAlign: "center",
+                transform: `scale(${f === 43 ? 0.85 : 1})`,
+              }}
+            >
+              ↑
+            </div>
           </div>
         </div>
       </Center>
-      <Pointer frame={f} start={0} click={18} at={[700, 510]} />
+      <div style={{ opacity: ramp(f, [1, 6]) * (1 - ramp(f, [47, 51])) }}>
+        <Cursor
+          kind="soft"
+          size={76}
+          x={px + 19}
+          y={py + 21}
+          press={f === 14 || f === 43 ? 1 : 0}
+        />
+      </div>
     </Canvas>
   );
 }
 function Logo() {
-  const f = useCurrentFrame();
-  const fade = 1 - ramp(f, [65, 75]);
+  const f = useCurrentFrame(),
+    fade = 1 - ramp(f, [41, 47]);
+  const k = (t: number, values: number[], points = [0, 22, 43, 64, 83, 100]) =>
+    interpolate(
+      t,
+      points.map((n) => n * 0.315),
+      values,
+      { ...clamp, easing: Easing.bezier(0.4, 0, 0.2, 1) },
+    );
+  const sp = [0, 22, 43, 64, 77, 90, 100];
   return (
-    <Canvas color="#e9e0f6">
-      <Center scale={2.6 + move(f, [0, 95], [0, 0.12])} opacity={fade}>
-        <svg viewBox="-14 -30 319 150" width={319} height={150} fill={INK}>
-          <g dangerouslySetInnerHTML={html(native.logoDefs)} />
-          {native.letters.map((s, i) => {
-            const t = f - i * 2;
-            const q = pop(t, FPS);
-            return (
-              <g
-                key={i}
-                style={{
-                  opacity: ramp(t, [0, 8]),
-                  transform: `translateY(${interpolate(t, [0, 6, 13, 20, 30], [5, 2, -5, 1, 0], clamp)}px) scale(1,${0.88 + 0.12 * q})`,
-                  transformOrigin: `${[30, 87, 172, 258][i]}px 89px`,
-                }}
-                dangerouslySetInnerHTML={html(s)}
-              />
-            );
-          })}
-        </svg>
+    <Canvas>
+      <Center scale={2.8} opacity={fade}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div
+            style={{
+              width: 89,
+              height: 89,
+              opacity: k(f, [0, 1, 1, 1, 1, 1, 1], sp),
+              transformOrigin: "50% 84%",
+              transform: `translateY(${k(f, [35, 22, 7, 21, 14, 17, 17], sp)}%) rotate(${k(f, [-4, -2, 2, -0.8, 0.3, -0.1, 0], sp)}deg) scale(${k(f, [0.75, 1.08, 1.04, 1.035, 0.995, 1.002, 1], sp)},${k(f, [0.68, 0.9, 1.13, 0.97, 1.02, 0.999, 1], sp)})`,
+            }}
+            dangerouslySetInnerHTML={html(extra.symbol)}
+          />
+          <svg viewBox="-14 -30 319 150" width={319} height={150} fill={INK}>
+            <g dangerouslySetInnerHTML={html(native.logoDefs)} />
+            {native.letters.map((s, i) => {
+              const t = f - 1.8 - i * 1.95;
+              return (
+                <g
+                  key={i}
+                  style={{
+                    opacity: k(t, [0, 1, 1, 1, 1, 1]),
+                    transformOrigin: `${[30, 87, 172, 258][i]}px 89px`,
+                    transform: `translateY(${k(t, [20, 3, -7, 1, -0.5, 0])}px) rotate(${k(t, [-5, -2, 2, -0.8, 0.3, 0])}deg) scale(${k(t, [0.72, 1.1, 1.045, 1.045, 0.995, 1])},${k(t, [0.6, 0.88, 1.16, 0.965, 1.02, 1])})`,
+                    stroke: INK,
+                    strokeWidth: k(t, [0, 2, 6, 2, 0, 0]),
+                    strokeLinejoin: "round",
+                  }}
+                  dangerouslySetInnerHTML={html(s)}
+                />
+              );
+            })}
+          </svg>
+        </div>
       </Center>
-      <div
-        style={{
-          position: "absolute",
-          top: 735,
-          width: "100%",
-          textAlign: "center",
-          fontSize: 30,
-          letterSpacing: -0.8,
-          opacity: ramp(f, [15, 24]) * fade,
-        }}
-      >
-        komo.offbr.co
-      </div>
     </Canvas>
   );
 }
@@ -519,11 +649,12 @@ const defs = [
     "conversation",
     "reveal",
   ],
-  ["sidebar", Sidebar, 63, "action", "CLOSE", "sidebar", "reveal"],
-  ["drawer", Drawer, 60, "action", "CLOSE", "drawer", "interaction"],
-  ["copy", Copy, 36, "action", "MACRO", "copy", "interaction"],
-  ["agent", Agent, 54, "consequence", "CLOSE", "agent", "interaction"],
-  ["logo", Logo, 75, "consequence", "PUSH", "logo", "entrance"],
+  ["sidebar", Sidebar, 24, "action", "PUSH", "sidebar", "reveal"],
+  ["feed", Feed, 60, "action", "CLOSE", "sidebar", "reveal"],
+  ["drawer", Drawer, 75, "action", "CLOSE", "drawer", "interaction"],
+  ["copy", Copy, 21, "action", "MACRO", "copy", "interaction"],
+  ["agent", Agent, 60, "consequence", "CLOSE", "agent", "interaction"],
+  ["logo", Logo, 48, "consequence", "PUSH", "logo", "entrance"],
 ] as const;
 export const SCENES: Scene[] = defs.map(
   ([id, component, length, beat, tier, subject, activity]) => ({
