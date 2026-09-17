@@ -40,7 +40,11 @@ These are local synthetic measurements, not guarantees across devices. Backgroun
 - Browser checks: first-use lazy drawer, signed-out account, Google-owner account, custom access menu, invitation creation, keyboard disclosure, and mobile account geometry. Mobile editable fields use 16 px to avoid iOS focus zoom.
 - Existing failure tests cover optimistic rollback, serialized writes, draft recovery, and API revision caching.
 
-Physical iPhone Safari, Android Chrome, and assistive-technology testing have not been completed in this session. Viewport emulation does not validate the native keyboard or browser chrome. These remain explicit follow-up acceptance checks.
+iPhone 17 Pro Simulator, iOS 26.5 Safari: the deployed preview loads; the account opens centered; the new-comment composer sits above the software keyboard without focus zoom. A typed draft remains visible after scrolling, and dismissing it restores the page. No test comment was posted to the public demo.
+
+Remaining simulator issue: Safari’s keyboard accessory/address controls overlap the account Continue row while the name field is focused. Dismissing the keyboard restores access. Owner cleanup and Google sign-in have not been exercised in the simulator.
+
+Physical iPhone Safari, Android Chrome, and assistive-technology testing remain outstanding. Simulator checks validate iOS browser behavior, not physical-device performance.
 
 ## Rollout
 
