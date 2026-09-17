@@ -80,8 +80,8 @@ const menu = html(
   }),
 );
 await build({
-  entryPoints: [new URL("./drawer-runtime.tsx", import.meta.url).pathname],
-  outfile: new URL("./drawer-runtime.js", out).pathname,
+  entryPoints: [new URL("./widget-runtime.ts", import.meta.url).pathname],
+  outfile: new URL("./widget-runtime.js", out).pathname,
   bundle: true,
   platform: "browser",
   format: "iife",
@@ -136,7 +136,7 @@ const card = (who, initial, body, extra = "") =>
 const comments = ["Make the button lavender.", "Loosen the headline spacing."];
 const reply = `<div class="fixture-reply"><span class="agent-avatar reply-avatar">E</span><div><strong>Engineer</strong><p>On it. Sending to my agent.</p></div></div>`;
 const main = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>komo launch film · fixture demonstration</title><link rel="stylesheet" href="site.css"><link rel="stylesheet" href="logo.css"><link rel="stylesheet" href="menu.css"><link rel="stylesheet" href="film.css"></head><body class="home"><main id="film"><header><a class="brand">${logo("small")}</a><span>Comments, where they belong.</span><span class="beta">public beta</span></header><section id="intro"><div class="intro-logo brand">${logo("intro")}</div><h1>Less “which button?”<br><span>More “that one.”</span></h1><p>Website feedback, right where it belongs.</p></section><section id="story"><div class="chapter"><span id="chapter-number">01 / POINT</span><h1 id="headline">Point. Comment. Keep the context.</h1></div><div id="review">${decorate(scene)}<div id="drawer">${menu}</div><div id="card-one">${card("Designer", "D", comments[0], `<div id="reaction"><span aria-label="thumbs up">👍</span><span>1</span></div>${reply}`)}</div><div id="card-two">${card("Reviewer", "R", comments[1])}</div><aside id="sidebar"><div class="side-top"><strong>All comments</strong><span id="open-count">2 open</span></div><div class="side-page">Studio /</div>${card("Designer", "D", comments[0])}${card("Reviewer", "R", comments[1])}<div class="side-copy">${icons.copy}<span>Copy all comments for agent</span></div></aside><div id="resolved">${icons.check} Both changes verified. Resolved.</div></div><div id="workflow">${decorate(promptExample)}</div><div id="cursor">${icons.multiplayer}<span>Designer</span></div></section><section id="outro"><div class="outro-logo brand">${logo("outro")}</div><h1>A little feedback.<br><span>A better website.</span></h1><div class="install"><code>npm install @tjcages/komo</code>${icons.copy}</div><pre><span>import</span> { useKomo } <span>from</span> '@tjcages/komo/react';\n<span>// Inside your React component</span>\nuseKomo({ project: 'YOUR_PROJECT_KEY' });</pre><p class="key-note">Get your project key with komo init.</p><a class="cta">komo.offbr.co <span>↗</span></a></section><footer><span id="caption"></span><span id="disclosure">Choreographed demo · fixture feedback</span></footer><div id="progress"></div></main><script src="timeline.js"></script></body></html>`;
-const beatPage = main
+let beatPage = main
   .replace("<html>", '<html lang="en">')
   .replace("komo launch film · fixture demonstration", "komo · beat studio")
   .replace(
@@ -156,11 +156,23 @@ const beatPage = main
     <span id="meter" aria-hidden="true"><i></i><i></i><i></i><i></i></span><output id="beat-readout" aria-label="Current beat">01 / 64</output>
     <button id="fullscreen" aria-label="Fullscreen animation">⛶</button>
     <input id="scrub" type="range" min="0" max="64" step="0.01" value="0" aria-label="Scrub beats">
-  </div><script src="drawer-runtime.js"></script><script src="beat.js"></script>`,
+  </div><script src="beat.js"></script>`,
   );
+beatPage = beatPage.replace(
+  /<section id="story">[\s\S]*?(?=<section id="outro">)/,
+  '<section id="story"><iframe id="product-frame" title="Live komo on a fixture website" src="widget-frame.html"></iframe></section>',
+);
+await writeFile(
+  new URL("./widget-frame.html", out),
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="widget-frame.css"></head><body><main id="website"><nav class="site-nav"><strong>studio</strong><span>Work &nbsp; About &nbsp; Contact</span></nav><section class="website-hero"><div class="eyebrow">A LITTLE STUDIO</div><h1 id="headline">Good things.<br>Made together.</h1><p>A thoughtful place for your next idea.</p><button id="hero-cta">Let's talk</button><div class="site-art"><img src="favicon.svg" alt=""></div></section><section class="detail"><div class="eyebrow">THE DETAILS</div><h2 id="detail-title">Small things.<br>Big difference.</h2><div class="detail-grid"><div class="detail-card" id="detail-card">Room for a new perspective.</div><div class="detail-card">A little more personality.</div></div></section><section class="detail bottom"><div class="eyebrow">WHAT'S NEXT</div><h2 id="bottom-title">Something worth<br>talking about.</h2><div class="detail-card">It starts with a conversation.</div></section></main><script src="widget-runtime.js"></script></body></html>`,
+);
+await cp(
+  new URL("./widget-frame.css", import.meta.url),
+  new URL("./widget-frame.css", out),
+);
 await writeFile(new URL("./index.html", out), beatPage);
 for (const f of ["film.css", "timeline.js", "beat.css", "beat.js"])
   await cp(new URL(f, import.meta.url), new URL(f, out));
 console.log(
-  "Built isolated film from site scene, prompt windows, logo and product MorphingMenu.",
+  "Built beat studio with the full production komo widget and fixture website.",
 );

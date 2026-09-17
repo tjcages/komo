@@ -2,7 +2,7 @@
 
 Current review: the animated beat-driven webpage. Video export is deferred by owner direction. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
 
-- **[Current animated webpage — 144 BPM](https://8f2edb35.komo-wb5.pages.dev/launch-demo/?bpm=144)**
+- **[Current animated webpage — 144 BPM](https://ce922826.komo-wb5.pages.dev/launch-demo/?bpm=144)**
 - [Previous rendered asset gallery](https://4adc4b37.komo-wb5.pages.dev/launch-assets/)
 - [Draft PR #10](https://github.com/tjcages/komo/pull/10)
 - [Previous landscape source preview](https://4adc4b37.komo-wb5.pages.dev/launch-demo/)
@@ -30,6 +30,6 @@ Local media lives in `tools/launch-video/output/`, excluded from Git. No custome
 
 Current source and preview commands: [beat studio README](../../tools/launch-video/README.md). This pass uses a 64-beat sequence at 144 BPM by default, adjustable 60–240 BPM, optional ramp and metronome click. Titles have at most four words. The previous films above do not represent this revision.
 
-Current cut: one large focal component per shot, readable comment/reply, expanding drawer, left/right edge snaps, sidebar/copy, and a tightly cropped 16:9 desktop improvement.
+Current cut: the full production widget on a fixture website. Real pins appear during scrolling, a thread opens, the real composer types/posts, the drawer expands, and the actual sidebar reframes the website. Selecting a sidebar comment opens its thread on the page. No code execution or website-editing outcome is shown.
 
-Motion pass: live production drawer springs, typed comment/reply/agent text, restrained whole-title entrances, and cuts between focuses. Native drawer transitions settle independently of pause/scrub; video export remains deferred.
+The 1280×720 desktop is camera-cropped into a 1920×1080 stage. Product styles and native springs are unchanged. The preview uses an isolated in-memory API; no customer comments or live service calls. Video export remains deferred.

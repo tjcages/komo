@@ -6,19 +6,19 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const TOTAL = 64;
 const beats = [
   { kind: "logo" },
-  { kind: "comment" },
-  { kind: "reply" },
-  { title: "Right. There." },
-  { kind: "expand" },
-  { kind: "snap-left" },
-  { kind: "snap-right" },
-  { title: "Make yourself at home." },
+  { kind: "pins" },
+  { kind: "pins" },
+  { title: "Chat on any website." },
+  { kind: "scroll" },
+  { kind: "scroll" },
+  { kind: "thread" },
+  { kind: "compose" },
+  { kind: "drawer" },
   { kind: "sidebar" },
-  { kind: "copy" },
-  { title: "Your agent. Your code." },
-  { kind: "agent" },
-  { kind: "improve" },
-  { kind: "done" },
+  { kind: "sidebar" },
+  { kind: "sidebar" },
+  { title: "Every comment. One place." },
+  { kind: "scroll-end" },
   { kind: "logo" },
   { title: "komo.offbr.co", tone: "dark" },
 ];
@@ -58,17 +58,6 @@ function fit() {
 addEventListener("resize", fit);
 document.addEventListener("fullscreenchange", fit);
 fit();
-$(".hero-studio-heading").innerHTML = "<i></i><i></i>";
-$(".hero-studio-copy").textContent = "";
-$(".hero-studio-button").textContent = "";
-$(".hero-site-nav i").textContent = "";
-$(".hero-site-nav span").textContent = "";
-
-$(".coding-user p").textContent = "Make the button lavender.";
-$(".coding-response p").textContent = "Updated the button styles.";
-$(".abstract-headline").textContent = "";
-$(".abstract-headline.short").textContent = "";
-$("#resolved").setAttribute("aria-label", "Feedback verified and resolved");
 // Restrained whole-title rise: no elastic letters, rotation, or stroke swell.
 function titleMotion(el, p) {
   const q = reduced.matches ? 1 : ease(p);
@@ -87,8 +76,6 @@ function render(value) {
   const index = Math.min(15, Math.floor(beat / 4)),
     local = beat - index * 4,
     spec = beats[index];
-  const spring = (at = 0, d = 0.8) =>
-    reduced.matches ? 1 : pop((local - at) / d);
   for (const s of ["#intro", "#outro", "#story", "#title-hit", "#beat-rings"])
     show(s, 0);
   if (spec.title) {
@@ -106,159 +93,72 @@ function render(value) {
     });
   } else {
     show("#story", 1);
-    show("#review", 1);
-    move("#review");
-    for (const s of [
-      ".review-scene",
-      "#workflow",
-      "#card-one",
-      "#card-two",
-      "#reaction",
-      ".fixture-reply",
-      ".scene-target",
-      ".pin-design",
-      "#sidebar",
-      "#resolved",
-      "#drawer",
-      "#cursor",
-    ])
-      show(s, 0);
-    $("#film").dataset.focus = spec.kind;
-    // A real 16:9 desktop, cropped by the camera. It never fits inside the stage.
-    const desktop = (x = -180, y = -60, scale = 1.55) => {
-      show(".review-scene", 1);
-      move(".review-scene", x, y, scale);
-    };
-    const card = (reply = false) => {
-      show("#card-one", reply ? 1 : fade(local, 0, 0.6));
-      move(
-        "#card-one",
-        0,
-        (reply ? 125 * (1 - fade(local, 1.1, 0.8)) : 125) + 24 * (1 - spring()),
-        reply ? 1 : 0.96 + 0.04 * spring(),
-      );
-      show("#reaction", reply ? fade(local, 0.4) : 0);
-      show(".fixture-reply", reply ? fade(local, 1.1) : 0);
-      $("#card-one .fixture-card").style.height = reply
-        ? `${mix(250, 500, fade(local, 1.1, 0.8))}px`
-        : "250px";
-      move("#reaction", 0, 0, 0.94 + 0.06 * spring(0.4, 0.5));
-      move(".fixture-reply", 0, 18 * (1 - fade(local, 1.1)), 1);
-    };
-    typeText(
-      "#card-one .agent-message p",
-      "Make the button lavender.",
-      spec.kind === "comment" ? (local - 0.45) / 2.1 : 1,
-    );
-    typeText(
-      ".fixture-reply p",
-      "On it. Sending to my agent.",
-      spec.kind === "reply" ? (local - 1.35) / 1.7 : 1,
-    );
-    if (spec.kind === "comment") {
-      desktop();
-      $(".review-scene").style.opacity = ".24";
-      card();
+    let count = 2,
+      scroll = 0,
+      mode = "page",
+      typing = 0,
+      scale = 1.75,
+      x = -100,
+      y = -80;
+    if (spec.kind === "pins") count = beat < 6 ? 0 : beat < 9 ? 1 : 2;
+    if (spec.kind === "scroll") {
+      scroll = 850 * ease((beat - 16) / 7);
+      count = beat < 18 ? 2 : beat < 21 ? 3 : 4;
     }
-    if (spec.kind === "reply") {
-      card(true);
+    if (spec.kind === "thread" || spec.kind === "compose") {
+      scroll = 850;
+      count = 4;
+      mode = spec.kind;
+      typing = clip((local - 0.6) / 2.5);
+      x = -480;
+      scale = 2;
     }
-    if (
-      spec.kind === "expand" ||
-      spec.kind === "snap-left" ||
-      spec.kind === "snap-right"
-    ) {
-      show("#drawer", fade(local, 0, 0.5));
-      const expand = spec.kind === "expand";
-      const edge =
-        expand || local < 0.45
-          ? "bottom"
-          : spec.kind === "snap-left"
-            ? "left"
-            : "right";
-      window.launchDrawer.update(
-        edge,
-        expand && local >= 0.6 && local < 3.2,
-        true,
-      );
-    } else {
-      window.launchDrawer.update("bottom", false, false);
+    if (spec.kind === "compose") {
+      x = -140;
+      y = -380;
     }
-    if (spec.kind === "sidebar" || spec.kind === "copy") {
-      show("#sidebar", spec.kind === "copy" ? 1 : fade(local, 0, 0.7));
-      const q = spec.kind === "copy" ? 1 : spring(0, 1.1);
-      move("#sidebar", 70 * (1 - q), 0, 0.97 + 0.03 * q);
-      $$("#sidebar .fixture-card").forEach((e, i) => {
-        const p = spec.kind === "copy" ? 1 : fade(local, 0.3 + i * 0.4);
-        e.style.opacity = p;
-        e.style.transform = `translateY(${26 * (1 - p)}px)`;
-      });
-      $$("#sidebar .fixture-card p").forEach((e, i) =>
-        typeText(
-          e,
-          ["Make the button lavender.", "Loosen the headline spacing."][i],
-          spec.kind === "copy" ? 1 : (local - 0.5 - i * 0.45) / 1.6,
-        ),
-      );
-      const copied = spec.kind === "copy" && local >= 1;
-      $(".side-copy").classList.toggle("is-copied", copied);
-      $(".side-copy svg").style.opacity = copied ? 0 : 1;
-      $(".side-copy span").textContent = copied
-        ? "Copied for your agent"
-        : "Copy for agent";
-      $(".side-copy").style.transform =
-        `scale(${1 - 0.035 * (spec.kind === "copy" ? Math.exp(-Math.max(0, local - 1) * 9) : 0)})`;
+    if (spec.kind === "drawer") {
+      scroll = 850;
+      count = 4;
+      mode = "drawer";
+      scale = 1.6;
+      x = -100;
+      y = -40;
     }
-    if (spec.kind === "agent") {
-      show("#workflow", 1);
-      show(".website-window", 0);
-      show(".coding-window", 1);
-      move("#workflow");
-      move(".coding-window", 0, 0, 1.45);
-      $(".coding-window").style.filter = "none";
-      show(".coding-user", fade(local, 0));
-      typeText(
-        ".coding-user p",
-        "Make the button lavender.",
-        (local - 0.25) / 1.1,
-      );
-      typeText(
-        ".coding-response p",
-        "Updated the button styles.",
-        (local - 1.7) / 1.1,
-      );
-      show(".coding-response", fade(local, 1.5));
-      show(".coding-result", fade(local, 2.8));
-      move(".coding-user", 0, 20 * (1 - spring()));
-      move(".coding-response");
-      $(".coding-response p").style.clipPath = "none";
+    if (spec.kind === "sidebar") {
+      scroll = 850;
+      count = 4;
+      mode = beat >= 43 ? "sidebar-thread" : "sidebar";
+      const p = ease((beat - 36) / 3);
+      scale = mix(1.6, 2, p);
+      x = mix(-100, -640, p);
+      y = -40 * (1 - p);
+      if (mode === "sidebar-thread") {
+        const q = ease((beat - 43) / 1.5);
+        scale = mix(2, 1.65, q);
+        x = mix(-640, -180, q);
+        y = -20 * q;
+      }
     }
-    if (spec.kind === "improve") {
-      desktop(-180 - 30 * (1 - fade(local, 0, 0.8)), -105, 1.65);
-      $(".review-scene").style.opacity = fade(local, 0, 0.5);
-      const p = fade(local, 1, 0.8);
-      $(".hero-studio-heading").style.gap = `${mix(13, 40, p)}px`;
-      $(".hero-studio-button").style.background =
-        local >= 1 ? "#bfa3ee" : "#e6deef";
-      $(".hero-studio-button").style.transform = `scale(${1 + 0.12 * p})`;
-    } else {
-      $(".hero-studio-heading").style.gap = "13px";
-      $(".hero-studio-button").style.transform = "none";
-      $(".hero-studio-button").style.background = "#e6deef";
+    if (spec.kind === "scroll-end") {
+      count = 5;
+      scroll = 850 + 600 * ease(local / 3);
+      x = -180;
     }
-    if (spec.kind === "done") {
-      card(true);
-      const p = fade(local, 1.6, 0.6);
-      show("#card-one", 1 - p);
-      move("#card-one", 0, -35 * p, 1 - 0.04 * p);
-      show("#resolved", fade(local, 1.85));
-      move("#resolved", 0, 0, 0.94 + 0.06 * spring(1.85, 0.7));
-    }
+    const frame = $("#product-frame");
+    frame.style.transform = `translate(${x}px,${y}px) scale(${scale})`;
+    frame.contentWindow.widgetDemo?.update({
+      count,
+      scroll,
+      mode,
+      typing,
+      submit: spec.kind === "compose" && local >= 3.5,
+    });
   }
   lastScene = index;
   for (const a of $("#intro").getAnimations({ subtree: true })) {
     a.pause();
-    a.currentTime = Math.max(0, local) * 700;
+    a.currentTime = local * 700;
   }
   $("#progress").style.width = `${(beat / TOTAL) * 100}%`;
   $("#scrub").value = String(beat);
@@ -269,7 +169,6 @@ function render(value) {
   );
   $("#film").dataset.scene = spec.kind || "title";
   $("#film").dataset.beat = beat.toFixed(3);
-  window.filmTime = secondsAt(beat);
 }
 // Analytic conversion avoids accumulating drift, including the optional 1.5x ramp.
 function secondsAt(b) {

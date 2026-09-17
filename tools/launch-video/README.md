@@ -1,6 +1,6 @@
 # komo beat studio
 
-The current deliverable is an animated webpage, not a video render. One 64-beat clock schedules the cuts, typing, logo keyframes and titles. The live drawer retains its production spring timing. Default: 144 BPM (26.67 seconds). Controls: 60–240 BPM, optional 1.5× acceleration ramp, optional metronome click, loop, replay, pause, scrub and fullscreen. Reduced-motion users start paused. Click audio starts only after opt-in.
+The current deliverable is an animated webpage. No new video export. A 64-beat clock schedules cuts, scrolling, typing and camera movement. Default: 144 BPM (26.67 seconds). Controls include 60–240 BPM, a 1.5× acceleration ramp, optional metronome, loop, replay, pause, scrub and fullscreen. Reduced-motion users start paused.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -8,32 +8,29 @@ node tools/launch-video/build.mjs
 python3 -m http.server 4392 --directory tools/launch-video/dist
 ```
 
-Open `http://localhost:4392/`. Query options: `?bpm=180`, `?bpm=144&ramp=1`, `?capture=1` (paused). The beat renderer exposes `window.seekBeat(beat)` for future export tooling. The previous seconds-based renderer deliberately refuses this new page; no new MP4 is produced in this revision.
+Open `http://localhost:4392/`. Query options: `?bpm=180`, `?bpm=144&ramp=1`, `?capture=1` (paused).
 
-## Choreography
+## Actual tool, fixture website
 
-Each entry occupies four beats. Gestures inside each entry land on individual beats.
+`widget-runtime.ts` imports the full production `initComments` widget from `packages/komo/src/index.ts`. Pins, comment threads, composer, drawer and sidebar use the product's own DOM, shadow styles and motion. No recreated comment cards or sidebar are rendered. The iframe is a 1280×720 desktop; the outer camera crops and enlarges it into a 1920×1080 stage. `widget-frame.css` styles only the fixture website.
 
-1. Animated komo logo
-2. Large centered comment: “Make the button lavender.”
-3. Reaction and expanding reply
-4. “Right. There.”
-5. Drawer expands with staggered rows
-6. Drawer snaps into a vertical left-edge dock
-7. Drawer snaps into a vertical right-edge dock
-8. “Make yourself at home.”
-9. Large sidebar with readable fixture comments
-10. Copy confirmation
-11. “Your agent. Your code.”
-12. Agent receives feedback and updates styles
-13. Cropped desktop: spacing and lavender button improve
-14. Comment resolves into a checkmark
-15. Animated komo logo
-16. “komo.offbr.co”
+The isolated iframe fetch adapter serves in-memory fixture threads and handles the actual composer submission. Other fetch destinations are rejected. A dedicated fixture session contains no credential. No customer data or live service is used. Recording dependencies remain outside the npm package and production website runtime.
 
-One primary element occupies each shot. The 1920×1080 desktop surface is camera-cropped at 1.55–1.65×; the entire desktop never appears. Comment, drawer and sidebar shots use large standalone product components. Titles remain at most four words; fixture comments intentionally contain readable text.
+## Sequence
 
-The existing website and product components supply geometry, icons, windows, cards and logo. The preview mounts the actual MorphingMenu React component. Its own compression, spring, stagger, blur and close easing run unchanged. Dock travel uses the same spring parameters as the product. Scrubbing selects a drawer state and lets its native transition settle; it does not promise frame-exact seeking inside that transition. This is a choreographed illustration, not a live interactive product session. No customer data or live API calls. The coding agent is responsible for the website change.
+1. Animated komo logo.
+2. Real comment indicators appear on the website.
+3. “Chat on any website.”
+4. Scroll through sections as more indicators appear.
+5. Open an actual comment thread from its pin.
+6. Type and post through the real composer.
+7. Expand the production drawer.
+8. Open the actual sidebar, including its website-framing transition.
+9. Select a sidebar comment and show its thread on the page.
+10. “Every comment. One place.”
+11. Scroll to another comment, then finish with the logo and URL.
+
+The focus is commenting on a website; no code execution or website-editing outcome is shown. Product springs retain their native timing. Scrubbing selects a state and lets its transition settle; it is not frame-exact seeking inside product animations. The optional transport metronome is the only audio.
 
 ## Deploy a review preview
 
@@ -44,14 +41,4 @@ node tools/launch-video/preview.mjs
 pnpm exec wrangler pages deploy packages/komo-site/dist --project-name komo --branch preview
 ```
 
-Open the returned URL at `/launch-demo/?bpm=144`. A normal site build removes the preview route. Recording dependencies remain isolated from the npm package and production browser runtime.
-
-## Previous film pass
-
-The earlier 42-second landscape/portrait and 12-second teaser are historical review assets, not exports of the current beat sequence. Their immutable gallery is linked in `docs/launch/README.md`. Source remains in `timeline.js`, with previous render evidence in `docs/launch/render-evidence.json`. Revisit video composition only after this webpage is approved.
-
-## Motion direction
-
-Comments, replies, sidebar feedback and agent messages type into stable containers. Titles enter as a single restrained rise/fade with a small blur; no squash, rotation, letter staggering or stroke swell. Each focus enters before its gesture. Continuing comment/reply and sidebar/copy shots retain their objects; new focuses use cuts on bar boundaries. The drawer closes through its real component before the next dock shot. Logo motion stays unchanged. Native springs finish settling when narrative playback is paused.
-
-`drawer-runtime.tsx` bundles React/Motion only into the explicit preview route, never into the npm package or normal website build. The fixture drawer is inert so its internal focus management cannot steal transport controls. Production source is imported without modification.
+Open the returned URL at `/launch-demo/?bpm=144`. A normal site build removes this preview-only route. Historical films and their source remain available through `docs/launch/README.md`; they do not represent the current sequence.

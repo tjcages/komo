@@ -968,3 +968,21 @@ body.beat-studio {
 #film #title-hit h1 {
   will-change: transform, opacity, filter;
 }
+
+#product-frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+  border: 0;
+  transform-origin: 0 0;
+  background: #f9f8fc;
+  pointer-events: none;
+}
+#story {
+  overflow: hidden;
+}
+#film[data-scene] #story::before {
+  display: none;
+}

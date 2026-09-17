@@ -40,3 +40,11 @@ Local build, typecheck, all 111 tests and size budgets pass again. Production br
 [Current preview](https://8f2edb35.komo-wb5.pages.dev/launch-demo/?bpm=144). The preview imports and mounts the unmodified production MorphingMenu component, rather than recreating shell/row motion. Production edge CSS is copied at build time. Dock travel uses the product's 680/32/0.55 spring. The global animation seek now targets only the logo, so it cannot pause native drawer springs.
 
 Visually inspected typed partial comment and caret, native drawer expansion/settling, right-edge orientation, and simplified title. The inert fixture preserves transport focus. Deployed route loads and plays with no console errors. Build, typecheck, 111 tests and size budgets pass; browser package gzip remains unchanged. Native drawer transitions settle after narrative pause/scrub: exact intermediate drawer frames are not promised by seekBeat. No new video files.
+
+## Full production widget revision — 2026-09-17
+
+[Current preview](https://ce922826.komo-wb5.pages.dev/launch-demo/?bpm=144). Imports the full unmodified initComments implementation. Product pins, composer, thread, drawer and sidebar render inside a 1280×720 fixture iframe. The camera crops that desktop; product shadow styles and animation timings are unchanged.
+
+Visually inspected real pin/thread text, partial typing in the actual composer, successful fixture posting with a stacked pin, native drawer expansion, sidebar list and website framing, and selecting a sidebar row to open its thread. Adjusted the final camera so the sidebar and corresponding thread remain visible together. All data is fabricated; the iframe fetch adapter blocks external API destinations. No agent execution or website improvement is depicted. Native animations settle independently of narrative seeking.
+
+Local build, typecheck, 111 tests and size checks pass. Initial/all-feature gzip: 93,609 / 186,726 bytes, unchanged. No new video export.
