@@ -1439,16 +1439,19 @@ ${morphingMenuStyles}
   color: #eee;
 }
 .composer textarea,
-.dialog input {
+.dialog input,
+.dialog textarea {
   background: #ffffff07;
   color: #eee;
   box-shadow: inset 0 0 0 1px #ffffff05;
 }
 .composer textarea::placeholder,
-.dialog input::placeholder {
+.dialog input::placeholder,
+.dialog textarea::placeholder {
   color: #858585;
 }
-.composer textarea:focus {
+.composer textarea:focus,
+.dialog textarea:focus {
   box-shadow: inset 0 0 0 1px #ffffff20;
 }
 .send:disabled {
@@ -1613,7 +1616,8 @@ ${morphingMenuStyles}
   font-size: 12px;
   color: #999;
 }
-.account input {
+.account input,
+.account textarea {
   font-size: 15px;
   padding: 12px;
 }
@@ -1646,8 +1650,10 @@ ${morphingMenuStyles}
 .account-summary .avatar { width: 72px; height: 72px; font-size: 24px; box-shadow: 0 0 0 4px #ffffff06; }
 .account-summary h3 { margin: 6px 0 0; }
 .account-status { display: flex; align-items: center; justify-content: center; gap: 5px; color: #949494; font-size: 12px; }
-.account-layer .account input { width: 100%; min-height: 44px; background: #ffffff06; color: #f2f2f2; box-shadow: inset 0 0 0 1px #ffffff0b; border-radius: 12px; transition: box-shadow 150ms ease, background 150ms ease; }
-.account-layer .account input:focus { outline: none; background: #ffffff09; box-shadow: inset 0 0 0 1px #bda6ef; }
+.account-layer .account input,
+.account-layer .account textarea { width: 100%; min-height: 44px; background: #ffffff06; color: #f2f2f2; box-shadow: inset 0 0 0 1px #ffffff0b; border-radius: 12px; transition: box-shadow 150ms ease, background 150ms ease; }
+.account-layer .account input:focus,
+.account-layer .account textarea:focus { outline: none; background: #ffffff09; box-shadow: inset 0 0 0 1px #bda6ef; }
 .account-layer .account button { border-radius: 12px; }
 .account-layer .account .primary { background: #bda6ef; color: #211b2d; font-weight: 600; }
 .account-layer .account .primary:disabled { opacity: .4; cursor: default; }

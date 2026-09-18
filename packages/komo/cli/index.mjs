@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdir, readFile, writeFile, access, cp } from "node:fs/promises";
+import { mkdir, readFile, writeFile, access, cp, rm } from "node:fs/promises";
 import { resolve, dirname, basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -76,6 +76,7 @@ async function protectLocalFiles() {
   const existing = (await exists(path)) ? await readFile(path, "utf8") : "";
   const additions = [
     ".komo/owner-key",
+    ".komo/setup.json",
     ".komo/.dev.vars",
     ".komo/.wrangler/",
     "komo.config.js",
@@ -138,7 +139,14 @@ async function deploy() {
 async function init() {
   if (await exists(resolve(cwd, ".komo/deployment.json")))
     throw Error("Self-host setup exists. Run komo deploy to resume.");
-  if ((await exists(settingsPath)) || (await exists(generatedPath)))
+  const previous = (await exists(settingsPath))
+    ? JSON.parse(await readFile(settingsPath, "utf8"))
+    : null;
+  const resuming = previous?.onboarding?.inProject === true;
+  if (
+    !resuming &&
+    ((await exists(settingsPath)) || (await exists(generatedPath)))
+  )
     throw Error(
       "komo is already configured. Edit .komo/project.json, then run komo sync."
     );
@@ -160,9 +168,11 @@ async function init() {
     const selfHosted = args.includes("--self-host");
     const detected = repository(gitValue(["remote", "get-url", "origin"], cwd));
     const project = `komo_${randomUUID().replaceAll("-", "")}`;
-    const repo = flag("--repo") || detected || project;
+    const repo =
+      flag("--repo") || (resuming ? previous.repo : "") || detected || project;
     const origin =
       flag("--origin") ||
+      (resuming ? previous.origin : "") ||
       process.env.CF_PAGES_URL ||
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
       process.env.DEPLOY_PRIME_URL ||
@@ -178,28 +188,66 @@ async function init() {
     const origins = [
       ...new Set([
         origin,
+        ...[
+          process.env.CF_PAGES_URL,
+          process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
+          process.env.DEPLOY_PRIME_URL,
+        ]
+          .filter(Boolean)
+          .map((site) => new URL(site).origin),
         "http://localhost:3000",
         "http://localhost:4321",
         "http://localhost:5173",
       ]),
     ];
-    const scope = args.includes("--branch-scope") ? "branch" : "project";
+    const scope = args.includes("--branch-scope")
+      ? "branch"
+      : resuming
+        ? previous.scope
+        : "project";
     let config;
     if (!selfHosted) {
       const endpoint =
-        flag("--endpoint") || "https://komo.offbr.co";
+        flag("--endpoint") ||
+        (resuming ? previous.endpoint : "") ||
+        "https://komo.offbr.co";
       const api = new URL(endpoint);
       if (
         api.protocol !== "https:" &&
         !["localhost", "127.0.0.1"].includes(api.hostname)
       )
         throw Error("The API endpoint must use HTTPS.");
-      const setup = await request(endpoint, "/setup/start", { repo, origins });
-      console.log(
-        `\nSign in with Google to own this workspace:\n${setup.url}\n`
+      const setupPath = resolve(cwd, ".komo/setup.json");
+      let setup =
+        resuming && (await exists(setupPath))
+          ? JSON.parse(await readFile(setupPath, "utf8"))
+          : null;
+      if (
+        !setup ||
+        setup.expiresAt <= Date.now() ||
+        flag("--origin") ||
+        flag("--repo") ||
+        flag("--endpoint")
+      ) {
+        setup = {
+          ...(await request(endpoint, "/setup/start", { repo, origins })),
+          expiresAt: Date.now() + 600000,
+        };
+      }
+      await mkdir(dirname(settingsPath), { recursive: true });
+      await protectLocalFiles();
+      await writeFile(setupPath, JSON.stringify(setup), { mode: 0o600 });
+      await writeFile(
+        settingsPath,
+        `${JSON.stringify({ endpoint, project: `setup_${setup.id}`, repo, scope, origin, onboarding: { inProject: true, code: setup.id, sites: origins.filter((site) => site.startsWith("https://")) } }, null, 2)}\n`
       );
-      console.log("Waiting for sign-in…");
-      const end = Date.now() + 600000;
+      await sync();
+      await installAgentWorkflow(cwd);
+      console.log(
+        `\nMount komo in your app:\n\nimport { initKomo } from './komo.config.js';\ninitKomo();\n\nOpen ${origin} and choose Connect komo in the sidebar.\nKeep this terminal open while you start your app in another terminal.\nHosted recovery: ${setup.url}\n`
+      );
+      console.log("Waiting for your project to connect…");
+      const end = setup.expiresAt;
       while (Date.now() < end) {
         await new Promise((resolveWait) => setTimeout(resolveWait, 3000));
         const result = await request(endpoint, "/setup/poll", {
@@ -217,7 +265,9 @@ async function init() {
           break;
         }
       }
-      if (!config) throw Error("Sign-in timed out. Run komo init again.");
+      if (!config)
+        throw Error("Sign-in timed out. Run komo init again to resume setup.");
+      await rm(setupPath, { force: true });
     } else {
       if (
         !(await exists(resolve(cwd, "node_modules/@tjcages/komo/package.json")))

@@ -20,7 +20,14 @@ npx @tjcages/komo init
 
 Requires Node.js 22 or newer. The unscoped `komo` package on npm is unrelated; use `@tjcages/komo`.
 
-The setup command detects your Git repository, creates a project, and asks you to sign in with Google. It prints a public project key and a ready-to-paste inline configuration. It also saves settings to `.komo/project.json` and generates an optional `komo.config.js` helper.
+The setup command detects your Git repository and generates `komo.config.js` before sign-in. Mount that helper in your app:
+
+```js
+import { initKomo } from './komo.config.js';
+initKomo();
+```
+
+Keep the setup terminal open and start your app in another terminal. Choose **Connect komo** in your app’s sidebar. Google sign-in opens in a separate window; komo creates the project and returns you to feedback on your site. The CLI saves the final public settings to `.komo/project.json`, updates the helper, and prints an inline configuration. Use `--origin` for a different dev port or deployed site. If interrupted or expired, run `komo init` again to resume; completed projects are never overwritten.
 
 Hosted onboarding is available through the dedicated komo service. Self-hosting is available through the same CLI.
 
@@ -134,7 +141,11 @@ Projects default to link access. Owners can restrict feedback to invited Google 
 pnpm exec komo init
 ```
 
-Open the link from your terminal. Setup uses komo’s sidebar account modal: sign in with Google, then select **Create project**. Local development is ready immediately.
+Mount the generated `komo.config.js` helper and open your app. Select **Connect komo** in the sidebar and sign in with Google. Review the detected production and preview addresses in the sidebar and add any others, one per line. Connecting approves the current site and those listed addresses, including production sites that have not launched. Remove a suggested address to leave it unapproved. Google credentials and account-wide management stay on the komo service; your site receives a session for its new project.
+
+The CLI waits up to ten minutes and replaces the temporary setup configuration after connection. Keep the terminal open. Run `komo init` again after an interruption or expiry. The temporary polling secret stays in ignored `.komo/setup.json` and is never bundled into your site. A reload can resume commenting while the CLI finishes. Run `komo sync` before builds that use the generated helper.
+
+If the app cannot run, use the hosted recovery link printed in the terminal, sign in, and select **Create project**. The CLI still writes the final configuration.
 
 Approve your deployed website in **Approved sites**. komo detects deployment URLs when available; `--origin` can supply one. You can paste a full preview link—the modal extracts its site address. No DNS changes are required, including for `pages.dev` previews.
 

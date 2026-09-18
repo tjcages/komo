@@ -1,3 +1,9 @@
+import {
+  connectProject,
+  rememberProject,
+  resumeProject,
+  setupSites,
+} from "./connect-project.js";
 import { resolveConfig, type KomoConfig } from "./config.js";
 export type { KomoConfig } from "./config.js";
 import { pinDirection } from "./pin-direction.js";
@@ -72,7 +78,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   )
     throw new Error("The comments endpoint must use HTTPS.");
   if (instances.has(document)) return instances.get(document)!;
-  const api = new CommentsApi(options);
+  options = { ...resumeProject(options) };
+  let api = new CommentsApi(options);
   const abort = new AbortController();
   let destroyed = false,
     expanded = !!options.onboarding,
@@ -238,6 +245,13 @@ export function initComments(options: CommentsOptions): CommentsController {
     return control;
   }
   let accessError = "";
+  let connectingProject = false;
+  let setupSiteDraft =
+    options.onboarding?.sites
+      ?.filter(
+        (site) => site.startsWith("https://") && site !== location.origin
+      )
+      .join("\n") ?? "";
   let google = false;
   let movingThread: string | null = null;
   let github = false,
@@ -1141,7 +1155,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       {
         id: "account",
         expandedOrder: -1,
-        label: api.user ? `${api.user.name} · Account` : "Enter your name",
+        label: api.user
+          ? `${api.user.name} · Account`
+          : options.onboarding?.inProject
+            ? "Set up komo"
+            : "Enter your name",
         icon: createElement(
           "span",
           { className: "review-avatar" },
@@ -1536,6 +1554,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   function renderList() {
     if (options.onboarding) {
       sidebar.replaceChildren();
+      if (options.onboarding.inProject) return;
       if (expanded) {
         const panel = el("aside", "panel");
         panel.setAttribute("aria-label", "Project settings");
@@ -2769,6 +2788,80 @@ export function initComments(options: CommentsOptions): CommentsController {
         content.append(
           el("h2", "", options.onboarding ? "Set up komo" : "Leave comments")
         );
+        if (options.onboarding?.inProject) {
+          content.append(
+            el("p", "", "Connect komo to start leaving feedback on this site.")
+          );
+          content.append(
+            el(
+              "p",
+              "account-usage-note",
+              `Connecting approves ${location.origin} for this project.`
+            )
+          );
+          const sitesLabel = el(
+            "label",
+            "account-name-label",
+            "Production and preview sites"
+          );
+          const sitesInput = el("textarea");
+          sitesInput.rows = 2;
+          sitesInput.placeholder = "https://your-site.com";
+          sitesInput.value = setupSiteDraft;
+          sitesInput.dataset.focusKey = "setup-sites";
+          sitesInput.addEventListener("input", () => {
+            setupSiteDraft = sitesInput.value;
+          });
+          sitesLabel.append(sitesInput);
+          content.append(
+            sitesLabel,
+            el(
+              "p",
+              "account-usage-note",
+              "Add one address per line, including sites that haven’t launched. These sites can show and share this project’s comments."
+            )
+          );
+          const connect = button(
+            "Connect komo",
+            () =>
+              run(async () => {
+                if (connectingProject) return;
+                connectingProject = true;
+                connect.disabled = true;
+                try {
+                  const result = await connectProject(
+                    options,
+                    abort.signal,
+                    setupSites(setupSiteDraft, location.origin)
+                  );
+                  if (destroyed) return;
+                  rememberProject(options, result);
+                  options = {
+                    ...options,
+                    project: result.project,
+                    repo: result.repo,
+                    onboarding: undefined,
+                  };
+                  api = new CommentsApi(options);
+                  api.save(result);
+                  account = false;
+                  profileDraft = null;
+                  dialogKey = null;
+                  await loadProject();
+                  render();
+                  notify(
+                    "komo is connected. Select an element to leave feedback."
+                  );
+                } finally {
+                  connectingProject = false;
+                  if (!destroyed) render();
+                }
+              }),
+            "primary"
+          );
+          connect.disabled = connectingProject;
+          content.append(connect);
+        }
         if (guests) {
           const label = el("label", "account-name-label", "Your name");
           const name = el("input");
@@ -3555,7 +3648,12 @@ export function initComments(options: CommentsOptions): CommentsController {
           ...dialogs.querySelectorAll<HTMLElement>(
             "button:not(:disabled),input:not(:disabled):not([type=hidden]),select:not(:disabled),textarea:not(:disabled),summary,a[href],[tabindex]"
           ),
-        ].filter((control) => control.tabIndex >= 0 && control.getClientRects().length > 0 && !control.closest("[inert]"));
+        ].filter(
+          (control) =>
+            control.tabIndex >= 0 &&
+            control.getClientRects().length > 0 &&
+            !control.closest("[inert]")
+        );
         const first = controls[0],
           last = controls.at(-1);
         if (event.shiftKey && shadow.activeElement === first) {
@@ -3759,7 +3857,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   instances.set(document, controller);
   scalePage();
   render();
-  run(async () => {
+  async function loadProject() {
     const config = await api.request<{
       github: boolean;
       google?: boolean;
@@ -3783,6 +3881,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       selectThread(thread);
     }
     render();
-  });
+  }
+  if (!options.onboarding?.inProject) run(loadProject);
   return controller;
 }
