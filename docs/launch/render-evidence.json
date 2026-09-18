@@ -1,0 +1,53 @@
+{
+  "landscape": {
+    "sha256": "f12f9e4cb35ef5212461488ca3f911f7d0aac20872849a5b4165a12d5526da5e",
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1920,
+        "height": 1080,
+        "avg_frame_rate": "30/1",
+        "nb_frames": "1260"
+      }
+    ],
+    "format": {
+      "duration": "42.000000",
+      "size": "1709611"
+    }
+  },
+  "vertical": {
+    "sha256": "265d7b7bcd7bd799993b1f692c6fd73de573ea090a812f647693e60121ae035f",
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1080,
+        "height": 1920,
+        "avg_frame_rate": "30/1",
+        "nb_frames": "1260"
+      }
+    ],
+    "format": {
+      "duration": "42.000000",
+      "size": "1810364"
+    }
+  },
+  "teaser": {
+    "sha256": "e89083a58bd33bc162d1651a1d3096e390ad9832dcd8ddde3e41d5d60fd0c74b",
+    "programs": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1920,
+        "height": 1080,
+        "avg_frame_rate": "30/1",
+        "nb_frames": "360"
+      }
+    ],
+    "format": {
+      "duration": "12.000000",
+      "size": "433597"
+    }
+  }
+}

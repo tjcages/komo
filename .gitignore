@@ -9,3 +9,6 @@ dist/
 coverage/
 worker-configuration.d.ts
 packages/komo/server/setup-client.txt
+
+# Rendered launch media stays local; reproducible source is committed.
+tools/launch-video/output/

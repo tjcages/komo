@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:03,000
+Website feedback, right where it belongs.
+
+2
+00:00:03,000 --> 00:00:07,500
+Point at the headline. “Give it more room to breathe.”
+
+3
+00:00:07,500 --> 00:00:10,000
+A second reviewer: “Make the primary button easier to find.”
+
+4
+00:00:10,000 --> 00:00:15,000
+Reply and react. Keep the conversation in context.
+
+5
+00:00:15,000 --> 00:00:20,000
+Move the drawer, open all comments, and copy the feedback.
+
+6
+00:00:20,000 --> 00:00:26,000
+Paste the context into your coding agent. The agent edits the code.
+
+7
+00:00:26,000 --> 00:00:30,000
+The headline gets more space. The primary button gets a lavender fill.
+
+8
+00:00:30,000 --> 00:00:35,000
+Verify the changes, reply with the result, and resolve the feedback.
+
+9
+00:00:35,000 --> 00:00:42,000
+Install komo. Get your project key with komo init. komo.offbr.co
