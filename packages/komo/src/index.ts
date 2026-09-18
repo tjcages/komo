@@ -416,6 +416,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     left: surface.style.left,
     top: surface.style.top,
     height: surface.style.height,
+    minHeight: surface.style.minHeight,
     paddingBottom: surface.style.paddingBottom,
     overflow: surface.style.overflow,
     borderRadius: surface.style.borderRadius,
@@ -936,6 +937,9 @@ export function initComments(options: CommentsOptions): CommentsController {
         document.body.style.background = "#080808";
         document.documentElement.style.background = "#080808";
         surface.style.background = pageBackground;
+        // Short pages still need to cover the viewport while the frame expands.
+        const minHeight = getComputedStyle(surface).minHeight;
+        surface.style.minHeight = `max(${minHeight === "auto" ? "0px" : minHeight}, ${window.innerHeight / zoom}px)`;
       }
       pins.style.opacity = "0";
       pageTransitioning = true;
@@ -954,6 +958,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           surface.style.transformOrigin = savedStyle.transformOrigin;
           surface.style.transform = savedStyle.transform;
           surface.style.background = savedStyle.background;
+          surface.style.minHeight = savedStyle.minHeight;
           document.body.style.background = savedBody.background;
           document.documentElement.style.background = savedHtmlBackground;
         }
@@ -2790,7 +2795,11 @@ export function initComments(options: CommentsOptions): CommentsController {
         );
         if (options.onboarding?.inProject) {
           content.append(
-            el("p", "", "Connect komo to start leaving feedback on this site.")
+            el(
+              "p",
+              "",
+              "Connect komo to start leaving feedback on this site. One site per line."
+            )
           );
           const sitesLabel = el(
             "label",
@@ -2806,14 +2815,7 @@ export function initComments(options: CommentsOptions): CommentsController {
             setupSiteDraft = sitesInput.value;
           });
           sitesLabel.append(sitesInput);
-          content.append(
-            sitesLabel,
-            el(
-              "p",
-              "account-usage-note",
-              "One site per line. Include sites that aren’t live yet."
-            )
-          );
+          content.append(sitesLabel);
           const connect = button(
             "Connect komo",
             () =>
