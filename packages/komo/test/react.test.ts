@@ -48,6 +48,24 @@ describe("useKomo", () => {
     expect(init).toHaveBeenCalledTimes(1);
     expect(active).toBe(1);
   });
+  it("preserves pending setup across equivalent site lists", async () => {
+    const pending = () => ({
+      project: "setup_fixture",
+      onboarding: {
+        inProject: true,
+        code: "fixture",
+        sites: ["https://site.example"],
+      },
+    });
+    await render(pending());
+    await render(pending());
+    expect(init).toHaveBeenCalledTimes(1);
+    await render({
+      ...pending(),
+      onboarding: { ...pending().onboarding, sites: ["https://other.example"] },
+    });
+    expect(init).toHaveBeenCalledTimes(2);
+  });
   it("cleans up before remounting changed configuration", async () => {
     await render({ project: "first" });
     await render({ project: "second" });

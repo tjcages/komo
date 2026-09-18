@@ -32,7 +32,16 @@ describe("simple komo setup", () => {
   });
   it("generates a secret-free two-line integration and refreshes branch metadata", async () => {
     const dir = await mkdtemp(join(tmpdir(), "komo-cli-"));
-    const server = createServer((req, res) => {
+    let generatedBeforeSignIn = "";
+    let privateSetup = "";
+    const server = createServer(async (req, res) => {
+      if (req.url === "/setup/poll") {
+        generatedBeforeSignIn = await readFile(
+          join(dir, "komo.config.js"),
+          "utf8"
+        );
+        privateSetup = await readFile(join(dir, ".komo/setup.json"), "utf8");
+      }
       res.setHeader("Content-Type", "application/json");
       res.end(
         JSON.stringify(
@@ -76,11 +85,22 @@ describe("simple komo setup", () => {
           timeout: 10000,
         }
       );
+      expect(generatedBeforeSignIn).toContain('"inProject": true');
+      expect(generatedBeforeSignIn).toContain('"code": "setup"');
+      expect(generatedBeforeSignIn).not.toContain("fixture-poll-secret");
+      expect(privateSetup).toContain("fixture-poll-secret");
+      expect(await readFile(join(dir, ".gitignore"), "utf8")).toContain(
+        ".komo/setup.json"
+      );
+      await expect(
+        readFile(join(dir, ".komo/setup.json"), "utf8")
+      ).rejects.toThrow();
       expect(initialized.stdout).toContain("from '@tjcages/komo'");
       expect(initialized.stdout).not.toContain("fixture-poll-secret");
       const generated = await readFile(join(dir, "komo.config.js"), "utf8");
       expect(generated).toContain("from '@tjcages/komo/setup'");
       expect(generated).toContain("preview/one");
+      expect(generated).not.toContain("onboarding");
       expect(generated).not.toContain("fixture-poll-secret");
       await promisify(execFile)(process.execPath, [cli, "sync"], {
         cwd: dir,

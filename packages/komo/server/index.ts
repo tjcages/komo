@@ -7,6 +7,7 @@ import { setupPage } from "./setup-page";
 import setupClient from "./setup-client.txt";
 import {
   projectConfig,
+  workspaceConfig,
   provision,
   googleOwner,
   retainReviewerComments,
@@ -197,6 +198,63 @@ async function authenticate(
   check(row, 401, "Your session expired. Enter your name again.");
   return identity(row);
 }
+// Both hosted recovery and in-project OAuth use the same one-use setup claim.
+async function completeSetup(
+  env: Env,
+  user: Identity,
+  code: string,
+  origin?: string,
+  sites: string[] = origin ? [origin] : []
+) {
+  const setup = await env.DB.prepare(
+    "DELETE FROM setup_requests WHERE id=? AND project IS NULL AND expires_at>? RETURNING *"
+  )
+    .bind(code, Date.now())
+    .first<{ poll_hash: string; config: string; expires_at: number }>();
+  check(setup, 409, "Setup expired or already completed. Run komo init again.");
+  const config = JSON.parse(setup.config);
+  let created: { project: string; repo: string };
+  try {
+    if (origin)
+      check(
+        originAllowed(origin, config.origins),
+        403,
+        "Return to the site where you started setup."
+      );
+    created = await provision(env, user, config);
+  } catch (error) {
+    // A quota or validation error must not turn a retry into an expired request.
+    await env.DB.prepare(
+      "INSERT INTO setup_requests(id,poll_hash,config,expires_at) VALUES(?,?,?,?)"
+    )
+      .bind(code, setup.poll_hash, setup.config, setup.expires_at)
+      .run();
+    throw error;
+  }
+  const httpsSites = sites.filter((site) => site.startsWith("https://"));
+  if (httpsSites.length) {
+    await env.DB.batch(
+      httpsSites.map((site) =>
+        env.DB.prepare(
+          "INSERT INTO workspace_domains(project,origin,verified_at) VALUES(?,?,?)"
+        ).bind(created.project, site, Date.now())
+      )
+    );
+  }
+  await env.DB.prepare(
+    "INSERT INTO setup_requests(id,poll_hash,config,project,expires_at) VALUES(?,?,?,?,?)"
+  )
+    .bind(
+      code,
+      setup.poll_hash,
+      setup.config,
+      created.project,
+      setup.expires_at
+    )
+    .run();
+  return created;
+}
+
 async function oauthAuthorize(
   request: Request,
   env: Env,
@@ -273,6 +331,7 @@ async function oauthCallback(
       project: string;
       origin: string;
       exchange_hash: string;
+      approved_origins: string | null;
     }>();
   check(
     saved &&
@@ -356,16 +415,40 @@ async function oauthCallback(
     await env.DB.prepare("UPDATE users SET email=? WHERE id=?")
       .bind(profile.email.toLowerCase(), id)
       .run();
-  const accessToken = await session(env, saved.project, id);
+  const user = identity(
+    (await env.DB.prepare("SELECT * FROM users WHERE id=?")
+      .bind(id)
+      .first<UserRow>())!
+  );
+  const setupCode =
+    env.KOMO_HOSTED === "true" &&
+    saved.approved_origins &&
+    saved.project.startsWith("setup:")
+      ? saved.project.slice(6)
+      : undefined;
+  check(
+    !setupCode || provider === "google",
+    403,
+    "Use Google to connect komo."
+  );
+  const created = setupCode
+    ? await completeSetup(
+        env,
+        user,
+        setupCode,
+        saved.origin,
+        saved.approved_origins
+          ? JSON.parse(saved.approved_origins)
+          : [saved.origin]
+      )
+    : undefined;
+  const accessToken = await session(env, created?.project ?? saved.project, id);
   const nonce = crypto.randomUUID();
   const message = JSON.stringify({
-    type: "branch-comments:auth",
+    type: created ? "komo:setup" : "branch-comments:auth",
+    ...(created ? { ...created, code: setupCode } : {}),
     token: accessToken,
-    user: identity(
-      (await env.DB.prepare("SELECT * FROM users WHERE id=?")
-        .bind(id)
-        .first<UserRow>())!
-    ),
+    user,
   }).replace(/</g, "\\u003c");
   const target = JSON.stringify(saved.origin).replace(/</g, "\\u003c");
   return new Response(
@@ -402,6 +485,82 @@ async function route(
   }
   if (env.KOMO_HOSTED === "true")
     await limit(env, "service:requests", 100000, 86400);
+  if (
+    url.pathname === "/setup/connect" &&
+    request.method === "GET" &&
+    env.KOMO_HOSTED === "true"
+  ) {
+    check(
+      env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET,
+      503,
+      "Google sign-in is not configured."
+    );
+    await limit(
+      env,
+      `connect:${request.headers.get("CF-Connecting-IP") ?? "local"}`,
+      20,
+      3600
+    );
+    const code = string(url.searchParams.get("code"), 100, "setup code");
+    const origin = string(url.searchParams.get("origin"), 300, "site origin");
+    const setup = await env.DB.prepare(
+      "SELECT config FROM setup_requests WHERE id=? AND project IS NULL AND expires_at>?"
+    )
+      .bind(code, Date.now())
+      .first<{ config: string }>();
+    check(
+      setup,
+      409,
+      "Setup expired or already completed. Run komo init again."
+    );
+    check(
+      originAllowed(origin, JSON.parse(setup.config).origins),
+      403,
+      "Open the site configured by komo init."
+    );
+    let sites: unknown;
+    try {
+      sites = JSON.parse(
+        url.searchParams.get("sites") || JSON.stringify([origin])
+      );
+    } catch {
+      throw new HttpError(400, "Invalid site addresses.");
+    }
+    check(
+      Array.isArray(sites) &&
+        sites.length > 0 &&
+        sites.length <= 10 &&
+        sites.includes(origin) &&
+        sites.every(
+          (site) =>
+            typeof site === "string" &&
+            site.length <= 300 &&
+            originAllowed(site, [site]) &&
+            (site.startsWith("https://") || site === origin)
+        ),
+      400,
+      "Use up to ten exact HTTPS sites, including your current site."
+    );
+    const approved = [...new Set(sites)];
+    const state = token();
+    await env.DB.prepare(
+      "INSERT INTO oauth_states(state_hash,verifier,project,origin,expires_at,exchange_hash,provider,approved_origins) VALUES(?,?,?,?,?,?,?,?)"
+    )
+      .bind(
+        await hash(state),
+        token(),
+        `setup:${code}`,
+        origin,
+        Date.now() + 600000,
+        await hash(token()),
+        "google",
+        JSON.stringify(approved)
+      )
+      .run();
+    const authorize = new URL("/auth/google/authorize", url);
+    authorize.searchParams.set("state", state);
+    return oauthAuthorize(new Request(authorize), env, "google");
+  }
   if (url.pathname === "/setup") return setupPage();
   if (
     url.pathname === "/setup/start" &&
@@ -419,7 +578,7 @@ async function route(
       503,
       "Hosted setup is awaiting Google sign-in configuration. Use --self-host or try again later."
     );
-    const config = await body(request);
+    const config = workspaceConfig(await body(request));
     const id = crypto.randomUUID(),
       secret = token();
     await env.DB.prepare(
@@ -545,28 +704,7 @@ async function route(
     );
     const data = await body(request);
     const code = string(data.code, 100, "setup code");
-    const setup = await env.DB.prepare(
-      "DELETE FROM setup_requests WHERE id=? AND project IS NULL AND expires_at>? RETURNING *"
-    )
-      .bind(code, Date.now())
-      .first<{ poll_hash: string; config: string; expires_at: number }>();
-    check(
-      setup,
-      409,
-      "Setup expired or already completed. Run komo init again."
-    );
-    const created = await provision(env, user, JSON.parse(setup.config));
-    await env.DB.prepare(
-      "INSERT INTO setup_requests(id,poll_hash,config,project,expires_at) VALUES(?,?,?,?,?)"
-    )
-      .bind(
-        code,
-        setup.poll_hash,
-        setup.config,
-        created.project,
-        setup.expires_at
-      )
-      .run();
+    const created = await completeSetup(env, user, code);
     return json(created, 201);
   }
   if (

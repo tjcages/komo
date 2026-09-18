@@ -83,16 +83,10 @@ export async function googleOwner(env: Env, project: string, user: Identity) {
     "Only the workspace owner can do that."
   );
 }
-export async function provision(
-  env: Env,
-  user: Identity,
-  config: Record<string, unknown>
-) {
-  check(
-    user.verified && user.id.startsWith("google:"),
-    403,
-    "A Google account is required to create a workspace."
-  );
+export function workspaceConfig(config: Record<string, unknown>): {
+  repo: string;
+  origins: string[];
+} {
   const repo = string(config.repo, 200, "repository");
   const origins = config.origins;
   check(
@@ -110,6 +104,20 @@ export async function provision(
     400,
     "Use exact HTTPS site origins or localhost."
   );
+  return { repo, origins };
+}
+
+export async function provision(
+  env: Env,
+  user: Identity,
+  config: Record<string, unknown>
+) {
+  check(
+    user.verified && user.id.startsWith("google:"),
+    403,
+    "A Google account is required to create a workspace."
+  );
+  const { repo, origins } = workspaceConfig(config);
   const id = `komo_${crypto.randomUUID().replaceAll("-", "")}`;
   const results = await env.DB.batch([
     env.DB.prepare(

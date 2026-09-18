@@ -65,7 +65,29 @@ beforeAll(async () => {
     await readFile(new URL("../server/wrangler.jsonc", import.meta.url), "utf8")
   );
   config.name = "comments-test";
-  config.main = fileURLToPath(new URL("../server/index.ts", import.meta.url));
+  const apiPath = fileURLToPath(new URL("../server/index.ts", import.meta.url));
+  config.main = join(directory, "worker.ts");
+  // Mock only Google's upstream responses in the test Worker; exercise the real
+  // OAuth callback, state cookie, database provisioning and scoped session code.
+  await writeFile(
+    config.main,
+    `
+    import api from ${JSON.stringify(apiPath)};
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      if (url === "https://oauth2.googleapis.com/token") {
+        return new URLSearchParams(init?.body).get("code") === "fixture-setup-success"
+          ? Response.json({access_token:"fixture-google-access"})
+          : Response.json({error:"invalid_grant"}, {status:400});
+      }
+      if (url === "https://openidconnect.googleapis.com/v1/userinfo")
+        return Response.json({sub:"in-project-fixture",name:"Setup Owner",email_verified:true,email:"setup@example.test"});
+      return originalFetch(input, init);
+    };
+    export default api;
+  `
+  );
   delete config.account_id;
   config.vars.PROJECTS = JSON.stringify({
     test: { repo: "owner/site", origins: [origin] },
@@ -202,6 +224,84 @@ afterAll(async () => {
   }
   if (directory) await rm(directory, { recursive: true, force: true });
 });
+it("connects from the intended site with a one-use Google handoff and project-scoped session", async () => {
+  const site = "https://new-site.example";
+  const setup = (await (
+    await request("setup/start", "POST", {
+      repo: "owner/new-site",
+      origins: [site, "https://other-site.example"],
+    })
+  ).json()) as { id: string; secret: string };
+  const connect = (
+    origin: string,
+    sites = [origin, "https://production.example"]
+  ) =>
+    fetch(
+      `http://localhost:${port}/setup/connect?code=${setup.id}&origin=${encodeURIComponent(origin)}&sites=${encodeURIComponent(JSON.stringify(sites))}`,
+      { redirect: "manual" }
+    );
+  expect((await connect("https://attacker.example")).status).toBe(403);
+  expect((await connect(`${site}/path`)).status).toBe(403);
+  expect((await connect(site, ["https://production.example"])).status).toBe(
+    400
+  );
+  expect((await connect(site, [site, "http://untrusted.example"])).status).toBe(
+    400
+  );
+  const start = await connect(site);
+  expect(start.status).toBe(302);
+  const authorize = new URL(start.headers.get("Location")!);
+  expect(authorize.origin).toBe("https://accounts.google.com");
+  const state = authorize.searchParams.get("state")!;
+  const callback = `http://localhost:${port}/auth/google/callback?state=${encodeURIComponent(state)}&code=fixture-setup-success`;
+  expect((await fetch(callback)).status).toBe(400);
+  const signedIn = await fetch(callback, {
+    headers: { Cookie: `__Host-comments-oauth=${state}` },
+  });
+  expect(signedIn.status).toBe(200);
+  const html = await signedIn.text();
+  const payload = JSON.parse(
+    html.match(/postMessage\((.+),"https:\/\/new-site\.example"\)/)![1]
+  );
+  expect(payload).toMatchObject({
+    type: "komo:setup",
+    code: setup.id,
+    repo: "owner/new-site",
+    user: { id: "google:in-project-fixture", verified: true },
+  });
+  const scoped = (project: string, origin = site) =>
+    fetch(`http://localhost:${port}/me?project=${project}`, {
+      headers: { Origin: origin, Authorization: `Bearer ${payload.token}` },
+    });
+  expect((await scoped(payload.project)).status).toBe(200);
+  expect(
+    (await scoped(payload.project, "https://production.example")).status
+  ).toBe(200);
+  expect((await scoped("_komo", `http://localhost:${port}`)).status).toBe(401);
+  const approved = await fetch(
+    `http://localhost:${port}/config?project=${payload.project}`,
+    { headers: { Origin: site } }
+  );
+  expect(approved.status).toBe(200);
+  expect(approved.headers.get("Access-Control-Allow-Origin")).toBe(site);
+  expect(
+    (await scoped(payload.project, "https://other-site.example")).status
+  ).toBe(403);
+  const poll = await (
+    await request("setup/poll", "POST", { id: setup.id, secret: setup.secret })
+  ).json();
+  expect(poll.project).toBe(payload.project);
+  expect(poll.token).toBeUndefined();
+  expect((await connect(site)).status).toBe(409);
+  expect(
+    (
+      await fetch(callback, {
+        headers: { Cookie: `__Host-comments-oauth=${state}` },
+      })
+    ).status
+  ).toBe(400);
+});
+
 describe("shared comments against real workerd and SQLite", () => {
   it("resolves project-only configuration to the existing repository", async () => {
     const canonical = await request(

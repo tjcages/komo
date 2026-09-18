@@ -16,12 +16,19 @@ function sameConfig(a: KomoConfig, b: KomoConfig): boolean {
     const before = a.onboarding;
     const after = b.onboarding;
     if (!before || !after) return before === after;
-    return Object.keys({ ...before, ...after }).every((field) =>
-      Object.is(
+    return Object.keys({ ...before, ...after }).every((field) => {
+      if (field === "sites")
+        return (
+          before.sites?.length === after.sites?.length &&
+          (before.sites ?? []).every(
+            (site, index) => site === after.sites?.[index],
+          )
+        );
+      return Object.is(
         before[field as keyof typeof before],
         after[field as keyof typeof after],
-      ),
-    );
+      );
+    });
   });
 }
 
@@ -39,7 +46,16 @@ export function useKomo(config: KomoConfig): void {
     if (config.enabled === false) return;
     const snapshot = {
       ...config,
-      ...(config.onboarding ? { onboarding: { ...config.onboarding } } : {}),
+      ...(config.onboarding
+        ? {
+            onboarding: {
+              ...config.onboarding,
+              ...(config.onboarding.sites
+                ? { sites: [...config.onboarding.sites] }
+                : {}),
+            },
+          }
+        : {}),
     };
     mounted.current = { config: snapshot, controller: initKomo(snapshot) };
   });

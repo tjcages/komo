@@ -29,3 +29,22 @@ it("reuses the revision cache and replaces it when comments change", async () =>
   expect(changed).not.toBe(first);
   expect(changed).toEqual([{ id: "second" }]);
 });
+
+it("explains network and CORS failures without claiming the cause is known", async () => {
+  vi.stubGlobal("location", { hostname: "localhost" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", { getItem: () => null });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
+  );
+  const api = new CommentsApi({
+    endpoint: "https://example.com",
+    project: "test",
+    repo: "test",
+    branch: "shared",
+  });
+  await expect(api.request("config")).rejects.toThrow(
+    "Check your connection and this site's approval in komo"
+  );
+});
