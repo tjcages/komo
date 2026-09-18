@@ -122,6 +122,7 @@ function Pin({
   y,
   blue = false,
   clicked = false,
+  drift = false,
 }: {
   frame: number;
   delay: number;
@@ -129,6 +130,7 @@ function Pin({
   y: number;
   blue?: boolean;
   clicked?: boolean;
+  drift?: boolean;
 }) {
   const s =
     pop(frame, FPS, delay) *
@@ -139,7 +141,7 @@ function Pin({
     <Center
       x={x}
       y={y}
-      scale={2.8 * s}
+      scale={2.8 * s * (drift ? 1 + move(frame, [0, 84], [0, 0.065]) : 1)}
       opacity={ramp(frame, [delay, delay + 4])}
     >
       <Native
@@ -184,14 +186,14 @@ function Context() {
           ))}
         </div>
       </Center>
-      <Pin frame={f} delay={16} x={1470} y={370} clicked />
-      <Pin frame={f} delay={25} x={465} y={715} blue />
+      <Pin frame={f} delay={16} x={1470} y={370} clicked drift />
+      <Pin frame={f} delay={25} x={465} y={715} blue drift />
       <Pointer frame={f} start={31} click={54} at={[1470, 370]} />
     </Canvas>
   );
 }
 function Conversation() {
-  const f = (useCurrentFrame() * 66) / 72;
+  const f = useCurrentFrame();
   const entry = spring({
     frame: f,
     fps: FPS,
@@ -201,7 +203,7 @@ function Conversation() {
     <Canvas>
       <Center
         scale={ZOOM.CLOSE * (0.88 + 0.12 * entry) + move(f, [0, 90], [0, 0.08])}
-        opacity={ramp(f, [0, 5]) * (1 - ramp(f, [57, 65]))}
+        opacity={ramp(f, [0, 5]) * (1 - ramp(f, [84, 89]))}
       >
         <Native>
           <section className="dialog">
@@ -226,7 +228,7 @@ function Conversation() {
                           (button) =>
                             f < 39 + i * 5
                               ? button
-                              : `<button class="icon message-reaction has-reactions"><span class="reaction-value" style="display:inline-block;transform:scale(${pop(f, FPS, 39 + i * 5)})">${["💜", "👍", "🎉"][i]}</span></button>`,
+                              : `<button class="icon message-reaction has-reactions"><span class="reaction-value" style="display:inline-block;transform:scale(${f >= 59 + i * 5 ? 1 : pop(f, FPS, 39 + i * 5)})">${["💜", "👍", "🎉"][i]}</span></button>`,
                         )
                         .replace(
                           /(<p class="message-text">)([^<]*)(<\/p>)/,
@@ -260,7 +262,7 @@ function SidebarStage({ f }: { f: number }) {
     y = move(f, [26, 49], [0, 0], "arrive");
   const count = Math.min(6, Math.max(0, Math.floor((f - 49) / 9) + 1));
   const search = f >= 120,
-    query = "contrast".slice(0, Math.max(0, Math.floor((f - 125) / 2)));
+    query = "lavender".slice(0, Math.max(0, Math.floor((f - 125) / 2)));
   const nativeEase = Easing.bezier(0.22, 1, 0.36, 1);
   const searchMotion = interpolate(f, [120, 128.4], [0, 1], {
     ...clamp,
@@ -364,7 +366,7 @@ function SidebarStage({ f }: { f: number }) {
               />
               <div className="list">
                 {(query.length > 3
-                  ? [native.rows.find((r) => r.includes("contrast"))!]
+                  ? [native.rows.find((r) => r.includes("lavender"))!]
                   : [
                       ...native.rows.slice(0, count).reverse(),
                       ...native.rows.slice(8),
@@ -420,7 +422,7 @@ function DrawerBody({
   hover?: string;
 }) {
   const collapse = ramp(f, [25, 34], "arrive"),
-    horizontal = ramp(f, [35, 46], "arrive");
+    horizontal = ramp(f, [39, 49], "arrive");
   const q =
     opened || f >= 68
       ? 1
@@ -526,7 +528,7 @@ function Drawer() {
             ...clamp,
             easing: Easing.bezier(0.22, 1, 0.36, 1),
           }) *
-          interpolate(f, [0, 9, 24, 33, 35, 46], [0, 1, 1, 0, 0, 1], {
+          interpolate(f, [0, 9], [0, 1], {
             ...clamp,
             easing: Easing.bezier(0.22, 1, 0.36, 1),
           })
@@ -541,12 +543,13 @@ function Drawer() {
 }
 function Copy() {
   const f = useCurrentFrame();
-  const cy = interpolate(f, [0, 8, 24], [150, 150, 685], {
+  const cy = interpolate(f, [0, 8, 12, 24], [440, 150, 150, 685], {
     ...clamp,
     easing: Easing.bezier(0.4, 0, 0.2, 1),
   });
   const ids = ["account", "browse", "comment", "comments", "copy-prompts"];
-  const hovered = ids[Math.max(0, Math.min(4, Math.floor((cy - 84) / 132)))];
+  const hovered =
+    f < 8 ? "" : ids[Math.max(0, Math.min(4, Math.floor((cy - 84) / 132)))];
   return (
     <Canvas>
       <Center scale={3.3}>
@@ -574,7 +577,14 @@ function PromptExcerpt() {
   const parts = extra.prompt.split("\n\n");
   return (
     <>
-      <div style={{ fontSize: 34, fontWeight: 550, marginBottom: 24 }}>
+      <div
+        style={{
+          fontSize: 34,
+          fontWeight: 550,
+          marginBottom: 24,
+          lineHeight: 1.3,
+        }}
+      >
         {parts[0]}
       </div>
       <div style={{ fontSize: 28, lineHeight: 1.5 }}>{parts[1]}</div>
@@ -603,13 +613,14 @@ function Agent() {
             <div
               style={{
                 position: "absolute",
-                right: move(f, [53, 67], [0, 110], "arrive"),
+                right: 0,
                 top: move(f, [53, 67], [0, -35], "arrive"),
-                width: move(f, [53, 67], [1420, 1200], "arrive"),
+                width: 1420,
                 height: 540,
                 background: "#e8e6eb",
+                border: "1px solid transparent",
                 borderRadius: 32,
-                padding: 32,
+                padding: 38,
                 boxSizing: "border-box",
                 overflow: "hidden",
                 opacity: ramp(f, [53, 58]),
@@ -770,7 +781,7 @@ const defs = [
   [
     "conversation",
     Conversation,
-    72,
+    90,
     "tension",
     "CLOSE",
     "conversation",

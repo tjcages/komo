@@ -1,4 +1,4 @@
-# komo — 20-second Remotion promo
+# komo — 20.6-second Remotion promo
 
 A new component-vignette cut; the previous `/launch-demo/` remains available.
 
@@ -7,14 +7,14 @@ Proof: pins become a conversation, comments collect in the sidebar, and the draw
 
 | Seconds | Shot |
 | --- | --- |
-| 0–2.2 | Opening title, native pins, pronounced click compression and rebound |
-| 2.2–4.6 | Typed conversation; heart, thumbs-up, party-popper reactions |
-| 4.6–6 | Page shrink and native sidebar entrance |
-| 6–9.8 | Six new comments, 0.58s settle before Search; “contrast” holds 0.5s |
-| 9.8–12.6 | Drawer scales in, holds 0.5s, shrinks to zero, opens horizontally, expands |
-| 12.6–14.6 | Cursor traverses menu hover states, holds over Copy, native confirmation swap |
-| 14.6–17.4 | Larger real prompt excerpt, send, upward bubble motion as composer fades downward |
-| 17.4–20 | Website symbol and wordmark intro, one-second settled hold, loop fade |
+| 0–2.2 | Title and pins share slow scale-up; pin compresses and rebounds on click |
+| 2.2–5.2 | Typed conversation and reactions, followed by a half-second settled hold |
+| 5.2–6.6 | Page shrink and native sidebar entrance |
+| 6.6–10.4 | Comments settle, search types “lavender”, Alex’s matching comment holds |
+| 10.4–13.2 | Drawer scales in, collapses to one pointer, widens horizontally, expands |
+| 13.2–15.2 | Cursor moves up to the first row, traverses hover states, copies |
+| 15.2–18 | Fixed-width prompt text remains unchanged as sent bubble rises |
+| 18–20.6 | Website symbol and wordmark intro, one-second settled hold, loop fade |
 
 ## Source and rendering
 
@@ -30,7 +30,7 @@ node qc.mjs --flat=context,conversation,sidebar,feed,drawer,agent,logo --wide=si
 node build.mjs
 ```
 
-Output: `../komo-promo/out/film.mp4`. Eight independent scene compositions plus `komo-promo`, the full 600-frame timeline. `src/edit.json` controls cuts. The final scene is intentionally a logo vignette, not a workspace pull-back. No audio is included.
+Output: `../komo-promo/out/film.mp4`. Eight independent scene compositions plus `komo-promo`, the full 618-frame timeline. `src/edit.json` controls cuts. The final scene is intentionally a logo vignette, not a workspace pull-back. No audio is included.
 
 `native.json` contains fixture-only HTML emitted by the actual widget renderer, its stylesheet with wall-clock animation/transition declarations stripped, and the site's SVG logo. It contains no running product code, customer feedback, screenshots, or iframe. The stage retains native classes, icons, colors and controls; frame-driven wrappers provide composition and motion. The drawer samples Motion's pure spring generator at fixed frame times using the product's 400ms / 0.24 bounce parameters. Card motion uses the product's 600 stiffness / 34 damping. No live hooks, polling, portals, or production timers execute in the render.
 
@@ -38,6 +38,8 @@ The sidebar is framed on the native dark review surface. Prompt content is gener
 
 The native fixture was captured from the isolated existing demo at beats 5 (pins/toolbar), 14 (conversation), 46 (sidebar), and 55 (drawer), then reduced to the rendered elements. Refresh this fixture when the actual widget changes; do not redesign the UI inside the film.
 
-The revised brief explicitly extends the skill’s usual 12–15 second limit. Setup adjusts only the local helper’s validation caps to 600 frames per film and 120 per shot. Current edit is 600 frames. Search uses the product’s 280ms cubic-bezier(.22,1,.36,1) icon-to-field geometry; rows retain its 250ms entrance/reflow curve. The sidebar uses its existing easing at a slower playback duration. The drawer spring is unchanged; its camera zoom starts only after the spring ends, with a monotonic curve.
+The revised brief explicitly extends the skill’s usual 12–15 second limit. Setup adjusts only the local helper’s validation caps to 630 frames per film and 120 per shot. Current edit is 618 frames. Search uses the product’s 280ms cubic-bezier(.22,1,.36,1) icon-to-field geometry; rows retain its 250ms entrance/reflow curve. The sidebar uses its existing easing at a slower playback duration. The drawer spring is unchanged; its camera zoom starts only after the spring ends, with a monotonic curve.
 
 Menu fidelity: rendered rows are direct children of the native panel so first/last corner rules apply. Selected background comes from `styles.ts` (`#ffffff0d`, lavender ink, inset outline). Hover follows the cursor through actual row IDs. Copy label and icon use the `MorphingMenu.tsx` 200ms cubic-bezier(.22,1,.36,1) swap: label ±4px and blur 2px, icon scale .7 and blur 2px. The real confirmation label remains “Copied prompt.” The panel stays centered independently of the changing shell dimensions, eliminating lateral drift during expansion.
+
+The additional post-reaction hold brings this revision to 20.6 seconds. Both composer and sent bubble keep the same 1420px width, 38px padding, 1px border allocation, and explicit heading line-height; only position and opacity change after sending. The opening pins sample the exact same slow scale curve as the title.

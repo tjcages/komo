@@ -22,3 +22,7 @@ The owner approved up to 20 seconds: this cut is 19.5 seconds. Preserve the esta
 ## Final detail pass
 
 20 seconds total. Reduce the stream to six arrivals so its last 250ms entrance finishes 0.58 seconds before search clicks. Hold the completed query for half a second. Drawer entrance scales from zero, holds for half a second, contracts to zero, then expands to a horizontal bar and the native menu. Keep content anchored during shell growth, restore native selection and corner styling, and traverse hover states before the real copy confirmation swap. Enlarge the actual prompt opening with an ellipsis; move the sent bubble upward as the composer fades downward. Hold the settled logo for one second.
+
+## Continuity revision
+
+Opening pins share the title’s slow zoom. Let all three reactions settle, hold 15 frames, then exit. Search lavender and show Alex’s existing fixture. Keep the approved drawer entrance while replacing disappearance with an internal collapse to one pointer, then the horizontal bar. Cursor enters below the first menu item and travels upward before descending to Copy. Keep text metrics fixed across composer and sent bubble so lines never reflow. Duration is 20.6 seconds including the added reaction hold.

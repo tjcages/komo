@@ -40,11 +40,11 @@ for (const name of ["package.json", "package-lock.json"])
   cpSync(resolve(source, name), resolve(target, name));
 console.log(`Prepared ${target}. Run npm ci there, then node build.mjs.`);
 
-// The owner's revised brief allows a 20-second film and longer interaction holds.
+// The added post-reaction hold requires a 20.6-second film; retain a 21s validation cap.
 const sceneHelper = resolve(target, "src/scenes.ts");
 writeFileSync(
   sceneHelper,
   readFileSync(sceneHelper, "utf8")
     .replace("const MAX_CLIP = 75", "const MAX_CLIP = 120")
-    .replace("const MAX_FILM = 450", "const MAX_FILM = 600"),
+    .replace("const MAX_FILM = 450", "const MAX_FILM = 630"),
 );
