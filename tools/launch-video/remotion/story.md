@@ -26,3 +26,7 @@ The owner approved up to 20 seconds: this cut is 19.5 seconds. Preserve the esta
 ## Continuity revision
 
 Opening pins share the title’s slow zoom. Let all three reactions settle, hold 15 frames, then exit. Search lavender and show Alex’s existing fixture. Keep the approved drawer entrance while replacing disappearance with an internal collapse to one pointer, then the horizontal bar. Cursor enters below the first menu item and travels upward before descending to Copy. Keep text metrics fixed across composer and sent bubble so lines never reflow. Duration is 20.6 seconds including the added reaction hold.
+
+## Resolve beat
+
+Use a single parent transform for the opening camera. After reactions settle, the cursor clicks the real Resolve control and the conversation exits. Three remaining page pins pop in left-to-right before the sidebar opens. Carry the fixture resolution through the open list, drawer count and generated prompt. Runtime remains 20.6 seconds.

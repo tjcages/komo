@@ -122,7 +122,6 @@ function Pin({
   y,
   blue = false,
   clicked = false,
-  drift = false,
 }: {
   frame: number;
   delay: number;
@@ -130,7 +129,6 @@ function Pin({
   y: number;
   blue?: boolean;
   clicked?: boolean;
-  drift?: boolean;
 }) {
   const s =
     pop(frame, FPS, delay) *
@@ -141,7 +139,7 @@ function Pin({
     <Center
       x={x}
       y={y}
-      scale={2.8 * s * (drift ? 1 + move(frame, [0, 84], [0, 0.065]) : 1)}
+      scale={2.8 * s}
       opacity={ramp(frame, [delay, delay + 4])}
     >
       <Native
@@ -163,32 +161,39 @@ function Context() {
   const f = useCurrentFrame();
   return (
     <Canvas>
-      <Center scale={1 + move(f, [0, 84], [0, 0.065])}>
-        <div
-          style={{
-            whiteSpace: "nowrap",
-            fontSize: 108,
-            fontWeight: 550,
-            letterSpacing: -6,
-          }}
-        >
-          {["Leave", "feedback", "anywhere."].map((w, i) => (
-            <span
-              key={w}
-              style={{
-                opacity: ramp(f, [i * 3, i * 3 + 9], "arrive"),
-                display: "inline-block",
-                marginRight: 26,
-              }}
-            >
-              {w}
-            </span>
-          ))}
-        </div>
-      </Center>
-      <Pin frame={f} delay={16} x={1470} y={370} clicked drift />
-      <Pin frame={f} delay={25} x={465} y={715} blue drift />
-      <Pointer frame={f} start={31} click={54} at={[1470, 370]} />
+      <AbsoluteFill
+        style={{
+          transform: `scale(${1 + move(f, [0, 84], [0, 0.065])})`,
+          transformOrigin: "50% 50%",
+        }}
+      >
+        <Center>
+          <div
+            style={{
+              whiteSpace: "nowrap",
+              fontSize: 108,
+              fontWeight: 550,
+              letterSpacing: -6,
+            }}
+          >
+            {["Leave", "feedback", "anywhere."].map((w, i) => (
+              <span
+                key={w}
+                style={{
+                  opacity: ramp(f, [i * 3, i * 3 + 9], "arrive"),
+                  display: "inline-block",
+                  marginRight: 26,
+                }}
+              >
+                {w}
+              </span>
+            ))}
+          </div>
+        </Center>
+        <Pin frame={f} delay={16} x={1470} y={370} clicked />
+        <Pin frame={f} delay={25} x={465} y={715} blue />
+        <Pointer frame={f} start={31} click={54} at={[1470, 370]} />
+      </AbsoluteFill>
     </Canvas>
   );
 }
@@ -205,7 +210,14 @@ function Conversation() {
         scale={ZOOM.CLOSE * (0.88 + 0.12 * entry) + move(f, [0, 90], [0, 0.08])}
         opacity={ramp(f, [0, 5]) * (1 - ramp(f, [84, 89]))}
       >
-        <Native>
+        <Native
+          css={`
+            .native [aria-label="Resolve comment"] {
+              background: ${f >= 79 ? "#ffffff12" : "transparent"}!important;
+              transform: scale(${1 - 0.15 * ramp(f, [83, 85])}) !important;
+            }
+          `}
+        >
           <section className="dialog">
             <div dangerouslySetInnerHTML={html(native.commentHead)} />
             <div className="messages">
@@ -249,17 +261,20 @@ function Conversation() {
           </section>
         </Native>
       </Center>
+      <div style={{ opacity: 1 - ramp(f, [84, 89]) }}>
+        <Pointer frame={f} start={63} click={84} at={[1225, 270]} />
+      </div>
     </Canvas>
   );
 }
 function SidebarStage({ f }: { f: number }) {
-  const open = interpolate(f, [4, 18], [0, 1], {
+  const open = interpolate(f, [15, 29], [0, 1], {
     ...clamp,
     easing: Easing.bezier(0.32, 0.72, 0, 1),
   });
-  const zoom = move(f, [26, 49], [1, 2.05], "arrive");
-  const x = move(f, [26, 49], [0, -2245], "arrive"),
-    y = move(f, [26, 49], [0, 0], "arrive");
+  const zoom = move(f, [31, 49], [1, 2.05], "arrive");
+  const x = move(f, [31, 49], [0, -2245], "arrive"),
+    y = move(f, [31, 49], [0, 0], "arrive");
   const count = Math.min(6, Math.max(0, Math.floor((f - 49) / 9) + 1));
   const search = f >= 120,
     query = "lavender".slice(0, Math.max(0, Math.floor((f - 125) / 2)));
@@ -295,9 +310,9 @@ function SidebarStage({ f }: { f: number }) {
             transformOrigin: "top left",
           }}
         >
-          <Pin frame={f + 35} delay={0} x={450} y={250} />
-          <Pin frame={f + 35} delay={0} x={1000} y={520} blue />
-          <Pin frame={f + 35} delay={0} x={690} y={680} />
+          <Pin frame={f} delay={3} x={450} y={250} />
+          <Pin frame={f} delay={9} x={1000} y={520} blue />
+          <Pin frame={f} delay={6} x={690} y={680} />
         </div>
         <div
           style={{
@@ -369,7 +384,9 @@ function SidebarStage({ f }: { f: number }) {
                   ? [native.rows.find((r) => r.includes("lavender"))!]
                   : [
                       ...native.rows.slice(0, count).reverse(),
-                      ...native.rows.slice(8),
+                      ...native.rows
+                        .slice(8)
+                        .filter((r) => !r.includes("Love this direction.")),
                     ]
                 ).map((r, i) => {
                   const age = f - (49 + (count - i - 1) * 9);
@@ -437,10 +454,9 @@ function DrawerBody({
   });
   const layer = (content: string, incoming: boolean, icon: boolean) =>
     `<span style="grid-area:1/1;display:flex;align-items:center;opacity:${incoming ? swap : 1 - swap};filter:blur(${2 * (incoming ? 1 - swap : swap)}px);transform:translateY(${icon ? 0 : incoming ? 4 * (1 - swap) : -4 * swap}px) scale(${icon ? (incoming ? 0.7 + 0.3 * swap : 1 - 0.3 * swap) : 1})">${content}</span>`;
-  let panel = native.drawerPanel.replaceAll(
-    ' style="background:var(--mm-hover)"',
-    "",
-  );
+  let panel = native.drawerPanel
+    .replaceAll("12 open", "11 open")
+    .replaceAll(' style="background:var(--mm-hover)"', "");
   if (copied)
     panel = panel.replace(
       /(<button[^>]*data-menu-item="copy-prompts"[^>]*>)([\s\S]*?)(<\/button>)/,

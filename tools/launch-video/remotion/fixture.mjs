@@ -48,7 +48,10 @@ const conversation = n.messages.map((m, i) => ({
   reactions: i === 0 ? { "💜": ["fixture-user"] } : {},
 }));
 const first = threads.find((t) => t.comments[0].body === conversation[0].body);
-if (first) first.comments = conversation;
+if (first) {
+  first.comments = conversation;
+  first.resolved = true;
+}
 const extra = {
   shortcuts: [...doc(n.bar).querySelectorAll("button")].map((b) => b.outerHTML),
   symbol: readFileSync(root + "/packages/komo-site/public/favicon.svg", "utf8"),
