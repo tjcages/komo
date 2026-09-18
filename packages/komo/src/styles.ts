@@ -2228,22 +2228,17 @@ textarea {
   box-shadow: inset 0 0 0 1px #ffffff08;
 }
 
-.toolbar[data-intro="true"] > .morphing-menu {
+.toolbar[data-intro-wait="true"] > .morphing-menu { transition: none; }
+.toolbar[data-intro="true"][data-away="true"] > .morphing-menu {
+  translate: 0 var(--drawer-intro-y, 100vh);
+  scale: 1;
   filter: none;
-  clip-path: var(--drawer-peek-clip, inset(50% 0 0 0));
 }
 .toolbar[data-away="true"][data-peek="true"] > .morphing-menu {
-  translate: calc(var(--drawer-away-x, 0px) / 3) calc(var(--drawer-away-y, 24px) / 3);
+  translate: 0 var(--drawer-peek-y, 100vh);
   scale: 1;
   opacity: 1;
   filter: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .toolbar[data-away="true"][data-peek="true"] > .morphing-menu {
-    translate: none;
-    scale: 1;
-    filter: none;
-  }
 }
 
 .toolbar .morphing-menu__row[aria-current] svg { color: inherit; }

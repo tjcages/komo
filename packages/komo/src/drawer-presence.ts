@@ -16,6 +16,7 @@ export function drawerPresence(
   if (canHide.matches) {
     toolbar.dataset.away = "true";
     toolbar.dataset.intro = "true";
+    toolbar.dataset.introWait = "true";
   }
   const setDirection = () => {
     const rect = toolbar.getBoundingClientRect();
@@ -26,9 +27,14 @@ export function drawerPresence(
       window.innerHeight - rect.bottom,
     ];
     const side = gaps.indexOf(Math.min(...gaps));
+    // Move the intact dock through the viewport edge; never clip its top away.
     toolbar.style.setProperty(
-      "--drawer-peek-clip",
-      ["inset(0 50% 0 0)", "inset(0 0 0 50%)", "inset(0 0 50% 0)", "inset(50% 0 0 0)"][side]
+      "--drawer-peek-y",
+      `${window.innerHeight - rect.top - rect.height / 2}px`
+    );
+    toolbar.style.setProperty(
+      "--drawer-intro-y",
+      `${window.innerHeight - rect.top + 8}px`
     );
     toolbar.style.setProperty(
       "--drawer-away-x",
@@ -44,6 +50,7 @@ export function drawerPresence(
     clearTimeout(peekEndTimer);
     delete toolbar.dataset.peek;
     delete toolbar.dataset.intro;
+    delete toolbar.dataset.introWait;
     clearTimeout(introEndTimer);
     clearTimeout(timer);
     timer = 0;
@@ -88,6 +95,10 @@ export function drawerPresence(
     peekTimer = window.setTimeout(() => {
       if (!toolbar.dataset.away || keepOpen()) return;
       setDirection();
+      // Establish the just-offscreen position before enabling the entrance transition.
+      const menu = toolbar.querySelector<HTMLElement>(".morphing-menu");
+      if (menu) getComputedStyle(menu).translate;
+      delete toolbar.dataset.introWait;
       toolbar.dataset.peek = "true";
       peekEndTimer = window.setTimeout(() => {
         delete toolbar.dataset.peek;
