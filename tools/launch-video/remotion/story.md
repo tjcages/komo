@@ -18,3 +18,7 @@ Keep the 14-second timeline. Reactions replace each message’s native smiley bu
 ## Pacing revision
 
 The owner approved up to 20 seconds: this cut is 19.5 seconds. Preserve the established story while separating motions that previously competed. Show the slower sidebar entrance before moving the camera, space incoming rows 300ms apart, use the real search icon-to-field morph, and let the drawer settle before its zoom. Hold Copy for at least half a second before and after the click. Scale the agent composer in; use the native send SVG; fade the composer away and hold the sent message. Preserve the approved logo motion.
+
+## Final detail pass
+
+20 seconds total. Reduce the stream to six arrivals so its last 250ms entrance finishes 0.58 seconds before search clicks. Hold the completed query for half a second. Drawer entrance scales from zero, holds for half a second, contracts to zero, then expands to a horizontal bar and the native menu. Keep content anchored during shell growth, restore native selection and corner styling, and traverse hover states before the real copy confirmation swap. Enlarge the actual prompt opening with an ellipsis; move the sent bubble upward as the composer fades downward. Hold the settled logo for one second.

@@ -39,7 +39,7 @@ function Native({
     </div>
   );
 }
-const BASE = `.native{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.45;color:#232321;color-scheme:light;--accent:#bba2ee;--accent-ink:#161616;--sidebar-width:360px;--review-font-family:ui-sans-serif,system-ui,sans-serif;}.native *, .native *::before,.native *::after{animation:none!important;transition:none!important;caret-color:transparent!important;}.native .comment-menu-items{display:none!important}.native button{pointer-events:none}.native .pin{position:relative!important;inset:auto!important;transform:none!important;scale:1!important}.native .dialog{position:relative!important;inset:auto!important;width:340px!important;max-height:none!important;transform:none!important;visibility:visible!important;opacity:1!important}.native .messages{max-height:none!important;overflow:visible!important}.native .message{margin:0!important}.native .panel{position:relative!important;inset:auto!important;width:380px!important;height:400px!important;background:#202020!important;padding:20px!important;transform:none!important;visibility:visible!important;opacity:1!important;overflow:hidden!important;box-shadow:0 16px 45px #24112e18!important;border-radius:20px!important}.native .list{padding:0!important;overflow:hidden!important;mask-image:linear-gradient(black 80%,transparent)}.native .thread-card{position:relative!important;inset:auto!important;margin:0!important;width:100%!important;box-sizing:border-box!important}.native .morphing-menu{--mm-surface:#242424;--mm-ink:#eee;--mm-hover:#ffffff12;--mm-count:5;position:relative!important;width:268px!important;height:300px!important}.native .morphing-menu__shell{position:absolute!important;left:0!important;translate:none!important;top:0!important;bottom:auto!important;border-radius:24px;}.native .morphing-menu__panel{left:0!important;translate:none!important;width:268px!important;max-height:none!important}.native .morphing-menu__row{opacity:1!important;filter:none!important;transform:none!important}.native .morphing-menu__bar{left:0!important;translate:none!important;width:228px!important;bottom:0!important}.native .morphing-menu__shortcut{opacity:1!important}.native .composer textarea{height:36px!important}.native .dialog-head{outline:none!important}.native .toolbar{position:relative!important;inset:auto!important;transform:none!important;display:block!important;padding:0!important;background:none!important;width:268px!important;height:300px!important}.native .morphing-menu__row{background:transparent!important}.native .morphing-menu__row[data-menu-item="copy-prompts"]{background:var(--copy-hover,transparent)!important}`;
+const BASE = `.native{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.45;color:#232321;color-scheme:light;--accent:#bba2ee;--accent-ink:#161616;--sidebar-width:360px;--review-font-family:ui-sans-serif,system-ui,sans-serif;}.native *, .native *::before,.native *::after{animation:none!important;transition:none!important;caret-color:transparent!important;}.native .comment-menu-items{display:none!important}.native button{pointer-events:none}.native .pin{position:relative!important;inset:auto!important;transform:none!important;scale:1!important}.native .dialog{position:relative!important;inset:auto!important;width:340px!important;max-height:none!important;transform:none!important;visibility:visible!important;opacity:1!important}.native .messages{max-height:none!important;overflow:visible!important}.native .message{margin:0!important}.native .panel{position:relative!important;inset:auto!important;width:380px!important;height:400px!important;background:#202020!important;padding:20px!important;transform:none!important;visibility:visible!important;opacity:1!important;overflow:hidden!important;box-shadow:0 16px 45px #24112e18!important;border-radius:20px!important}.native .list{padding:0!important;overflow:hidden!important;mask-image:linear-gradient(black 80%,transparent)}.native .thread-card{position:relative!important;inset:auto!important;margin:0!important;width:100%!important;box-sizing:border-box!important}.native .morphing-menu{--mm-surface:#242424;--mm-ink:#eee;--mm-hover:#ffffff12;--mm-count:5;position:relative!important;width:268px!important;height:300px!important}.native .morphing-menu__shell{position:absolute!important;left:0!important;translate:none!important;top:0!important;bottom:auto!important;border-radius:24px;}.native .morphing-menu__panel{left:0!important;translate:none!important;width:268px!important;max-height:none!important}.native .morphing-menu__row{opacity:1!important;filter:none!important;transform:none!important}.native .morphing-menu__bar{left:0!important;translate:none!important;width:228px!important;bottom:0!important}.native .morphing-menu__shortcut{opacity:1!important}.native .composer textarea{height:36px!important}.native .dialog-head{outline:none!important}.native .toolbar{position:relative!important;inset:auto!important;transform:none!important;display:block!important;padding:0!important;background:none!important;width:268px!important;height:300px!important}.native .morphing-menu__row{background:transparent!important}.native .morphing-menu__row[aria-current]{background:#ffffff0d!important;color:#cbb9ec!important;box-shadow:inset 0 0 0 1px #ffffff08!important}`;
 function Canvas({
   children,
   color = BG,
@@ -121,14 +121,20 @@ function Pin({
   x,
   y,
   blue = false,
+  clicked = false,
 }: {
   frame: number;
   delay: number;
   x: number;
   y: number;
   blue?: boolean;
+  clicked?: boolean;
 }) {
-  const s = pop(frame, FPS, delay);
+  const s =
+    pop(frame, FPS, delay) *
+    (clicked
+      ? interpolate(frame, [53, 56, 60, 65], [1, 0.78, 1.22, 1], clamp)
+      : 1);
   return (
     <Center
       x={x}
@@ -178,14 +184,14 @@ function Context() {
           ))}
         </div>
       </Center>
-      <Pin frame={f} delay={16} x={1470} y={370} />
+      <Pin frame={f} delay={16} x={1470} y={370} clicked />
       <Pin frame={f} delay={25} x={465} y={715} blue />
       <Pointer frame={f} start={31} click={54} at={[1470, 370]} />
     </Canvas>
   );
 }
 function Conversation() {
-  const f = (useCurrentFrame() * 66) / 78;
+  const f = (useCurrentFrame() * 66) / 72;
   const entry = spring({
     frame: f,
     fps: FPS,
@@ -220,7 +226,7 @@ function Conversation() {
                           (button) =>
                             f < 39 + i * 5
                               ? button
-                              : `<button class="icon message-reaction has-reactions"><span class="reaction-value" style="display:inline-block;transform:scale(${pop(f, FPS, 39 + i * 5)})">${["💜", "👍", "✨"][i]}</span></button>`,
+                              : `<button class="icon message-reaction has-reactions"><span class="reaction-value" style="display:inline-block;transform:scale(${pop(f, FPS, 39 + i * 5)})">${["💜", "👍", "🎉"][i]}</span></button>`,
                         )
                         .replace(
                           /(<p class="message-text">)([^<]*)(<\/p>)/,
@@ -252,9 +258,9 @@ function SidebarStage({ f }: { f: number }) {
   const zoom = move(f, [26, 49], [1, 2.05], "arrive");
   const x = move(f, [26, 49], [0, -2245], "arrive"),
     y = move(f, [26, 49], [0, 0], "arrive");
-  const count = Math.min(8, Math.max(0, Math.floor((f - 49) / 9) + 1));
+  const count = Math.min(6, Math.max(0, Math.floor((f - 49) / 9) + 1));
   const search = f >= 120,
-    query = "contrast".slice(0, Math.max(0, Math.floor((f - 126) / 2)));
+    query = "contrast".slice(0, Math.max(0, Math.floor((f - 125) / 2)));
   const nativeEase = Easing.bezier(0.22, 1, 0.36, 1);
   const searchMotion = interpolate(f, [120, 128.4], [0, 1], {
     ...clamp,
@@ -404,23 +410,57 @@ function DrawerBody({
   f,
   opened = false,
   copied = false,
+  copyFrame = -100,
+  hover = "",
 }: {
   f: number;
   opened?: boolean;
   copied?: boolean;
+  copyFrame?: number;
+  hover?: string;
 }) {
-  const collapse = ramp(f, [15, 25], "arrive"),
-    horizontal = ramp(f, [30, 41], "arrive");
-  const q = opened
-    ? 1
-    : nativeSpring({ keyframes: [0, 1], duration: 400, bounce: 0.24 }).next(
-        Math.max(0, ((f - 54) / FPS) * 1000),
-      ).value;
+  const collapse = ramp(f, [25, 34], "arrive"),
+    horizontal = ramp(f, [35, 46], "arrive");
+  const q =
+    opened || f >= 68
+      ? 1
+      : nativeSpring({ keyframes: [0, 1], duration: 400, bounce: 0.24 }).next(
+          Math.max(0, ((f - 54) / FPS) * 1000),
+        ).value;
   const w = (52 + 176 * horizontal) * (1 - q) + 268 * q;
   const h = (52 + 176 * (1 - collapse)) * (1 - q) + 300 * q;
+  const swap = interpolate(copyFrame, [0, 6], [0, 1], {
+    ...clamp,
+    easing: Easing.bezier(0.22, 1, 0.36, 1),
+  });
+  const layer = (content: string, incoming: boolean, icon: boolean) =>
+    `<span style="grid-area:1/1;display:flex;align-items:center;opacity:${incoming ? swap : 1 - swap};filter:blur(${2 * (incoming ? 1 - swap : swap)}px);transform:translateY(${icon ? 0 : incoming ? 4 * (1 - swap) : -4 * swap}px) scale(${icon ? (incoming ? 0.7 + 0.3 * swap : 1 - 0.3 * swap) : 1})">${content}</span>`;
+  let panel = native.drawerPanel.replaceAll(
+    ' style="background:var(--mm-hover)"',
+    "",
+  );
+  if (copied)
+    panel = panel.replace(
+      /(<button[^>]*data-menu-item="copy-prompts"[^>]*>)([\s\S]*?)(<\/button>)/,
+      (_, open, body, close) => {
+        const icon = body.match(/<svg[\s\S]*?<\/svg>/)![0];
+        const check = icon.replace(
+          /<path[\s\S]*?(?:\/>|<\/path>)/,
+          '<path d="M20 6 9 17l-5-5"/>',
+        );
+        return (
+          open +
+          `<span class="morphing-menu__icon" style="display:grid">${layer(icon, false, true)}${layer(check, true, true)}</span><span class="morphing-menu__label" style="display:grid">${layer("Copy all comments for agent", false, false)}${layer("Copied prompt", true, false)}</span>` +
+          close
+        );
+      },
+    );
   return (
     <Native
       css={`
+        .native .morphing-menu__row[data-menu-item="${hover}"] {
+          background: var(--mm-hover) !important;
+        }
         .native .morphing-menu__shell {
           width: ${w}px!important;
           height: ${h}px!important;
@@ -430,6 +470,8 @@ function DrawerBody({
         }
         .native .morphing-menu__panel {
           opacity: ${ramp(q, [0.2, 0.8])}!important;
+          left: ${(w - 268) / 2}px!important;
+          top: ${(h - 300) / 2}px!important;
         }
         .native .morphing-menu__bar {
           width: ${w}px!important;
@@ -464,18 +506,10 @@ function DrawerBody({
                 />
               ))}
             </div>
-            <div className="morphing-menu__panel">
-              <div
-                dangerouslySetInnerHTML={html(
-                  copied
-                    ? native.drawerPanel.replaceAll(
-                        "Copy all comments for agent",
-                        "Copied prompt",
-                      )
-                    : native.drawerPanel,
-                )}
-              />
-            </div>
+            <div
+              className="morphing-menu__panel"
+              dangerouslySetInnerHTML={html(panel)}
+            />
           </div>
         </nav>
       </div>
@@ -487,10 +521,16 @@ function Drawer() {
   return (
     <Canvas>
       <Center
-        scale={interpolate(f, [72, 88], [2.2, 3.3], {
-          ...clamp,
-          easing: Easing.bezier(0.22, 1, 0.36, 1),
-        })}
+        scale={
+          interpolate(f, [72, 82], [2.2, 3.3], {
+            ...clamp,
+            easing: Easing.bezier(0.22, 1, 0.36, 1),
+          }) *
+          interpolate(f, [0, 9, 24, 33, 35, 46], [0, 1, 1, 0, 0, 1], {
+            ...clamp,
+            easing: Easing.bezier(0.22, 1, 0.36, 1),
+          })
+        }
         opacity={ramp(f, [0, 6])}
       >
         <DrawerBody f={f} />
@@ -501,14 +541,45 @@ function Drawer() {
 }
 function Copy() {
   const f = useCurrentFrame();
+  const cy = interpolate(f, [0, 8, 24], [150, 150, 685], {
+    ...clamp,
+    easing: Easing.bezier(0.4, 0, 0.2, 1),
+  });
+  const ids = ["account", "browse", "comment", "comments", "copy-prompts"];
+  const hovered = ids[Math.max(0, Math.min(4, Math.floor((cy - 84) / 132)))];
   return (
     <Canvas>
       <Center scale={3.3}>
-        <DrawerBody f={90} opened copied={f >= 28} />
+        <DrawerBody
+          f={90}
+          opened
+          copied={f >= 42}
+          copyFrame={f - 42}
+          hover={hovered}
+        />
       </Center>
-      <style>{`.native{--copy-hover:${f >= 4 ? "#ffffff12" : "transparent"}}`}</style>
-      <Pointer frame={f} start={-8} click={28} at={[1010, 685]} />
+      <div style={{ opacity: ramp(f, [0, 4]) * (1 - ramp(f, [55, 60])) }}>
+        <Cursor
+          kind="soft"
+          size={76}
+          x={1029}
+          y={cy + 21}
+          press={ramp(f, [41, 43]) * (1 - ramp(f, [43, 47]))}
+        />
+      </div>
     </Canvas>
+  );
+}
+function PromptExcerpt() {
+  const parts = extra.prompt.split("\n\n");
+  return (
+    <>
+      <div style={{ fontSize: 34, fontWeight: 550, marginBottom: 24 }}>
+        {parts[0]}
+      </div>
+      <div style={{ fontSize: 28, lineHeight: 1.5 }}>{parts[1]}</div>
+      <div style={{ fontSize: 32, marginTop: 12 }}>…</div>
+    </>
   );
 }
 function Agent() {
@@ -525,31 +596,31 @@ function Agent() {
           ...clamp,
           easing: Easing.bezier(0.22, 1, 0.36, 1),
         })}
-        opacity={ramp(f, [0, 8]) * (1 - ramp(f, [83, 90]))}
+        opacity={ramp(f, [0, 8]) * (1 - ramp(f, [77, 84]))}
       >
         <div style={{ width: 1420, height: 460, position: "relative" }}>
           {sent && (
             <div
               style={{
                 position: "absolute",
-                right: move(f, [53, 67], [20, 160], "arrive"),
-                top: move(f, [53, 67], [0, 70], "arrive"),
-                width: 1000,
-                height: 260,
+                right: move(f, [53, 67], [0, 110], "arrive"),
+                top: move(f, [53, 67], [0, -35], "arrive"),
+                width: move(f, [53, 67], [1420, 1200], "arrive"),
+                height: 540,
                 background: "#e8e6eb",
                 borderRadius: 32,
                 padding: 32,
                 boxSizing: "border-box",
                 overflow: "hidden",
-                opacity: ramp(f, [53, 61]),
-                transform: `scale(${move(f, [53, 66], [0.96, 1.08], "arrive")})`,
+                opacity: ramp(f, [53, 58]),
+                zIndex: 2,
                 fontSize: 24,
                 lineHeight: 1.5,
                 whiteSpace: "pre-wrap",
-                maskImage: "linear-gradient(black 80%, transparent)",
+                maskImage: "linear-gradient(black 55%, transparent 92%)",
               }}
             >
-              {extra.prompt}
+              <PromptExcerpt />
             </div>
           )}
           <div
@@ -559,6 +630,7 @@ function Agent() {
               width: 1420,
               height: 460,
               opacity: 1 - ramp(f, [53, 61]),
+              transform: `translateY(${move(f, [53, 67], [0, 80], "arrive")}px)`,
               background: "#fff",
               border: "1px solid #dcd9e0",
               borderRadius: 38,
@@ -569,16 +641,16 @@ function Agent() {
           >
             <div
               style={{
-                height: 308,
+                height: 335,
                 overflow: "hidden",
                 fontSize: 26,
                 lineHeight: 1.48,
                 whiteSpace: "pre-wrap",
-                maskImage: "linear-gradient(black 80%, transparent)",
+                maskImage: "linear-gradient(black 95%, transparent)",
                 color: paste ? INK : "#99949e",
               }}
             >
-              {paste ? extra.prompt : "Ask your agent…"}
+              {paste ? <PromptExcerpt /> : "Ask your agent…"}
             </div>
             <span
               style={{
@@ -636,7 +708,7 @@ function Agent() {
 }
 function Logo() {
   const f = useCurrentFrame(),
-    fade = 1 - ramp(f, [46, 53]);
+    fade = 1 - ramp(f, [70, 77]);
   const k = (t: number, values: number[], points = [0, 22, 43, 64, 83, 100]) =>
     interpolate(
       t,
@@ -694,11 +766,11 @@ export const PARTS = [
   "logo",
 ];
 const defs = [
-  ["context", Context, 72, "context", "PUSH", "pins", "entrance"],
+  ["context", Context, 66, "context", "PUSH", "pins", "entrance"],
   [
     "conversation",
     Conversation,
-    78,
+    72,
     "tension",
     "CLOSE",
     "conversation",
@@ -706,10 +778,10 @@ const defs = [
   ],
   ["sidebar", Sidebar, 42, "action", "PUSH", "sidebar", "reveal"],
   ["feed", Feed, 114, "action", "CLOSE", "sidebar", "reveal"],
-  ["drawer", Drawer, 90, "action", "CLOSE", "drawer", "interaction"],
-  ["copy", Copy, 45, "action", "MACRO", "copy", "interaction"],
-  ["agent", Agent, 90, "consequence", "CLOSE", "agent", "interaction"],
-  ["logo", Logo, 54, "consequence", "PUSH", "logo", "entrance"],
+  ["drawer", Drawer, 84, "action", "CLOSE", "drawer", "interaction"],
+  ["copy", Copy, 60, "action", "MACRO", "copy", "interaction"],
+  ["agent", Agent, 84, "consequence", "CLOSE", "agent", "interaction"],
+  ["logo", Logo, 78, "consequence", "PUSH", "logo", "entrance"],
 ] as const;
 export const SCENES: Scene[] = defs.map(
   ([id, component, length, beat, tier, subject, activity]) => ({

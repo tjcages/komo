@@ -3,13 +3,13 @@
     {
       "scene": "context",
       "in": 0,
-      "out": 72,
+      "out": 66,
       "continuity": "momentum"
     },
     {
       "scene": "conversation",
       "in": 0,
-      "out": 78,
+      "out": 72,
       "continuity": "momentum"
     },
     {
@@ -27,25 +27,25 @@
     {
       "scene": "drawer",
       "in": 0,
-      "out": 90,
+      "out": 84,
       "continuity": "impact"
     },
     {
       "scene": "copy",
       "in": 0,
-      "out": 45,
+      "out": 60,
       "continuity": "match"
     },
     {
       "scene": "agent",
       "in": 0,
-      "out": 90,
+      "out": 84,
       "continuity": "impact"
     },
     {
       "scene": "logo",
       "in": 0,
-      "out": 54,
+      "out": 78,
       "continuity": "momentum"
     }
   ]
