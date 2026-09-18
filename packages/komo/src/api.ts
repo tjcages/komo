@@ -49,6 +49,12 @@ export class CommentsApi {
       body: data === undefined ? undefined : JSON.stringify(data),
       credentials: "omit",
       signal: AbortSignal.timeout(15000),
+    }).catch((error: unknown) => {
+      if (error instanceof TypeError)
+        throw new Error(
+          "Could not reach komo. Check your connection and this site's approval in komo."
+        );
+      throw error;
     });
     const result = await response.json();
     if (!response.ok) {
