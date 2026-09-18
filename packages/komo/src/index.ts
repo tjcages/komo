@@ -2792,13 +2792,6 @@ export function initComments(options: CommentsOptions): CommentsController {
           content.append(
             el("p", "", "Connect komo to start leaving feedback on this site.")
           );
-          content.append(
-            el(
-              "p",
-              "account-usage-note",
-              `Connecting approves ${location.origin} for this project.`
-            )
-          );
           const sitesLabel = el(
             "label",
             "account-name-label",
@@ -2818,7 +2811,7 @@ export function initComments(options: CommentsOptions): CommentsController {
             el(
               "p",
               "account-usage-note",
-              "Add one address per line, including sites that haven’t launched. These sites can show and share this project’s comments."
+              "One site per line. Include sites that aren’t live yet."
             )
           );
           const connect = button(
