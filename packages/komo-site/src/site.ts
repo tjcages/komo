@@ -81,13 +81,60 @@ import { initKomo } from "@tjcages/komo";
 import { mountScene } from "./scene";
 import { mountFeatureScenes } from "./feature-scenes";
 import { mountUsageScene } from "./usage-scene";
+import { mountConnectScene } from "./connect-scene";
+
+function mountFrameworkTabs() {
+  document
+    .querySelectorAll<HTMLElement>("[data-framework-tabs]")
+    .forEach((tabs) => {
+      const buttons = Array.from(
+        tabs.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+      );
+      const panels = Array.from(
+        tabs.querySelectorAll<HTMLElement>('[role="tabpanel"]'),
+      );
+      const select = (index: number) => {
+        buttons.forEach((button, i) => {
+          const active = i === index;
+          button.setAttribute("aria-selected", String(active));
+          button.tabIndex = active ? 0 : -1;
+          const panel = panels[i]!;
+          panel.hidden = !active;
+          panel.setAttribute("aria-hidden", String(!active));
+        });
+      };
+      buttons.forEach((button, index) => {
+        button.addEventListener("click", () => select(index));
+        button.addEventListener("keydown", (event) => {
+          const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+          if (!keys.includes(event.key)) return;
+          event.preventDefault();
+          const length = buttons.length;
+          const next =
+            event.key === "ArrowRight"
+              ? (index + 1) % length
+              : event.key === "ArrowLeft"
+                ? (index - 1 + length) % length
+                : event.key === "Home"
+                  ? 0
+                  : length - 1;
+          buttons[next]!.focus();
+          select(next);
+        });
+      });
+    });
+}
+
 mountScene();
 mountFeatureScenes();
 mountUsageScene();
+mountConnectScene();
+mountFrameworkTabs();
 const review = initKomo({
   project: "komo-landing-demo",
   repo: "tjcages/komo",
   autoHideDrawer: false,
+  sidebar: "edge",
   drawerContainer: document.querySelector<HTMLElement>("#main") ?? undefined,
   pageRoot: document.querySelector<HTMLElement>("#site-content") ?? undefined,
 });
