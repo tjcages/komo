@@ -496,6 +496,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   let searchOpen = false;
   let dockMotion: ReturnType<typeof animate> | undefined;
   let sidebarMotion: ReturnType<typeof animate> | undefined;
+  let sidebarFade: Animation | undefined;
   let dockCenter: number | undefined;
   let drawerContainerCenter: number | undefined;
   let pageTransitioning = false;
@@ -569,6 +570,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     host.dataset.sidebar = edgeSidebar ? "edge" : "background";
     sidebar.classList.toggle("edge-sidebar", edgeSidebar);
     sidebar.style.transition = "none";
+    sidebar.style.translate = "0px 0px";
+    sidebar.style.opacity = "";
+    sidebarMotion?.stop();
+    sidebarFade?.cancel();
     if (edgeSidebar) {
       if (!grip.isConnected) sidebar.prepend(grip);
     } else {
@@ -1242,25 +1247,31 @@ export function initComments(options: CommentsOptions): CommentsController {
       hidden = false;
       scalePage();
       render();
-      const spring: Parameters<typeof animate>[2] = {
-        type: "spring",
-        stiffness: 680,
-        damping: 32,
-        mass: 0.55,
-      };
+      // The drawer-expand hand-off: a slow, symmetric morph from and back to
+      // the drawer rect, matching the review frame's motion language. The
+      // translate runs through motion (same API as the drawer dock); the fade
+      // runs in parallel on native WAAPI so the types stay simple.
+      const fade = (from: number, to: number, fill: FillMode = "none") =>
+        sidebar.animate(
+          [{ opacity: from }, { opacity: to }],
+          {
+            duration: 650,
+            easing: "cubic-bezier(.22,1,.36,1)",
+            fill,
+          }
+        );
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (value) {
-        // Jump to the docked spot instantly; the drawer-morph spring runs after.
+        // Jump to the docked spot instantly; the drawer-morph animation runs after.
         sidebar.style.transition = "none";
         void sidebar.offsetWidth;
         positionSidebar();
         sidebar.style.transition = "";
         const to = sidebar.getBoundingClientRect();
         sidebarMotion?.stop();
-        if (
-          !matchMedia("(prefers-reduced-motion: reduce)").matches &&
-          before.width > 0 &&
-          to.width > 0
-        ) {
+        sidebarFade?.cancel();
+        sidebar.style.translate = "0px 0px";
+        if (!reduced && before.width > 0 && to.width > 0) {
           sidebarMotion = animate(
             sidebar,
             {
@@ -1268,26 +1279,27 @@ export function initComments(options: CommentsOptions): CommentsController {
                 `${before.left - to.left}px ${before.top - to.top}px`,
                 "0px 0px",
               ],
-              opacity: [0.3, 1],
             },
-            spring
+            { duration: 0.65, ease: [0.22, 1, 0.36, 1] }
           );
+          sidebarFade = fade(0.25, 1);
         }
       } else {
+        // Close is the exact reverse of open: same motion, same duration.
         const from = sidebar.getBoundingClientRect();
         sidebarMotion?.stop();
+        sidebarFade?.cancel();
         const park = () => {
           sidebarMotion?.stop();
+          sidebarFade?.cancel();
           sidebar.style.transition = "none";
+          sidebar.style.translate = "0px 0px";
+          sidebar.style.opacity = "";
           positionSidebar();
           void sidebar.offsetWidth;
           sidebar.style.transition = "";
         };
-        if (
-          !matchMedia("(prefers-reduced-motion: reduce)").matches &&
-          before.width > 0 &&
-          from.width > 0
-        ) {
+        if (!reduced && before.width > 0 && from.width > 0) {
           sidebarMotion = animate(
             sidebar,
             {
@@ -1295,10 +1307,10 @@ export function initComments(options: CommentsOptions): CommentsController {
                 "0px 0px",
                 `${before.left - from.left}px ${before.top - from.top}px`,
               ],
-              opacity: [1, 0.25],
             },
-            spring
+            { duration: 0.65, ease: [0.22, 1, 0.36, 1] }
           );
+          sidebarFade = fade(1, 0.25, "forwards");
           void sidebarMotion.finished
             .then(() => {
               if (!destroyed) park();

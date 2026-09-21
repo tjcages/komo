@@ -2536,6 +2536,11 @@ textarea {
   pointer-events: auto;
 }
 :host([data-sidebar="edge"]) .edge-sidebar-sensor[hidden] { display: none; }
+/* In edge mode the drawer hands off to the sidebar instantly, so it never
+   coexists on screen during the open/close morph. */
+:host([data-sidebar="edge"]) .toolbar[data-hidden="true"] > .morphing-menu {
+  transition: none;
+}
 .toolbar[data-hidden="true"] { pointer-events: none; }
 .toolbar[data-hidden="true"] > .morphing-menu {
   translate: 0 8px;
