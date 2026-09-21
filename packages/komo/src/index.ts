@@ -109,7 +109,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     } catch {
       /* Fall back to the configured mode when storage is blocked. */
     }
-    return options.sidebar === "edge" ? "edge" : "background";
+    return options.sidebar === "background" ? "background" : "edge";
   })();
   let edgeSidebar = sidebarMode === "edge";
   let api = new CommentsApi(options);
@@ -667,35 +667,25 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
   }
   function sidebarSetting() {
-    const field = el("div", "account-setting");
-    field.setAttribute("aria-label", "How the comments sidebar opens");
+    const field = el("label", "account-setting");
     const label = el("span", "account-setting-label", "Sidebar");
-    const options = el("div", "account-setting-options");
-    options.setAttribute("role", "radiogroup");
-    options.setAttribute("aria-label", "How the comments sidebar opens");
-    const choices: Array<["background" | "edge", string]> = [
-      ["background", "In the page frame"],
-      ["edge", "Floating at the edge"],
+    const select = el("select");
+    select.name = "sidebar";
+    select.setAttribute("aria-label", "Sidebar");
+    const choices: Array<["edge" | "background", string]> = [
+      ["edge", "Floating"],
+      ["background", "Frame"],
     ];
     for (const [value, text] of choices) {
-      const option = button(
-        text,
-        () => {
-          if (sidebarMode === value) return;
-          setSidebarMode(value);
-          const next = dialogs.querySelector<HTMLElement>(
-            `.account-setting-option[data-value="${value}"]`,
-          );
-          next?.focus();
-        },
-        "account-setting-option",
-      );
-      option.setAttribute("role", "radio");
-      option.setAttribute("aria-checked", String(sidebarMode === value));
-      option.dataset.value = value;
-      options.append(option);
+      const option = el("option", "", text);
+      option.value = value;
+      select.append(option);
     }
-    field.append(label, options);
+    select.value = sidebarMode;
+    select.addEventListener("change", () => {
+      setSidebarMode(select.value === "background" ? "background" : "edge");
+    });
+    field.append(label, select);
     return field;
   }
   const grip = el("div", "edge-sidebar-grip");
@@ -1426,8 +1416,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     box: { left: number; top: number; width: number; height: number },
     radius: string,
   ) {
+    for (const animation of sidebar.getAnimations()) animation.cancel();
     sidebar.style.transition = "none";
     sidebar.style.transform = "none";
+    sidebar.style.translate = "none";
     sidebar.style.opacity = "1";
     sidebar.style.left = `${box.left}px`;
     sidebar.style.top = `${box.top}px`;
@@ -1463,7 +1455,18 @@ export function initComments(options: CommentsOptions): CommentsController {
     releaseEdgeBox();
   }
   function morphEdgeSidebar(opening: boolean, interrupted: boolean) {
+    const closingRect = sidebar.getBoundingClientRect();
+    const closingFrom = opening
+      ? null
+      : {
+          left: closingRect.left,
+          top: closingRect.top,
+          width: closingRect.width,
+          height: closingRect.height,
+          radius: sidebar.style.borderRadius || "16px",
+        };
     stopEdgeMotion(false);
+    if (closingFrom) pinEdgeBox(closingFrom, closingFrom.radius);
     const generation = edgeMorphGeneration;
     edgeMorphing = true;
     const menu = drawerMenu();
@@ -1549,15 +1552,16 @@ export function initComments(options: CommentsOptions): CommentsController {
         // Rest padding has to be in place for the grow, or the last frame
         // uses the pill padding and snaps when the motion ends.
         delete sidebar.dataset.morphing;
+        const from = sidebar.getBoundingClientRect();
         const spring = trackEdge(
           animate(
             sidebar,
             {
-              left: `${destination.left}px`,
-              top: `${destination.top}px`,
-              width: `${destination.width}px`,
-              height: `${destination.height}px`,
-              borderRadius: "16px",
+              left: [`${from.left}px`, `${destination.left}px`],
+              top: [`${from.top}px`, `${destination.top}px`],
+              width: [`${from.width}px`, `${destination.width}px`],
+              height: [`${from.height}px`, `${destination.height}px`],
+              borderRadius: [sidebar.style.borderRadius || "16px", "16px"],
             },
             drawerExpandSpring,
           ),
@@ -1580,14 +1584,15 @@ export function initComments(options: CommentsOptions): CommentsController {
         size.width,
         size.height,
       );
+      const from = sidebar.getBoundingClientRect();
       const compression = trackEdge(
         animate(
           sidebar,
           {
-            left: `${compressed.left}px`,
-            top: `${compressed.top}px`,
-            width: `${compressed.width}px`,
-            height: `${compressed.height}px`,
+            left: [`${from.left}px`, `${compressed.left}px`],
+            top: [`${from.top}px`, `${compressed.top}px`],
+            width: [`${from.width}px`, `${compressed.width}px`],
+            height: [`${from.height}px`, `${compressed.height}px`],
           },
           drawerExpandCompress,
         ),
@@ -1595,8 +1600,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       void compression.finished.then(springToPanel).catch(() => {});
       return;
     }
-    const visual = sidebar.getBoundingClientRect();
-    const radius = sidebar.style.borderRadius || "16px";
+    const visual = closingFrom ?? sidebar.getBoundingClientRect();
+    const radius = closingFrom?.radius || sidebar.style.borderRadius || "16px";
     delete toolbar.dataset.hidden;
     sidebar.dataset.morphing = "true";
     dockEdgeTabs();
@@ -1622,11 +1627,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       animate(
         sidebar,
         {
-          left: `${drawer.left}px`,
-          top: `${drawer.top}px`,
-          width: `${drawer.width}px`,
-          height: `${drawer.height}px`,
-          borderRadius: `${drawer.height / 2}px`,
+          left: [`${visual.left}px`, `${drawer.left}px`],
+          top: [`${visual.top}px`, `${drawer.top}px`],
+          width: [`${visual.width}px`, `${drawer.width}px`],
+          height: [`${visual.height}px`, `${drawer.height}px`],
+          borderRadius: [radius, `${drawer.height / 2}px`],
         },
         drawerCollapse,
       ),
@@ -3400,8 +3405,8 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (options.onboarding)
           content.append(onboardingPanel(api, options.onboarding));
         else {
-          content.append(accountUsage(api));
           content.append(sidebarSetting());
+          content.append(accountUsage(api));
         }
         if (
           api.user?.verified &&

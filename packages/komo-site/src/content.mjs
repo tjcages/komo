@@ -88,7 +88,7 @@ export const pages = [
      ["autoHideDrawer", "boolean", "true. Set false to keep the drawer visible."],
      [
         "sidebar", "\"background\" | \"edge\"",
-        "\"background\" frames the page in the review sheet. \"edge\" uses a floating, draggable sidebar that parks off and peeks from the viewport edge. Users can switch modes at runtime from the Account panel.",
+        "\"edge\" (default) is a floating sidebar. \"background\" frames the page. Account → Sidebar switches Floating and Frame.",
      ],
      ["pollInterval", "number", "4000 ms while the page is visible."],
      ["source", "(element: Element) => string | undefined", "Element → repository-relative source file path."],

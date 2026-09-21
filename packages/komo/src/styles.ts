@@ -1671,12 +1671,18 @@ ${morphingMenuStyles}
 .account-session .secondary { width: 100%; min-height: 40px; }
 .account-setting { display: grid; gap: 8px; }
 .account-setting-label { font-size: 11px; line-height: 16px; color: #a5a5a5; text-transform: uppercase; letter-spacing: .05em; }
-.account-setting-options { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.account-setting-option { min-height: 40px; padding: 8px 12px; font-size: 12px; line-height: 18px; color: #c9c9c9; text-align: left; background: #ffffff06; box-shadow: inset 0 0 0 1px #ffffff0b; border-radius: 12px; transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease; }
-.account-setting-option:hover { color: #f2f2f2; }
-.account-setting-option[aria-checked="true"] { color: #f2f2f2; background: #ffffff10; box-shadow: inset 0 0 0 1px #bda6ef; }
-.account-setting-option:focus-visible { outline: 2px solid #bda6ef; outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { .account-setting-option { transition: none; } }
+.account-setting select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #ffffff0a;
+  color: inherit;
+  font: inherit;
+  box-shadow: inset 0 0 0 1px #ffffff14;
+}
+.account-setting select:focus { box-shadow: inset 0 0 0 2px #bda6ef; }
+.account-setting select option { background: #242424; color: #eee; }
 @media (max-width: 760px) { .account-layer { width: 100%; } }
 
 :host {
@@ -2693,7 +2699,7 @@ textarea {
   background: none;
   place-items: start stretch;
   pointer-events: none;
-  z-index: 5;
+  z-index: 10;
 }
 :host([data-sidebar="edge"]) .edge-sidebar > .account-layer .account-dialog {
   width: 100%;
