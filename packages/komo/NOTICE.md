@@ -16,6 +16,8 @@ Component highlighting, compact growing composers, pin previews, and target-awar
 
 `src/floating-drag.ts` adapts the gesture geometry, velocity smoothing, and edge thresholds from https://github.com/tjcages/panels (`src/hooks/use-drag-resize.ts`).
 
+The edge sidebar (`sidebar: "edge"`) reuses that drag math and follows the panels floating-panel pattern: a panel that docks to a viewport edge, parks off-screen while closed, and peeks out at the edge while collapsed (`src/edge-sidebar.ts` and the `--edge-park-x` / `--edge-peek-x` offsets). The open animation, which scales the sidebar out of the drawer, matches komo's existing drawer-to-panel motion.
+
 MIT License
 
 Copyright (c) 2026 tjcages

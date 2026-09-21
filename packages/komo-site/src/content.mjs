@@ -1,5 +1,6 @@
 import { commentExample, promptExample } from "./feature-scenes.mjs";
 import { scene } from "./scene.mjs";
+import { connectExample } from "./connect-scene.mjs";
 export const escape = (value) =>
   value
     .replaceAll("&", "&amp;")
@@ -10,6 +11,14 @@ export const code = (text, label = "Copy code") =>
   `<div class="install-wrap"><pre><code>${escape(text)}</code></pre><button class="copy-btn" data-copy="${escape(text)}" aria-label="${label}"><span data-icon="copy"></span></button></div>`;
 const section = (title, body, id = "") =>
   `<section class="doc-section" ${id ? `id="${id}"` : ""}><h2>${title}</h2>${body}</section>`;
+const frameworkTabs = `<div class="framework-tabs" data-framework-tabs>
+ <div class="framework-tablist" role="tablist" aria-label="Framework example">
+  <button class="framework-tab" id="framework-tab-react" role="tab" aria-selected="true" aria-controls="framework-panel-react">React</button>
+  <button class="framework-tab" id="framework-tab-astro" role="tab" aria-selected="false" aria-controls="framework-panel-astro" tabindex="-1">Astro</button>
+ </div>
+ <div class="framework-panel" id="framework-panel-react" role="tabpanel" aria-labelledby="framework-tab-react">${code("'use client';\nimport { useKomo } from '@tjcages/komo/react';\n\nexport function Komo() {\n  useKomo({ project: 'YOUR_PROJECT_KEY' });\n  return null;\n}")}<p>Render <code>&lt;Komo /&gt;</code> once in your app or layout. The hook handles cleanup and Strict Mode. Inline options work; memoize callback options with <code>useCallback</code>. Set <code>enabled: false</code> to remove the tool.</p></div>
+ <div class="framework-panel" id="framework-panel-astro" role="tabpanel" aria-labelledby="framework-tab-astro" hidden>${code("<script>\n  import { initKomo } from '@tjcages/komo';\n  initKomo({ project: 'YOUR_PROJECT_KEY' });\n</script>")}<p>With Astro’s client router, remount after page navigation.</p></div>
+</div>`;
 export const pages = [
   {
     path: "/",
@@ -40,9 +49,9 @@ export const pages = [
       "Install komo in your website with a package, a setup command, and two lines of code.",
     body: `<h1>Install komo.</h1><p class="lede">Requires Node.js 22 or newer. Works with React, Astro, Vue, and plain JavaScript.</p>
  ${section("01 · Install the package", code("npm install @tjcages/komo"))}
- ${section("02 · Create your project", `${code("npx @tjcages/komo init")}<p>Keep this terminal open. Setup generates <code>komo.config.js</code> before sign-in. Start your app in another terminal.</p>`)}
- ${section("03 · Mount on the client", `${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY' });")}<p>For first-time setup, import <code>initKomo</code> from the generated <code>./komo.config.js</code> and call <code>initKomo()</code> after your page mounts. In React, mount that helper in an effect and destroy its controller on cleanup. The examples below use the final public project key printed after connection.</p><details><summary>React</summary>${code("'use client';\nimport { useKomo } from '@tjcages/komo/react';\n\nexport function Komo() {\n  useKomo({ project: 'YOUR_PROJECT_KEY' });\n  return null;\n}")}<p>Render <code>&lt;Komo /&gt;</code> once in your app or layout. The hook handles cleanup and Strict Mode. Inline options work; memoize callback options with <code>useCallback</code>. Set <code>enabled: false</code> to remove the tool.</p></details><details><summary>Astro</summary>${code("<script>\n  import { initKomo } from '@tjcages/komo';\n  initKomo({ project: 'YOUR_PROJECT_KEY' });\n</script>")}<p>With Astro’s client router, remount after page navigation.</p></details>`)}
- ${section("04 · Connect from your site", `<p>Choose <strong>Connect komo</strong> in your app’s sidebar. Review the detected production and preview addresses and add any others, even sites that have not launched. Sign in with Google in the separate window; your current site and the listed addresses are approved, and commenting opens in your app. Use <code>--origin</code> for a different port or deployed URL. Approve additional sites through your hosted workspace settings. If setup expires, run <code>komo init</code> again. No DNS record is needed.</p><p>Share that preview with a teammate. They can read feedback, leave a name to reply, or sign in with Google.</p><a class="text-link" href="/configuration/">Configuration options <span data-icon="arrow"></span></a>`)}
+ ${section("02 · Create your project", `${code("npx @tjcages/komo init")}<p>Keep this terminal open while you start your app in another terminal.</p>`)}
+ ${section("03 · Mount on the client", `${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY' });")}<p>For first-time setup, import <code>initKomo</code> from the generated <code>./komo.config.js</code> and call <code>initKomo()</code> after your page mounts. In React, mount that helper in an effect and destroy its controller on cleanup. The examples below use the final public project key printed after connection.</p>${frameworkTabs}`)}
+ ${section("04 · Connect from your site", `<p>Choose <strong>Connect komo</strong> in your app’s sidebar. Review the detected production and preview addresses and add any others, even sites that have not launched. Sign in with Google in the separate window; your current site and the listed addresses are approved, and commenting opens in your app. Use <code>--origin</code> for a different port or deployed URL. Approve additional sites through your hosted workspace settings. If setup expires, run <code>komo init</code> again. No DNS record is needed.</p>${connectExample}<p>Share that preview with a teammate. They can read feedback, leave a name to reply, or sign in with Google.</p><a class="text-link" href="/configuration/">Configuration options <span data-icon="arrow"></span></a>`)}
  ${section("Keep it on preview builds", `${code("initKomo({\n  project: 'YOUR_PROJECT_KEY',\n  enabled: import.meta.env.DEV ||\n    import.meta.env.PUBLIC_PREVIEW === 'true',\n});")}<p>Use your framework’s public environment flag. Hosted komo uses its own API by default. For self-hosting, pass the API URL as <code>endpoint</code>.</p>`)} `,
   },
   {
@@ -77,6 +86,10 @@ export const pages = [
      ["page", "() => string", "Current pathname. Query strings and fragments excluded."],
      ["drawerContainer", "HTMLElement", "Optional element to center the drawer within."],
      ["autoHideDrawer", "boolean", "true. Set false to keep the drawer visible."],
+     [
+        "sidebar", "\"background\" | \"edge\"",
+        "\"background\" frames the page in the review sheet. \"edge\" uses a floating, draggable sidebar that parks off and peeks from the viewport edge.",
+     ],
      ["pollInterval", "number", "4000 ms while the page is visible."],
      ["source", "(element: Element) => string | undefined", "Element → repository-relative source file path."],
      ["sourceUrl", "(source: string, branch: string) => string", "Source path and branch → editor or repository URL."],

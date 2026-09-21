@@ -64,6 +64,13 @@ export interface CommentsOptions {
   /** Public project key registered in the API configuration. */
   project: string;
   enabled?: boolean;
+  /**
+   * Sidebar presentation when the review opens. "background" frames the site
+   * and shows the sidebar in the scaled review sheet (default). "edge" shows a
+   * floating, draggable sidebar that parks off and peeks from the viewport
+   * edge while closed.
+   */
+  sidebar?: "background" | "edge";
   /** Hide the drawer away from the pointer. Defaults to true. */
   autoHideDrawer?: boolean;
   /** Center the default drawer position within this element. */

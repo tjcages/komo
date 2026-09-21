@@ -212,6 +212,7 @@ Pass these to `initKomo(config)` from `@tjcages/komo` or `useKomo(config)` from 
 | `page()` | `() => string` | `location.pathname` | Canonical page identifier. |
 | `drawerContainer` | `HTMLElement` | Viewport | Element used to center the drawer before it is dragged. |
 | `autoHideDrawer` | `boolean` | `true` | Set `false` to keep the drawer visible away from the pointer. |
+| `sidebar` | `"background" \| "edge"` | `"background"` | `"background"` frames the site and shows the sidebar in the scaled review sheet. `"edge"` shows a floating, draggable sidebar that parks off and peeks from the viewport edge while closed. |
 | `pollInterval` | `number` | `4000` | Refresh interval in milliseconds, minimum 2000. |
 | `sessionDomain` | `string` | Current origin only | Trusted parent domain for cross-preview sessions. |
 
