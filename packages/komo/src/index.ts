@@ -1438,6 +1438,9 @@ export function initComments(options: CommentsOptions): CommentsController {
       );
       const springToPanel = () => {
         if (generation !== edgeMorphGeneration || destroyed) return;
+        // Rest padding has to be in place for the grow, or the last frame
+        // uses the pill padding and snaps when the motion ends.
+        delete sidebar.dataset.morphing;
         const spring = trackEdge(
           animate(
             sidebar,

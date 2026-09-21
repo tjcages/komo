@@ -2570,11 +2570,18 @@ textarea {
 :host([data-sidebar="edge"]) .edge-sidebar[data-morphing="true"] .toolbar[data-edge-tabs="true"] {
   padding-bottom: 0;
 }
-/* Account sits inside the edge sidebar, inset from the sides and top, with no scrim.
+/* Account sits over the edge sidebar, inset from the sides and top, with no scrim.
+   Its height is the dialog's own height, so it can extend past the sidebar.
    Background mode keeps the viewport column and overlay. */
+:host([data-sidebar="edge"]) .edge-sidebar:has(> .account-layer) {
+  overflow: visible;
+}
 :host([data-sidebar="edge"]) .edge-sidebar > .account-layer {
   position: absolute;
-  inset: 12px 10px 76px;
+  top: 12px;
+  right: 10px;
+  left: 10px;
+  bottom: auto;
   width: auto;
   height: auto;
   padding: 0;
@@ -2585,7 +2592,6 @@ textarea {
 }
 :host([data-sidebar="edge"]) .edge-sidebar > .account-layer .account-dialog {
   width: 100%;
-  max-height: 100%;
   pointer-events: auto;
 }
 :host([data-sidebar="edge"]) .toolbar[data-hidden="true"] > .morphing-menu {
