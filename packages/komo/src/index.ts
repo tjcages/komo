@@ -509,6 +509,12 @@ export function initComments(options: CommentsOptions): CommentsController {
   let edgeMotions: ReturnType<typeof animate>[] = [];
   let edgeMorphGeneration = 0;
   let edgeMorphing = false;
+  let drawerHome: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null = null;
   let dockCenter: number | undefined;
   let drawerContainerCenter: number | undefined;
   let pageTransitioning = false;
@@ -1245,6 +1251,39 @@ export function initComments(options: CommentsOptions): CommentsController {
       ? { left: rect.left, top: rect.top + window.scrollY, width: rect.width }
       : rect;
   }
+  function dockEdgeTabs() {
+    if (toolbar.dataset.edgeTabs !== "true") {
+      toolbar.dataset.savedLeft = toolbar.style.left;
+      toolbar.dataset.savedTop = toolbar.style.top;
+      toolbar.dataset.savedBottom = toolbar.style.bottom;
+      toolbar.dataset.savedTransform = toolbar.style.transform;
+    }
+    toolbar.style.left = "";
+    toolbar.style.top = "";
+    toolbar.style.bottom = "";
+    toolbar.style.transform = "";
+    if (toolbar.parentElement !== sidebar) sidebar.append(toolbar);
+    toolbar.dataset.edgeTabs = "true";
+  }
+  function undockEdgeTabs() {
+    if (toolbar.dataset.edgeTabs === "true") {
+      toolbar.style.left = toolbar.dataset.savedLeft ?? "";
+      toolbar.style.top = toolbar.dataset.savedTop ?? "";
+      toolbar.style.bottom = toolbar.dataset.savedBottom ?? "";
+      toolbar.style.transform = toolbar.dataset.savedTransform ?? "";
+      delete toolbar.dataset.savedLeft;
+      delete toolbar.dataset.savedTop;
+      delete toolbar.dataset.savedBottom;
+      delete toolbar.dataset.savedTransform;
+    }
+    delete toolbar.dataset.edgeTabs;
+    if (toolbar.parentElement === sidebar) live.before(toolbar);
+  }
+  function placeEdgeAccount() {
+    if (edgeSidebar && account) {
+      if (dialogs.parentElement !== sidebar) sidebar.append(dialogs);
+    } else if (dialogs.parentElement === sidebar) pinPreview.before(dialogs);
+  }
   function drawerShell() {
     return (
       toolbar.querySelector<HTMLElement>(".morphing-menu__shell") ?? toolbar
@@ -1305,11 +1344,13 @@ export function initComments(options: CommentsOptions): CommentsController {
     const wasMorphing = edgeMorphing;
     edgeMorphing = false;
     if (!release || !wasMorphing) return;
+    delete sidebar.dataset.morphing;
     delete toolbar.dataset.edgeSurface;
     delete toolbar.dataset.edgeMorph;
     const menu = drawerMenu();
     if (menu) menu.style.transition = "";
     delete toolbar.dataset.hidden;
+    undockEdgeTabs();
     clearEdgeRows();
     releaseEdgeBox();
   }
@@ -1326,27 +1367,19 @@ export function initComments(options: CommentsOptions): CommentsController {
       if (settled || generation !== edgeMorphGeneration || destroyed) return;
       settled = true;
       edgeMorphing = false;
-      if (!opening) clearEdgeRows();
+      delete sidebar.dataset.morphing;
       delete toolbar.dataset.edgeSurface;
+      delete toolbar.dataset.edgeMorph;
+      delete toolbar.dataset.hidden;
       if (menu) menu.style.transition = "";
-      if (opening) {
-        toolbar.dataset.hidden = "true";
-        delete toolbar.dataset.edgeMorph;
-      } else {
-        delete toolbar.dataset.hidden;
-        window.setTimeout(() => {
-          if (generation === edgeMorphGeneration)
-            delete toolbar.dataset.edgeMorph;
-        }, 80);
+      if (!opening) {
+        clearEdgeRows();
+        sidebar.style.opacity = "0";
+        undockEdgeTabs();
       }
-      if (!opening) sidebar.style.opacity = "0";
       releaseEdgeBox();
     };
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduced) {
-      toolbar.dataset.edgeSurface = "hidden";
-      toolbar.dataset.edgeMorph = opening ? "open" : "close";
-    }
     if (opening) {
       const visual = interrupted ? sidebar.getBoundingClientRect() : null;
       const radius = sidebar.style.borderRadius || "16px";
@@ -1355,9 +1388,19 @@ export function initComments(options: CommentsOptions): CommentsController {
       sidebar.style.height = "";
       sidebar.style.borderRadius = "";
       sidebar.style.transform = "none";
+      const drawer = shell.getBoundingClientRect();
+      if (!interrupted && drawer.width > 0)
+        drawerHome = {
+          left: drawer.left,
+          top: drawer.top,
+          width: drawer.width,
+          height: drawer.height,
+        };
+      dockEdgeTabs();
+      delete sidebar.dataset.morphing;
       positionSidebar();
       const destination = sidebar.getBoundingClientRect();
-      const drawer = shell.getBoundingClientRect();
+      sidebar.dataset.morphing = "true";
       if (
         reduced ||
         drawer.width <= 0 ||
@@ -1444,8 +1487,15 @@ export function initComments(options: CommentsOptions): CommentsController {
     const visual = sidebar.getBoundingClientRect();
     const radius = sidebar.style.borderRadius || "16px";
     delete toolbar.dataset.hidden;
-    void shell.offsetWidth;
-    const drawer = shell.getBoundingClientRect();
+    sidebar.dataset.morphing = "true";
+    dockEdgeTabs();
+    const docked = toolbar.getBoundingClientRect();
+    const drawer = drawerHome ?? {
+      left: (window.innerWidth - (docked.width || 228)) / 2,
+      top: window.innerHeight - 24 - (docked.height || 52),
+      width: docked.width || 228,
+      height: docked.height || 52,
+    };
     if (reduced || drawer.width <= 0 || visual.width <= 0) {
       finish();
       return;
@@ -1598,8 +1648,9 @@ export function initComments(options: CommentsOptions): CommentsController {
       // The drawer owns its placement at the edge; the background dock spring
       // does not apply in edge mode. Skip while a morph owns left/top/size.
       if (!edgeMorphing) {
-        if (expanded) toolbar.dataset.hidden = "true";
-        else delete toolbar.dataset.hidden;
+        delete toolbar.dataset.hidden;
+        if (expanded) dockEdgeTabs();
+        else undockEdgeTabs();
         positionSidebar();
       }
     } else {
@@ -2958,7 +3009,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       leaving.inert = true;
       leaving.setAttribute("aria-hidden", "true");
       leaving.append(previousDialog);
-      shadow.append(leaving);
+      if (edgeSidebar) sidebar.append(leaving);
+      else shadow.append(leaving);
       exitingDialogs.set(leaving, disposePreviousAccentPicker);
       disposePreviousAccentPicker = undefined;
       const exit = leaving.animate([{ opacity: 1 }, { opacity: 0 }], {
@@ -3954,7 +4006,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       isCompactReview(window.innerWidth, window.innerHeight);
     host.classList.toggle("mobile-composing", composingMobile);
     if (!composingMobile) draftScrollSpace.remove();
-    sidebar.inert = account || (edgeSidebar && !expanded);
+    sidebar.inert = edgeSidebar ? !expanded : account;
     if (selected || draft || mode || hidden || account) hidePreview(true);
     catcher.hidden = !mode;
     updateHover();
@@ -3964,6 +4016,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     renderPins();
     renderList();
     renderDialog();
+    placeEdgeAccount();
   }
   let drag: {
     x: number;

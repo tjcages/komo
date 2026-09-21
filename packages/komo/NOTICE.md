@@ -16,7 +16,7 @@ Component highlighting, compact growing composers, pin previews, and target-awar
 
 `src/floating-drag.ts` adapts the gesture geometry, velocity smoothing, and edge thresholds from https://github.com/tjcages/panels (`src/hooks/use-drag-resize.ts`).
 
-The edge sidebar (`sidebar: "edge"`) reuses that drag math and follows the panels floating-panel pattern: a panel that docks to a viewport edge, parks off-screen while closed, and peeks out at the edge while collapsed (`src/edge-sidebar.ts` and the `--edge-park-x` / `--edge-peek-x` offsets). The open animation is the drawer expand: the same compress-then-spring, with the icons scaling and blurring away as the comment rows stagger in.
+The edge sidebar (`sidebar: "edge"`) reuses that drag math and follows the panels floating-panel pattern: a panel that docks to a viewport edge, parks off-screen while closed, and peeks out at the edge while collapsed (`src/edge-sidebar.ts` and the `--edge-park-x` / `--edge-peek-x` offsets). The open animation is the drawer expand: the same compress-then-spring, with the comment rows staggering in. The drawer stays at the bottom of the sidebar as tabs. The account dialog sits inside that panel, inset from the sides and top, with no scrim. Background mode keeps the viewport account column and overlay.
 
 MIT License
 

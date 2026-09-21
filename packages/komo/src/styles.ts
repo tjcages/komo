@@ -2475,6 +2475,11 @@ textarea {
   pointer-events: auto;
 }
 :host([data-sidebar="edge"]) .edge-sidebar .edge-sidebar-grip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
   flex: none;
   height: 30px;
   display: grid;
@@ -2502,6 +2507,7 @@ textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
+  padding-top: 30px;
   background: transparent;
   color: inherit;
   box-shadow: none;
@@ -2536,33 +2542,52 @@ textarea {
   pointer-events: auto;
 }
 :host([data-sidebar="edge"]) .edge-sidebar-sensor[hidden] { display: none; }
-/* The expand hand-off. The shell drops out so the sidebar is the only surface,
-   and the icons use the same bar-away as the drawer menu. The attribute sits
-   on the toolbar because mounting the menu replaces the bar mid-animation. */
-.toolbar[data-edge-surface="hidden"] .morphing-menu__shell {
+/* Expanded edge sidebar keeps the drawer as a tab bar along the bottom. */
+:host([data-sidebar="edge"]) .toolbar[data-edge-tabs="true"] {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  transform: none;
+  flex: none;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px 12px;
+  z-index: 6;
+  pointer-events: none;
   background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
-.toolbar[data-edge-morph="open"] .morphing-menu__bar {
-  animation: komo-drawer-bar-away 150ms linear forwards;
+:host([data-sidebar="edge"]) .toolbar[data-edge-tabs="true"] .morphing-menu {
+  pointer-events: auto;
 }
-.toolbar[data-edge-morph="close"] .morphing-menu__bar {
-  animation: komo-drawer-bar-back 220ms ease-out 80ms both;
+:host([data-sidebar="edge"]) .edge-sidebar[data-morphing="true"] .panel {
+  padding-top: 0;
+  flex-basis: 0;
+  overflow: hidden;
 }
-@keyframes komo-drawer-bar-away {
-  from { opacity: 1; scale: 1; filter: blur(0px); }
-  to { opacity: 0; scale: 0.8; filter: blur(8px); }
+:host([data-sidebar="edge"]) .edge-sidebar[data-morphing="true"] .toolbar[data-edge-tabs="true"] {
+  padding-bottom: 0;
 }
-@keyframes komo-drawer-bar-back {
-  from { opacity: 0; scale: 0.8; filter: blur(8px); }
-  to { opacity: 1; scale: 1; filter: blur(0px); }
+/* Account sits inside the edge sidebar, inset from the sides and top, with no scrim.
+   Background mode keeps the viewport column and overlay. */
+:host([data-sidebar="edge"]) .edge-sidebar > .account-layer {
+  position: absolute;
+  inset: 12px 10px 76px;
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  place-items: start stretch;
+  pointer-events: none;
+  z-index: 5;
 }
-@media (prefers-reduced-motion: reduce) {
-  .toolbar[data-edge-morph] .morphing-menu__bar { animation: none; }
+:host([data-sidebar="edge"]) .edge-sidebar > .account-layer .account-dialog {
+  width: 100%;
+  max-height: 100%;
+  pointer-events: auto;
 }
-/* Edge mode hides the drawer after the expand hand-off. */
 :host([data-sidebar="edge"]) .toolbar[data-hidden="true"] > .morphing-menu {
   transition: none;
 }
