@@ -2536,8 +2536,33 @@ textarea {
   pointer-events: auto;
 }
 :host([data-sidebar="edge"]) .edge-sidebar-sensor[hidden] { display: none; }
-/* In edge mode the drawer hands off to the sidebar instantly, so it never
-   coexists on screen during the open/close morph. */
+/* The expand hand-off. The shell drops out so the sidebar is the only surface,
+   and the icons use the same bar-away as the drawer menu. The attribute sits
+   on the toolbar because mounting the menu replaces the bar mid-animation. */
+.toolbar[data-edge-surface="hidden"] .morphing-menu__shell {
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.toolbar[data-edge-morph="open"] .morphing-menu__bar {
+  animation: komo-drawer-bar-away 150ms linear forwards;
+}
+.toolbar[data-edge-morph="close"] .morphing-menu__bar {
+  animation: komo-drawer-bar-back 220ms ease-out 80ms both;
+}
+@keyframes komo-drawer-bar-away {
+  from { opacity: 1; scale: 1; filter: blur(0px); }
+  to { opacity: 0; scale: 0.8; filter: blur(8px); }
+}
+@keyframes komo-drawer-bar-back {
+  from { opacity: 0; scale: 0.8; filter: blur(8px); }
+  to { opacity: 1; scale: 1; filter: blur(0px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toolbar[data-edge-morph] .morphing-menu__bar { animation: none; }
+}
+/* Edge mode hides the drawer after the expand hand-off. */
 :host([data-sidebar="edge"]) .toolbar[data-hidden="true"] > .morphing-menu {
   transition: none;
 }
