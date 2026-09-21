@@ -3,9 +3,12 @@ import {
   EDGE_MARGIN,
   EDGE_PARK_CLEARANCE,
   EDGE_PEEK_SLIVER,
+  EDGE_SIDEBAR_MIN_HEIGHT,
+  EDGE_SIDEBAR_MIN_WIDTH,
   EDGE_SIDEBAR_WIDTH,
   edgeSidebarOffsets,
   edgeSidebarPlacement,
+  resizeEdgeBox,
 } from "../src/edge-sidebar";
 
 describe("edge sidebar placement", () => {
@@ -57,5 +60,28 @@ describe("edge sidebar placement", () => {
     );
     expect(g.x).toBe(Math.max(EDGE_MARGIN, 640 - width - EDGE_MARGIN));
     expect(g.side).toBe("right");
+  });
+});
+
+describe("edge sidebar resize", () => {
+  const start = { left: 200, top: 40, width: 380, height: 400 };
+
+  it("grows from the east and south edges", () => {
+    const next = resizeEdgeBox("se", start, 40, 30, 1440, 900);
+    expect(next).toEqual({ left: 200, top: 40, width: 420, height: 430 });
+  });
+
+  it("keeps the opposite edge fixed when resizing west or north", () => {
+    const next = resizeEdgeBox("nw", start, 50, 20, 1440, 900);
+    expect(next.left + next.width).toBe(start.left + start.width);
+    expect(next.top + next.height).toBe(start.top + start.height);
+    expect(next.width).toBe(330);
+    expect(next.height).toBe(380);
+  });
+
+  it("does not shrink past the minimum size", () => {
+    const next = resizeEdgeBox("se", start, -400, -400, 1440, 900);
+    expect(next.width).toBe(EDGE_SIDEBAR_MIN_WIDTH);
+    expect(next.height).toBe(EDGE_SIDEBAR_MIN_HEIGHT);
   });
 });

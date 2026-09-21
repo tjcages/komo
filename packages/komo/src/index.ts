@@ -20,9 +20,13 @@ import { floatingDrag, constrain, type Placement } from "./floating-drag.js";
 import {
   EDGE_MARGIN,
   EDGE_SIDEBAR_MAX_HEIGHT,
+  EDGE_SIDEBAR_MIN_HEIGHT,
+  EDGE_SIDEBAR_MIN_WIDTH,
   EDGE_SIDEBAR_WIDTH,
   edgeSidebarOffsets,
   edgeSidebarPlacement,
+  resizeEdgeBox,
+  type EdgeResizeDir,
 } from "./edge-sidebar.js";
 import {
   boxFromAnchor,
@@ -317,10 +321,14 @@ export function initComments(options: CommentsOptions): CommentsController {
   let savedSidebarPlacement: Placement | undefined;
   let sidebarPlacement: Placement | undefined;
   let sidebarPeek = false;
+  let sidebarWidth = EDGE_SIDEBAR_WIDTH;
+  let sidebarHeight: number | null = null;
   try {
     const stored = JSON.parse(
       localStorage.getItem(sidebarPlacementKey) ?? "null",
     );
+    if (Number.isFinite(stored?.width)) sidebarWidth = stored.width;
+    if (Number.isFinite(stored?.height)) sidebarHeight = stored.height;
     if (stored && Number.isFinite(stored.x) && Number.isFinite(stored.y)) {
       savedSidebarPlacement = {
         x: stored.x,
@@ -544,14 +552,52 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
     positionSidebar();
   }
+  function applySidebarSize() {
+    sidebar.style.width = `${sidebarWidth}px`;
+    sidebar.style.height =
+      sidebarHeight == null ? "" : `${sidebarHeight}px`;
+  }
+  function persistSidebarPlacement() {
+    savedSidebarPlacement = sidebarPlacement;
+    try {
+      localStorage.setItem(
+        sidebarPlacementKey,
+        JSON.stringify({
+          ...savedSidebarPlacement,
+          width: sidebarWidth,
+          height: sidebarHeight,
+        }),
+      );
+    } catch {
+      /* Keep the placement in memory when storage is blocked. */
+    }
+  }
+  function clampSidebarSize() {
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    sidebarWidth = Math.min(
+      Math.max(sidebarWidth, EDGE_SIDEBAR_MIN_WIDTH),
+      Math.max(EDGE_SIDEBAR_MIN_WIDTH, vw - 2 * EDGE_MARGIN),
+    );
+    if (sidebarHeight != null)
+      sidebarHeight = Math.min(
+        Math.max(sidebarHeight, EDGE_SIDEBAR_MIN_HEIGHT),
+        Math.max(
+          EDGE_SIDEBAR_MIN_HEIGHT,
+          Math.min(vh - 2 * EDGE_MARGIN, EDGE_SIDEBAR_MAX_HEIGHT),
+        ),
+      );
+    applySidebarSize();
+  }
   function positionSidebar() {
     if (!edgeSidebar) return;
+    applySidebarSize();
     const height =
       sidebar.offsetHeight ||
       Math.min(window.innerHeight - 2 * EDGE_MARGIN, EDGE_SIDEBAR_MAX_HEIGHT);
     const geometry = edgeSidebarPlacement(
       sidebarPlacement,
-      EDGE_SIDEBAR_WIDTH,
+      sidebarWidth,
       height,
       document.documentElement.clientWidth,
       window.innerHeight,
@@ -663,20 +709,80 @@ export function initComments(options: CommentsOptions): CommentsController {
       presence.show();
     },
     () => {
-      savedSidebarPlacement = sidebarPlacement;
-      try {
-        localStorage.setItem(
-          sidebarPlacementKey,
-          JSON.stringify(savedSidebarPlacement),
-        );
-      } catch {
-        /* Keep the placement in memory when storage is blocked. */
-      }
+      persistSidebarPlacement();
       presence.update();
     },
-    () => expanded && edgeSidebar,
+    () => expanded && edgeSidebar && !edgeMorphing,
   );
   sidebar.prepend(grip);
+  const resizeDirs: EdgeResizeDir[] = [
+    "n",
+    "s",
+    "e",
+    "w",
+    "ne",
+    "nw",
+    "se",
+    "sw",
+  ];
+  for (const dir of resizeDirs) {
+    const handle = el("div", `edge-sidebar-resize edge-sidebar-resize-${dir}`);
+    handle.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (
+          event.button !== 0 ||
+          !expanded ||
+          !edgeSidebar ||
+          edgeMorphing
+        )
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        for (const animation of sidebar.getAnimations()) animation.cancel();
+        sidebar.style.transition = "none";
+        const start = sidebar.getBoundingClientRect();
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const move = (e: PointerEvent) => {
+          if (e.pointerId !== event.pointerId) return;
+          const next = resizeEdgeBox(
+            dir,
+            start,
+            e.clientX - startX,
+            e.clientY - startY,
+            document.documentElement.clientWidth,
+            window.innerHeight,
+          );
+          sidebarWidth = next.width;
+          if (dir.includes("n") || dir.includes("s")) sidebarHeight = next.height;
+          sidebarPlacement = { x: next.left, y: next.top };
+          sidebar.style.left = `${next.left}px`;
+          sidebar.style.top = `${next.top}px`;
+          applySidebarSize();
+        };
+        const end = (e: PointerEvent) => {
+          if (e.pointerId !== event.pointerId) return;
+          window.removeEventListener("pointermove", move, true);
+          window.removeEventListener("pointerup", end, true);
+          window.removeEventListener("pointercancel", end, true);
+          sidebar.style.transition = "";
+          persistSidebarPlacement();
+          positionSidebar();
+        };
+        window.addEventListener("pointermove", move, {
+          capture: true,
+          passive: false,
+        });
+        window.addEventListener("pointerup", end, true);
+        window.addEventListener("pointercancel", end, true);
+      },
+      { signal: abort.signal },
+    );
+    sidebar.append(handle);
+  }
+  for (const hint of ["left", "right", "top", "bottom"])
+    sidebar.append(el("div", `edge-sidebar-snap edge-sidebar-snap-${hint}`));
   const peek = (value: boolean) => {
     sidebarPeek = value;
     if (!expanded && edgeSidebar && !edgeMorphing) positionSidebar();
@@ -691,7 +797,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   window.addEventListener(
     "resize",
     () => {
-      if (!destroyed && edgeSidebar && !edgeMorphing) positionSidebar();
+      if (destroyed || !edgeSidebar || edgeMorphing) return;
+      clampSidebarSize();
+      positionSidebar();
     },
     { signal: abort.signal, passive: true },
   );

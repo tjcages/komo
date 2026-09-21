@@ -2474,12 +2474,15 @@ textarea {
   opacity: 1;
   pointer-events: auto;
 }
+:host([data-sidebar="edge"]) .edge-sidebar[data-dragging="true"] {
+  overflow: visible;
+}
 :host([data-sidebar="edge"]) .edge-sidebar .edge-sidebar-grip {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 3;
+  z-index: 7;
   flex: none;
   height: 30px;
   display: grid;
@@ -2496,11 +2499,113 @@ textarea {
   border-radius: 999px;
   background: #ffffff22;
 }
-:host([data-sidebar="edge"]) .edge-sidebar .edge-sidebar-grip:hover::before {
+:host([data-sidebar="edge"]) .edge-sidebar .edge-sidebar-grip:hover::before,
+:host([data-sidebar="edge"]) .edge-sidebar[data-dragging="true"] .edge-sidebar-grip::before {
   background: #ffffff3a;
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-dragging="true"] .edge-sidebar-grip {
+  cursor: grabbing;
+}
+.edge-sidebar-resize {
+  position: absolute;
+  z-index: 8;
+  touch-action: none;
+}
+.edge-sidebar-resize-n, .edge-sidebar-resize-s {
+  right: 12px;
+  left: 12px;
+  height: 5px;
+  cursor: ns-resize;
+}
+.edge-sidebar-resize-e, .edge-sidebar-resize-w {
+  top: 12px;
+  bottom: 12px;
+  width: 5px;
+  cursor: ew-resize;
+}
+.edge-sidebar-resize-n { top: 0; }
+.edge-sidebar-resize-s { bottom: 0; }
+.edge-sidebar-resize-e { right: 0; }
+.edge-sidebar-resize-w { left: 0; }
+.edge-sidebar-resize-ne, .edge-sidebar-resize-nw,
+.edge-sidebar-resize-se, .edge-sidebar-resize-sw {
+  width: 12px;
+  height: 12px;
+}
+.edge-sidebar-resize-ne { top: 0; right: 0; cursor: nesw-resize; }
+.edge-sidebar-resize-nw { top: 0; left: 0; cursor: nwse-resize; }
+.edge-sidebar-resize-se { right: 0; bottom: 0; cursor: nwse-resize; }
+.edge-sidebar-resize-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.edge-sidebar-resize-n::after, .edge-sidebar-resize-s::after,
+.edge-sidebar-resize-e::after, .edge-sidebar-resize-w::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: #ffffff99;
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 140ms cubic-bezier(.22,1,.36,1), transform 220ms cubic-bezier(.35,1.55,.65,1);
+}
+.edge-sidebar-resize-e::after, .edge-sidebar-resize-w::after {
+  top: 50%;
+  width: 3px;
+  height: 28px;
+  margin-top: -14px;
+}
+.edge-sidebar-resize-n::after, .edge-sidebar-resize-s::after {
+  left: 50%;
+  width: 28px;
+  height: 3px;
+  margin-left: -14px;
+}
+.edge-sidebar-resize-w::after { left: 7px; }
+.edge-sidebar-resize-e::after { right: 7px; }
+.edge-sidebar-resize-n::after { top: 7px; }
+.edge-sidebar-resize-s::after { bottom: 7px; }
+.edge-sidebar-resize-n:hover::after, .edge-sidebar-resize-s:hover::after,
+.edge-sidebar-resize-e:hover::after, .edge-sidebar-resize-w:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+.edge-sidebar-snap {
+  pointer-events: none;
+  position: absolute;
+  z-index: 9;
+  border-radius: 999px;
+  background: #0d0d0d;
+  box-shadow: inset 0 0 0 1px #ffffff12;
+  opacity: 0;
+  transition: opacity 140ms cubic-bezier(.22,1,.36,1), transform 220ms cubic-bezier(.35,1.55,.65,1);
+}
+.edge-sidebar-snap-left, .edge-sidebar-snap-right {
+  top: 50%;
+  width: 4px;
+  height: 28px;
+  transform: translateY(-50%) scale(0.4);
+}
+.edge-sidebar-snap-top, .edge-sidebar-snap-bottom {
+  left: 50%;
+  width: 28px;
+  height: 4px;
+  transform: translateX(-50%) scale(0.4);
+}
+.edge-sidebar-snap-left { left: -8px; }
+.edge-sidebar-snap-right { right: -8px; }
+.edge-sidebar-snap-top { top: -8px; }
+.edge-sidebar-snap-bottom { bottom: -8px; }
+:host([data-sidebar="edge"]) .edge-sidebar[data-snap-x="left"] .edge-sidebar-snap-left,
+:host([data-sidebar="edge"]) .edge-sidebar[data-snap-x="right"] .edge-sidebar-snap-right {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-snap-y="top"] .edge-sidebar-snap-top,
+:host([data-sidebar="edge"]) .edge-sidebar[data-snap-y="bottom"] .edge-sidebar-snap-bottom {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
 }
 :host([data-sidebar="edge"]) .edge-sidebar .panel {
   position: static;
+  z-index: auto;
   width: 100%;
   height: 100%;
   min-height: 0;

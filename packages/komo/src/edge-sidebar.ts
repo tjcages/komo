@@ -12,6 +12,67 @@ export const EDGE_PEEK_SLIVER = 76;
 export const EDGE_PARK_CLEARANCE = 24;
 /** Panel height cap; a taller viewport still parks flush against the edge. */
 export const EDGE_SIDEBAR_MAX_HEIGHT = 680;
+export const EDGE_SIDEBAR_MIN_WIDTH = 240;
+export const EDGE_SIDEBAR_MIN_HEIGHT = 200;
+
+export type EdgeResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
+export interface EdgeBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+const clampSize = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), Math.max(min, max));
+
+/** Resize from an edge or corner. Same screen-space math as panels. */
+export function resizeEdgeBox(
+  dir: EdgeResizeDir,
+  start: EdgeBox,
+  dx: number,
+  dy: number,
+  vw: number,
+  vh: number,
+): EdgeBox {
+  const right = start.left + start.width;
+  const bottom = start.top + start.height;
+  const maxHeight = Math.min(vh - 2 * EDGE_MARGIN, EDGE_SIDEBAR_MAX_HEIGHT);
+  let left = start.left;
+  let top = start.top;
+  let width = start.width;
+  let height = start.height;
+  if (dir.includes("e"))
+    width = clampSize(
+      start.width + dx,
+      EDGE_SIDEBAR_MIN_WIDTH,
+      vw - start.left - EDGE_MARGIN,
+    );
+  if (dir.includes("w")) {
+    width = clampSize(
+      start.width - dx,
+      EDGE_SIDEBAR_MIN_WIDTH,
+      right - EDGE_MARGIN,
+    );
+    left = right - width;
+  }
+  if (dir.includes("s"))
+    height = clampSize(
+      start.height + dy,
+      EDGE_SIDEBAR_MIN_HEIGHT,
+      Math.min(vh - start.top - EDGE_MARGIN, maxHeight),
+    );
+  if (dir.includes("n")) {
+    height = clampSize(
+      start.height - dy,
+      EDGE_SIDEBAR_MIN_HEIGHT,
+      Math.min(bottom - EDGE_MARGIN, maxHeight),
+    );
+    top = bottom - height;
+  }
+  return { left, top, width, height };
+}
 
 export type EdgeSide = "left" | "right";
 
