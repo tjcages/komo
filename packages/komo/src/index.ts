@@ -86,7 +86,17 @@ export function initComments(options: CommentsOptions): CommentsController {
     throw new Error("The comments endpoint must use HTTPS.");
   if (instances.has(document)) return instances.get(document)!;
   options = { ...resumeProject(options) };
-  const edgeSidebar = options.sidebar === "edge";
+  const sidebarModeKey = `branch-comments:sidebar-mode:${options.project}:${options.repo}`;
+  let sidebarMode: "background" | "edge" = (() => {
+    try {
+      const stored = localStorage.getItem(sidebarModeKey);
+      if (stored === "edge" || stored === "background") return stored;
+    } catch {
+      /* Fall back to the configured mode when storage is blocked. */
+    }
+    return options.sidebar === "edge" ? "edge" : "background";
+  })();
+  let edgeSidebar = sidebarMode === "edge";
   let api = new CommentsApi(options);
   const abort = new AbortController();
   let destroyed = false,
@@ -485,6 +495,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   let keyboardAction = false;
   let searchOpen = false;
   let dockMotion: ReturnType<typeof animate> | undefined;
+  let sidebarMotion: ReturnType<typeof animate> | undefined;
   let dockCenter: number | undefined;
   let drawerContainerCenter: number | undefined;
   let pageTransitioning = false;
@@ -554,51 +565,118 @@ export function initComments(options: CommentsOptions): CommentsController {
       edgeSensor.hidden = false;
     }
   }
-  if (edgeSidebar) {
-    const grip = el("div", "edge-sidebar-grip");
-    grip.setAttribute("aria-hidden", "true");
-    floatingDrag(
-      sidebar,
-      grip,
-      placeSidebar,
-      abort.signal,
-      () => {
-        presence.show();
-      },
-      () => {
-        savedSidebarPlacement = sidebarPlacement;
-        try {
-          localStorage.setItem(
-            sidebarPlacementKey,
-            JSON.stringify(savedSidebarPlacement)
-          );
-        } catch {
-          /* Keep the placement in memory when storage is blocked. */
-        }
-        presence.update();
-      },
-      () => expanded
-    );
-    sidebar.prepend(grip);
-    const peek = (value: boolean) => {
-      sidebarPeek = value;
-      if (!expanded) positionSidebar();
-    };
-    edgeSensor.addEventListener("pointerenter", () => peek(true));
-    edgeSensor.addEventListener("pointerleave", () => peek(false));
-    edgeSensor.addEventListener("pointerup", (event) => {
-      if (event.button === 0 && !expanded) toggleExpanded(true);
-    });
-    sidebar.addEventListener("pointerenter", () => peek(true));
-    sidebar.addEventListener("pointerleave", () => peek(false));
-    window.addEventListener(
-      "resize",
-      () => {
-        if (!destroyed && edgeSidebar) positionSidebar();
-      },
-      { signal: abort.signal, passive: true }
-    );
+  function syncEdgeMode() {
+    host.dataset.sidebar = edgeSidebar ? "edge" : "background";
+    sidebar.classList.toggle("edge-sidebar", edgeSidebar);
+    sidebar.style.transition = "none";
+    if (edgeSidebar) {
+      if (!grip.isConnected) sidebar.prepend(grip);
+    } else {
+      grip.remove();
+      delete sidebar.dataset.collapsed;
+      delete sidebar.dataset.peek;
+      edgeSensor.hidden = true;
+    }
+    void sidebar.offsetWidth;
+    sidebar.style.transition = "";
   }
+  function setSidebarMode(mode: "background" | "edge") {
+    sidebarMotion?.stop();
+    if (mode === sidebarMode || destroyed) return;
+    sidebarMode = mode;
+    edgeSidebar = mode === "edge";
+    options = { ...options, sidebar: mode };
+    try {
+      localStorage.setItem(sidebarModeKey, mode);
+    } catch {
+      /* Keep the preference in memory when storage is blocked. */
+    }
+    syncEdgeMode();
+    scalePage();
+    render();
+    if (edgeSidebar) {
+      sidebar.style.transition = "none";
+      positionSidebar();
+      void sidebar.offsetWidth;
+      sidebar.style.transition = "";
+    }
+  }
+  function sidebarSetting() {
+    const field = el("div", "account-setting");
+    field.setAttribute("aria-label", "How the comments sidebar opens");
+    const label = el("span", "account-setting-label", "Sidebar");
+    const options = el("div", "account-setting-options");
+    options.setAttribute("role", "radiogroup");
+    options.setAttribute("aria-label", "How the comments sidebar opens");
+    const choices: Array<["background" | "edge", string]> = [
+      ["background", "In the page frame"],
+      ["edge", "Floating at the edge"],
+    ];
+    for (const [value, text] of choices) {
+      const option = button(
+        text,
+        () => {
+          if (sidebarMode === value) return;
+          setSidebarMode(value);
+          const next = dialogs.querySelector<HTMLElement>(
+            `.account-setting-option[data-value="${value}"]`
+          );
+          next?.focus();
+        },
+        "account-setting-option"
+      );
+      option.setAttribute("role", "radio");
+      option.setAttribute("aria-checked", String(sidebarMode === value));
+      option.dataset.value = value;
+      options.append(option);
+    }
+    field.append(label, options);
+    return field;
+  }
+  const grip = el("div", "edge-sidebar-grip");
+  grip.setAttribute("aria-hidden", "true");
+  floatingDrag(
+    sidebar,
+    grip,
+    placeSidebar,
+    abort.signal,
+    () => {
+      presence.show();
+    },
+    () => {
+      savedSidebarPlacement = sidebarPlacement;
+      try {
+        localStorage.setItem(
+          sidebarPlacementKey,
+          JSON.stringify(savedSidebarPlacement)
+        );
+      } catch {
+        /* Keep the placement in memory when storage is blocked. */
+      }
+      presence.update();
+    },
+    () => expanded && edgeSidebar
+  );
+  sidebar.prepend(grip);
+  const peek = (value: boolean) => {
+    sidebarPeek = value;
+    if (!expanded && edgeSidebar) positionSidebar();
+  };
+  edgeSensor.addEventListener("pointerenter", () => peek(true));
+  edgeSensor.addEventListener("pointerleave", () => peek(false));
+  edgeSensor.addEventListener("pointerup", (event) => {
+    if (event.button === 0 && !expanded) toggleExpanded(true);
+  });
+  sidebar.addEventListener("pointerenter", () => peek(true));
+  sidebar.addEventListener("pointerleave", () => peek(false));
+  window.addEventListener(
+    "resize",
+    () => {
+      if (!destroyed && edgeSidebar) positionSidebar();
+    },
+    { signal: abort.signal, passive: true }
+  );
+  syncEdgeMode();
   const presence = drawerPresence(
     toolbar,
     () => expanded || mode || account || !!draft || !!selected,
@@ -1162,37 +1240,73 @@ export function initComments(options: CommentsOptions): CommentsController {
       toolbarPlacement = value ? toolbarPlacement : savedToolbarPlacement;
       dockCenter = undefined;
       hidden = false;
-      if (value) {
-        // Jump to the docked spot instantly; the drawer-morph animation runs after.
-        sidebar.style.transition = "none";
-        void sidebar.offsetWidth;
-      }
       scalePage();
       render();
-      positionSidebar();
+      const spring: Parameters<typeof animate>[2] = {
+        type: "spring",
+        stiffness: 680,
+        damping: 32,
+        mass: 0.55,
+      };
       if (value) {
+        // Jump to the docked spot instantly; the drawer-morph spring runs after.
+        sidebar.style.transition = "none";
+        void sidebar.offsetWidth;
+        positionSidebar();
         sidebar.style.transition = "";
         const to = sidebar.getBoundingClientRect();
+        sidebarMotion?.stop();
         if (
           !matchMedia("(prefers-reduced-motion: reduce)").matches &&
           before.width > 0 &&
           to.width > 0
         ) {
-          const scale = Math.max(0.35, Math.min(1, before.width / to.width));
-          sidebar.animate(
-            [
-              {
-                transform: `translate(${before.left - to.left}px, ${before.top - to.top}px) scale(${scale})`,
-                opacity: 0.4,
-              },
-              { transform: "translate(0px, 0px) scale(1)", opacity: 1 },
-            ],
+          sidebarMotion = animate(
+            sidebar,
             {
-              duration: 340,
-              easing: "cubic-bezier(.22,1,.36,1)",
-            }
+              translate: [
+                `${before.left - to.left}px ${before.top - to.top}px`,
+                "0px 0px",
+              ],
+              opacity: [0.3, 1],
+            },
+            spring
           );
         }
+      } else {
+        const from = sidebar.getBoundingClientRect();
+        sidebarMotion?.stop();
+        const park = () => {
+          sidebarMotion?.stop();
+          sidebar.style.transition = "none";
+          positionSidebar();
+          void sidebar.offsetWidth;
+          sidebar.style.transition = "";
+        };
+        if (
+          !matchMedia("(prefers-reduced-motion: reduce)").matches &&
+          before.width > 0 &&
+          from.width > 0
+        ) {
+          sidebarMotion = animate(
+            sidebar,
+            {
+              translate: [
+                "0px 0px",
+                `${before.left - from.left}px ${before.top - from.top}px`,
+              ],
+              opacity: [1, 0.25],
+            },
+            spring
+          );
+          void sidebarMotion.finished
+            .then(() => {
+              if (!destroyed) park();
+            })
+            .catch(() => {
+              if (!destroyed) park();
+            });
+        } else park();
       }
       presence.show();
       presence.update();
@@ -2923,7 +3037,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         content.append(nameField, colors.element);
         if (options.onboarding)
           content.append(onboardingPanel(api, options.onboarding));
-        else content.append(accountUsage(api));
+        else {
+          content.append(accountUsage(api));
+          content.append(sidebarSetting());
+        }
         if (
           api.user?.verified &&
           !options.onboarding?.code &&
