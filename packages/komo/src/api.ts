@@ -93,7 +93,9 @@ export class CommentsApi {
     this.user = data.user;
     try {
       localStorage.setItem(this.key, data.token);
-      this.writeCookie(data.token, 30 * 86400);
+      // Browsers cap cookie Max-Age at 400 days; the service session lasts far
+      // longer and localStorage keeps the token beyond the cookie's lifetime.
+      this.writeCookie(data.token, 400 * 86400);
     } catch {
       /* Session remains usable for this tab. */
     }
