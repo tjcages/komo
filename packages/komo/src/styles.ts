@@ -2673,6 +2673,27 @@ textarea {
 :host([data-sidebar="edge"]) .toolbar[data-edge-tabs="true"] .morphing-menu {
   pointer-events: auto;
 }
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu,
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu[data-vertical="true"] {
+  width: var(--mm-bar-width);
+  height: var(--mm-bar-height);
+}
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu__bar,
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu__shell {
+  flex-direction: row;
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 0;
+  translate: -50% 0;
+  width: var(--mm-bar-width);
+  height: var(--mm-bar-height);
+}
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu__shortcut {
+  width: 0;
+  height: var(--mm-button);
+  flex: 1;
+}
 :host([data-sidebar="edge"]) .edge-sidebar[data-morphing="true"] .panel {
   padding-top: 0;
   flex-basis: 0;

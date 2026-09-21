@@ -827,6 +827,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
 
   const toolbarSize = new ResizeObserver(() => {
+    if (toolbar.dataset.edgeTabs === "true") return;
     if (toolbarPlacement) placeToolbar(toolbarPlacement);
     else if (options.drawerContainer) renderToolbar();
   });
@@ -1362,6 +1363,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     toolbar.style.transform = "";
     if (toolbar.parentElement !== sidebar) sidebar.append(toolbar);
     toolbar.dataset.edgeTabs = "true";
+    if (expanded) toolbar.dataset.edgeOrient = "horizontal";
+    else delete toolbar.dataset.edgeOrient;
   }
   function undockEdgeTabs() {
     if (toolbar.dataset.edgeTabs === "true") {
@@ -1375,6 +1378,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       delete toolbar.dataset.savedTransform;
     }
     delete toolbar.dataset.edgeTabs;
+    delete toolbar.dataset.edgeOrient;
     if (toolbar.parentElement === sidebar) live.before(toolbar);
   }
   function placeEdgeAccount() {
@@ -1454,7 +1458,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     clearEdgeRows();
     releaseEdgeBox();
   }
-  function morphEdgeSidebar(opening: boolean, interrupted: boolean) {
+  function morphEdgeSidebar(
+    opening: boolean,
+    interrupted: boolean,
+    openingPill?: { left: number; top: number; width: number; height: number } | null,
+  ) {
     const closingRect = sidebar.getBoundingClientRect();
     const closingFrom = opening
       ? null
@@ -1499,7 +1507,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       sidebar.style.height = "";
       sidebar.style.borderRadius = "";
       sidebar.style.transform = "none";
-      const drawer = shell.getBoundingClientRect();
+      const liveDrawer = shell.getBoundingClientRect();
+      const drawer =
+        !interrupted && openingPill && openingPill.width > 0
+          ? openingPill
+          : liveDrawer;
       if (!interrupted && drawer.width > 0)
         drawerHome = {
           left: drawer.left,
@@ -1570,7 +1582,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           if (generation === edgeMorphGeneration) finish();
         });
       };
-      if (interrupted) {
+      if (interrupted || drawer.height > drawer.width + 8) {
         springToPanel();
         return;
       }
@@ -1580,7 +1592,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       );
       const compressed = boxFromAnchor(
         drawer.left + drawer.width / 2,
-        drawer.bottom,
+        drawer.top + drawer.height,
         size.width,
         size.height,
       );
@@ -1650,6 +1662,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     if (edgeSidebar) {
       const interrupted = edgeMorphing;
+      const openingPill = value ? drawerShell().getBoundingClientRect() : null;
+      if (!value) delete toolbar.dataset.edgeOrient;
       toolbarPlacement = value ? toolbarPlacement : savedToolbarPlacement;
       dockCenter = undefined;
       hidden = false;
@@ -1661,7 +1675,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       presence.show();
       scalePage();
       render();
-      morphEdgeSidebar(value, interrupted);
+      morphEdgeSidebar(value, interrupted, openingPill);
       presence.update();
       return;
     }
@@ -1910,13 +1924,17 @@ export function initComments(options: CommentsOptions): CommentsController {
           )
         : items,
       alignEnd:
-        !!toolbarPlacement && toolbarPlacement.y > window.innerHeight / 2,
+        expanded && edgeSidebar
+          ? false
+          : !!toolbarPlacement && toolbarPlacement.y > window.innerHeight / 2,
       edge:
-        toolbarPlacement?.edgeX ??
-        toolbarPlacement?.edgeY ??
-        (toolbarPlacement && toolbarPlacement.y < window.innerHeight / 2
-          ? "top"
-          : "bottom"),
+        expanded && edgeSidebar
+          ? "bottom"
+          : (toolbarPlacement?.edgeX ??
+            toolbarPlacement?.edgeY ??
+            (toolbarPlacement && toolbarPlacement.y < window.innerHeight / 2
+              ? "top"
+              : "bottom")),
       activeId: account
         ? "account"
         : mode
