@@ -495,8 +495,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   let keyboardAction = false;
   let searchOpen = false;
   let dockMotion: ReturnType<typeof animate> | undefined;
-  let sidebarMotion: ReturnType<typeof animate> | undefined;
-  let sidebarFade: Animation | undefined;
+  let sidebarMotion: Animation | undefined;
   let dockCenter: number | undefined;
   let drawerContainerCenter: number | undefined;
   let pageTransitioning = false;
@@ -572,8 +571,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     sidebar.style.transition = "none";
     sidebar.style.translate = "0px 0px";
     sidebar.style.opacity = "";
-    sidebarMotion?.stop();
-    sidebarFade?.cancel();
+    sidebarMotion?.cancel();
     if (edgeSidebar) {
       if (!grip.isConnected) sidebar.prepend(grip);
     } else {
@@ -586,7 +584,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     sidebar.style.transition = "";
   }
   function setSidebarMode(mode: "background" | "edge") {
-    sidebarMotion?.stop();
+    sidebarMotion?.cancel();
     if (mode === sidebarMode || destroyed) return;
     sidebarMode = mode;
     edgeSidebar = mode === "edge";
@@ -1249,18 +1247,10 @@ export function initComments(options: CommentsOptions): CommentsController {
       render();
       // The drawer-expand hand-off: a slow, symmetric morph from and back to
       // the drawer rect, matching the review frame's motion language. The
-      // translate runs through motion (same API as the drawer dock); the fade
-      // runs in parallel on native WAAPI so the types stay simple.
-      const fade = (from: number, to: number, fill: FillMode = "none") =>
-        sidebar.animate(
-          [{ opacity: from }, { opacity: to }],
-          {
-            duration: 650,
-            easing: "cubic-bezier(.22,1,.36,1)",
-            fill,
-          }
-        );
+      // sidebar's transform and opacity run together on native WAAPI so open
+      // and close are frame-for-frame mirrors.
       const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      sidebarMotion?.cancel();
       if (value) {
         // Jump to the docked spot instantly; the drawer-morph animation runs after.
         sidebar.style.transition = "none";
@@ -1268,49 +1258,55 @@ export function initComments(options: CommentsOptions): CommentsController {
         positionSidebar();
         sidebar.style.transition = "";
         const to = sidebar.getBoundingClientRect();
-        sidebarMotion?.stop();
-        sidebarFade?.cancel();
         sidebar.style.translate = "0px 0px";
+        const dx = before.left - to.left;
+        const dy = before.top - to.top;
         if (!reduced && before.width > 0 && to.width > 0) {
-          sidebarMotion = animate(
-            sidebar,
-            {
-              translate: [
-                `${before.left - to.left}px ${before.top - to.top}px`,
-                "0px 0px",
-              ],
-            },
-            { duration: 0.65, ease: [0.22, 1, 0.36, 1] }
+          sidebar.style.transformOrigin =
+            dx < 0 ? "left center" : "right center";
+          sidebarMotion = sidebar.animate(
+            [
+              {
+                transform: `translate(${dx}px, ${dy}px) scale(.94)`,
+                opacity: 0.25,
+              },
+              { transform: "translate(0px, 0px) scale(1)", opacity: 1 },
+            ],
+            { duration: 650, easing: "cubic-bezier(.22,1,.36,1)" }
           );
-          sidebarFade = fade(0.25, 1);
         }
       } else {
-        // Close is the exact reverse of open: same motion, same duration.
+        // Close is the exact reverse of open, ending fully transparent at the
+        // drawer so the park hand-off lands invisibly on the freshly shown
+        // drawer.
         const from = sidebar.getBoundingClientRect();
-        sidebarMotion?.stop();
-        sidebarFade?.cancel();
+        const dx = before.left - from.left;
+        const dy = before.top - from.top;
         const park = () => {
-          sidebarMotion?.stop();
-          sidebarFade?.cancel();
+          sidebarMotion?.cancel();
           sidebar.style.transition = "none";
           sidebar.style.translate = "0px 0px";
-          sidebar.style.opacity = "";
           positionSidebar();
           void sidebar.offsetWidth;
           sidebar.style.transition = "";
         };
         if (!reduced && before.width > 0 && from.width > 0) {
-          sidebarMotion = animate(
-            sidebar,
+          sidebar.style.transformOrigin =
+            dx < 0 ? "left center" : "right center";
+          sidebarMotion = sidebar.animate(
+            [
+              { transform: "translate(0px, 0px) scale(1)", opacity: 1 },
+              {
+                transform: `translate(${dx}px, ${dy}px) scale(.94)`,
+                opacity: 0,
+              },
+            ],
             {
-              translate: [
-                "0px 0px",
-                `${before.left - from.left}px ${before.top - from.top}px`,
-              ],
-            },
-            { duration: 0.65, ease: [0.22, 1, 0.36, 1] }
+              duration: 650,
+              easing: "cubic-bezier(.22,1,.36,1)",
+              fill: "forwards",
+            }
           );
-          sidebarFade = fade(1, 0.25, "forwards");
           void sidebarMotion.finished
             .then(() => {
               if (!destroyed) park();
@@ -4127,6 +4123,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       destroyed = true;
       pageMotion?.stop();
       dockMotion?.stop();
+      sidebarMotion?.cancel();
       abort.abort();
       clearInterval(interval);
       clearTimeout(toastTimer);
@@ -4186,7 +4183,14 @@ export function initComments(options: CommentsOptions): CommentsController {
   instances.set(document, controller);
   scalePage();
   render();
-  if (edgeSidebar) positionSidebar();
+  if (edgeSidebar) {
+    // Park without the 320ms transition so the collapsed state is applied in
+    // the first paint instead of sliding across the screen on load.
+    sidebar.style.transition = "none";
+    positionSidebar();
+    void sidebar.offsetWidth;
+    sidebar.style.transition = "";
+  }
   async function loadProject() {
     const config = await api.request<{
       github: boolean;
