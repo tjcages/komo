@@ -1,3 +1,4 @@
+import { projectSites, saveProjectSites } from "./project-sites";
 import {
   manageProject,
   privateAccess,
@@ -734,28 +735,17 @@ async function route(
     const target = string(data.project, 100, "project");
     await googleOwner(env, target, user);
     const origin = string(data.origin, 300, "origin");
-    const workspace = await env.DB.prepare(
-      "SELECT origins FROM workspaces WHERE id=?"
-    )
-      .bind(target)
-      .first<{ origins: string }>();
     check(
-      workspace &&
+      (await projectConfig(env, target)) &&
         origin.startsWith("https://") &&
         originAllowed(origin, [origin]),
       400,
       "Use an exact HTTPS origin for a hosted workspace."
     );
-    const verified = await env.DB.prepare(
-      "INSERT INTO workspace_domains(project,origin,verified_at) SELECT ?,?,? WHERE (SELECT COUNT(*) FROM workspace_domains WHERE project=?)<10 OR EXISTS(SELECT 1 FROM workspace_domains WHERE project=? AND origin=?) ON CONFLICT(project,origin) DO UPDATE SET verified_at=excluded.verified_at"
-    )
-      .bind(target, origin, Date.now(), target, target, origin)
-      .run();
-    check(
-      verified.meta.changes,
-      409,
-      "This workspace has reached ten approved websites."
-    );
+    // Shared with the sidebar editor: covers hosted and configured projects.
+    const sites = await projectSites(env, target);
+    if (!sites.includes(origin))
+      await saveProjectSites(env, target, [...sites, origin]);
     return json({ ok: true });
   }
   if (
@@ -766,23 +756,21 @@ async function route(
     const user = await authenticate(request, env, project);
     const target = string(url.searchParams.get("workspace"), 100, "workspace");
     await googleOwner(env, target, user);
+    const config = await projectConfig(env, target);
+    check(config, 404, "Workspace not found.");
     const workspace = await env.DB.prepare(
-      "SELECT repo,origins FROM workspaces WHERE id=?"
+      "SELECT origins FROM workspaces WHERE id=?"
     )
       .bind(target)
-      .first<{ repo: string; origins: string }>();
-    check(workspace, 404, "Workspace not found.");
-    const sites = await env.DB.prepare(
-      "SELECT origin FROM workspace_domains WHERE project=? ORDER BY origin"
-    )
-      .bind(target)
-      .all<{ origin: string }>();
+      .first<{ origins: string }>();
     return json({
-      repo: workspace.repo,
-      sites: sites.results.map((site) => site.origin),
-      suggested: (JSON.parse(workspace.origins) as string[]).filter((origin) =>
-        origin.startsWith("https://")
-      ),
+      repo: config.repo,
+      sites: await projectSites(env, target),
+      suggested: workspace
+        ? (JSON.parse(workspace.origins) as string[]).filter((origin) =>
+            origin.startsWith("https://")
+          )
+        : [],
     });
   }
   if (url.pathname === "/project" || url.pathname.startsWith("/project/")) {
