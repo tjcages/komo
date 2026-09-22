@@ -1,3 +1,17 @@
+# Opening copy and Worker preview — 2026-09-22
+
+[Current Worker preview](https://80047cc4-komo-site.off-brand.workers.dev/promo/) · [PR #28](https://github.com/tjcages/komo/pull/28)
+
+- Opening: “Anyone can comment. Anywhere.” One line at 96px, with clear side margins through the final zoom. Same stagger and shared pin/cursor camera.
+- Reading-time validator passes at 69 title frames. Copy contributes three frames while retaining its half-second confirmation. Logo motion and full settled hold are unchanged. Total is still 618 frames / 20.6 seconds.
+- Render source `2cae5e1`; H.264 1920×1080 at 30fps, silent, 2,975,955 bytes. SHA-256 `3d1f3802be828b78d886b99eccff371142e179a7d0d2389dc483a0d1f52cb863`.
+- Re-rendered affected context and copy clips, assembled all eight, checked opening middle/final stills and extracted final MP4 opening. Full boundary QC reports the same three deliberate fade/match warnings described below. Remotion typecheck and reading-time gate pass.
+- Repeated local build, typecheck, 146 tests in 24 files, and size gates: all pass.
+- Uploaded preview version `80047cc4-408d-44df-8959-534109e747c0` of the existing `komo-site` Worker. It replaces the earlier Pages review link; no production deployment.
+- `preview:deploy` now delegates to the existing Worker preview command. The explicit film upload command still runs after inserting `/promo/`, so no second build erases the movie.
+
+## Earlier polish evidence (superseded preview)
+
 # Render evidence — 2026-09-22 polish
 
 [Preview](https://ecb27a70.komo-wb5.pages.dev/promo/) · [PR #28](https://github.com/tjcages/komo/pull/28) · [OFF-680](https://linear.app/off-brand-studio/issue/OFF-680)
