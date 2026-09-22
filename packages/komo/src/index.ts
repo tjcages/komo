@@ -1534,6 +1534,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     edgeMotions = [];
     const wasMorphing = edgeMorphing;
     edgeMorphing = false;
+    if (release) sidebar.toggleAttribute("data-tips-ready", expanded);
     if (!release || !wasMorphing) return;
     delete sidebar.dataset.morphing;
     delete toolbar.dataset.edgeSurface;
@@ -1589,6 +1590,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         undockEdgeTabs();
       }
       releaseEdgeBox();
+      if (opening) sidebar.dataset.tipsReady = "";
     };
     const reduced =
       restoring || matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1747,6 +1749,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function toggleExpanded(value: boolean) {
     expanded = value;
+    delete sidebar.dataset.tipsReady;
+    sidebar.toggleAttribute("data-tips-restored", restoring);
     if (!options.onboarding)
       try {
         if (value) localStorage.setItem(openKey, "1");

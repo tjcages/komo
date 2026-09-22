@@ -2875,10 +2875,11 @@ textarea {
 .list[data-empty] .empty { flex: 1; align-content: center; }
 .sidebar-tooltip, .sidebar-tip { transition: var(--duration-quick) var(--ease-smooth-out); transition-property: opacity, transform, filter; }
 .sidebar-tooltip:not([data-open]), .sidebar-tip[data-leaving] { opacity: 0; transform: translateY(-4px); filter: blur(2px); }
-.sidebar-tip { animation: tip-in 320ms var(--ease-smooth-out) 200ms backwards; }
-@keyframes tip-in { from { opacity: 0; transform: translateY(6px); filter: blur(2px); } }
-.sidebar-tip[data-tip="copy"] { animation-name: tip-in-down; }
-@keyframes tip-in-down { from { opacity: 0; transform: translateY(-6px); filter: blur(2px); } }
+.sidebar-tip { transform-origin: var(--caret-x) top; animation: tip-in var(--duration-fast) var(--ease-smooth-out) backwards; }
+.sidebar-tip[data-tip="shortcut"] { transform-origin: var(--caret-x) bottom; }
+@keyframes tip-in { from { opacity: 0; transform: scale(.98); } }
+.edge-sidebar:not([data-tips-ready]) .sidebar-tip { opacity: 0; animation: none; pointer-events: none; }
+[data-tips-restored] .sidebar-tip { animation: none; transition: none; }
 @media (hover: none) { .sidebar-tip[data-tip="shortcut"] { display: none; } }
 @media (prefers-reduced-motion: reduce) { .sidebar-tooltip, .sidebar-tip { transition: none; animation: none; } }
 `;
