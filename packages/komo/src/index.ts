@@ -1116,7 +1116,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     return later(
       el("section", "account-usage"),
       import("./onboarding.js").then(({ accountUsage }) =>
-        accountUsage(api, path)
+        accountUsage(api, path, true, localSite && channel === "local")
       )
     );
   }
