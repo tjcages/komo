@@ -9,8 +9,6 @@ export type { KomoConfig } from "./config.js";
 import { pinDirection } from "./pin-direction.js";
 import { pinStacks } from "./pin-stacks.js";
 import { OptimisticQueue } from "./optimistic.js";
-import { accountUsage } from "./account-usage.js";
-import { onboardingPanel } from "./onboarding.js";
 import { agentPrompt } from "./agent-prompt.js";
 import { accentPicker } from "./lazy-accent-picker.js";
 import { applyAccent, DEFAULT_ACCENT } from "./accent.js";
@@ -1046,6 +1044,23 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function run(action: () => Promise<void>) {
     void action().catch(fail);
+  }
+  // Account panels load with the dialog, keeping them out of the first bundle.
+  function later(slot: HTMLElement, panel: Promise<HTMLElement>) {
+    void panel
+      .then((node) => {
+        if (slot.isConnected) slot.replaceWith(node);
+      })
+      .catch(fail);
+    return slot;
+  }
+  function usagePanel(path?: string) {
+    return later(
+      el("section", "account-usage"),
+      import("./onboarding.js").then(({ accountUsage }) =>
+        accountUsage(api, path)
+      )
+    );
   }
   // Retry from the start if the project config never loaded.
   function retryConnection() {
@@ -3445,11 +3460,19 @@ export function initComments(options: CommentsOptions): CommentsController {
         });
         disposeAccentPicker = colors.destroy;
         content.append(nameField, colors.element);
-        if (options.onboarding)
-          content.append(onboardingPanel(api, options.onboarding));
-        else {
+        if (options.onboarding) {
+          const onboarding = options.onboarding;
+          content.append(
+            later(
+              el("section", "onboarding-panel"),
+              import("./onboarding.js").then(({ onboardingPanel }) =>
+                onboardingPanel(api, onboarding)
+              )
+            )
+          );
+        } else {
           content.append(sidebarSetting());
-          content.append(accountUsage(api));
+          content.append(usagePanel());
         }
         if (
           api.user?.verified &&
@@ -3459,7 +3482,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         ) {
           const settings = el("div");
           content.append(settings);
-          void import("./project-management.js").then(
+          void import("./onboarding.js").then(
             ({ projectManagement }) => {
               if (settings.isConnected)
                 settings.replaceWith(
@@ -3477,7 +3500,7 @@ export function initComments(options: CommentsOptions): CommentsController {
                           : "usage";
                         content
                           .querySelector(".account-usage")
-                          ?.replaceWith(accountUsage(api, path));
+                          ?.replaceWith(usagePanel(path));
                         void refresh().catch(() => {});
                       }
                     },
