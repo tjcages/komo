@@ -784,6 +784,33 @@ describe("shared comments against real workerd and SQLite", () => {
     );
     expect(denied.status).toBe(403);
     expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    const refused = await fetch(
+      `http://localhost:${port}/config?project=test&repo=owner/site&branch=feature/a`,
+      { headers: { Origin: "https://evil.com" } }
+    );
+    expect(refused.status).toBe(403);
+    expect(refused.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://evil.com"
+    );
+    expect(await refused.json()).toEqual({
+      error: "This site is not approved for this komo project.",
+      code: "site_not_approved",
+    });
+    const preflight = await fetch(
+      `http://localhost:${port}/config?project=test&repo=owner/site&branch=feature/a`,
+      {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://evil.com",
+          "Access-Control-Request-Method": "GET",
+          "Access-Control-Request-Headers": "authorization",
+        },
+      }
+    );
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://evil.com"
+    );
     expect((await request("/auth/github/start", "POST", {})).status).toBe(503);
   });
 });

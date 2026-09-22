@@ -9,6 +9,8 @@ export const styles: string = `
 .project-member { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; overflow-wrap:anywhere; }
 .project-danger { display:grid; gap:10px; font-size:12px; }
 .project-danger p { color:#999; line-height:1.5; }
+/* <details> ignores grid gap, so space its actions directly. */
+.project-danger > button { display:block; width:100%; margin-top:12px; }
 .project-help { color:var(--accent,#c8b5f4); font-size:12px; }
 .project-management .destructive { color:#fda29b; }
 
@@ -331,6 +333,12 @@ small {
 .empty p {
   max-width: 250px;
   line-height: 1.6;
+}
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 .panel-foot {
   position: absolute;
@@ -2368,6 +2376,18 @@ textarea {
 .onboarding-panel > p:empty { display: none; }
 .approved-sites { display: grid; gap: 8px; font-size: 12px; overflow-wrap: anywhere; color: #ddd; }
 .approved-sites:empty { display: none; }
+.approved-sites-editor { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid #ffffff0d; }
+.approved-site-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.approved-site { min-height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #ddd; }
+.approved-site > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.approved-site[title] > span { color: #909090; }
+.approved-site > button { width: 24px; height: 24px; flex-shrink: 0; color: #888; }
+.approved-site > button:hover { color: #eee; }
+.approved-site > button svg { width: 14px; height: 14px; }
+.approved-site-add { display: flex; gap: 8px; }
+.account .approved-site-add input { min-width: 0; flex: 1; font-size: 13px; padding: 8px 10px; }
+.approved-site-add > button { padding: 0 12px; }
+.approved-sites-editor > .account-usage-status:empty { display: none; }
 .account-usage { min-height: 144px; box-sizing: border-box; align-content: start; display: grid; gap: 14px; padding: 16px; border-radius: 14px; background: #ffffff05; box-shadow: inset 0 0 0 1px #ffffff09; }
 .account-usage h3 { line-height: 18px; margin: 0; font-size: 12px; font-weight: 500; color: #aaa; }
 .usage-skeleton { display: block; height: 10px; border-radius: 4px; background: #ffffff0b; }

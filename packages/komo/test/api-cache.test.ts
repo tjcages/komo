@@ -45,6 +45,6 @@ it("explains network and CORS failures without claiming the cause is known", asy
     branch: "shared",
   });
   await expect(api.request("config")).rejects.toThrow(
-    "Check your connection and this site's approval in komo"
+    "Can’t connect to comments."
   );
 });
