@@ -2496,6 +2496,7 @@ textarea {
   flex-direction: column;
   width: var(--edge-sidebar-width, 380px);
   max-width: calc(100dvw - 32px);
+  height: min(calc(100dvh - 32px), 600px);
   max-height: min(calc(100dvh - 32px), 680px);
   background: #0d0d0d;
   color: #e9e6e1;
@@ -2791,4 +2792,51 @@ textarea {
   }
   :host([data-sidebar="edge"]) .edge-sidebar .panel::before { display: none; }
 }
+.sidebar-tooltip {
+  position: fixed;
+  z-index: 30;
+  translate: -50% 0;
+}
+.sidebar-tip {
+  position: absolute;
+  z-index: 5;
+  translate: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+  max-width: 236px;
+  padding: 8px 4px 8px 12px;
+  white-space: normal;
+  overflow: visible;
+  pointer-events: auto;
+}
+.sidebar-tip[hidden] { display: none; }
+.sidebar-tip p { margin: 0; font-size: 13px; line-height: 18px; }
+.sidebar-tip .icon { flex: none; width: 24px; height: 24px; border-radius: 8px; color: inherit; opacity: .45; }
+.sidebar-tip .icon:hover { opacity: 1; background: light-dark(#0000000d, #ffffff14); }
+.sidebar-tip .icon svg { width: 14px; height: 14px; }
+.sidebar-tip::before {
+  content: "";
+  position: absolute;
+  left: var(--caret-x);
+  bottom: 100%;
+  width: 10px;
+  height: 10px;
+  margin: 0 0 -5px -5px;
+  background: inherit;
+  border-radius: 2px 0;
+  rotate: 45deg;
+}
+.sidebar-tip[data-tip="shortcut"]::before { bottom: auto; top: 100%; margin: -5px 0 0 -5px; }
+.list[data-empty] { display: flex; flex-direction: column; }
+.list[data-empty] .empty { flex: 1; align-content: center; }
+.sidebar-tooltip, .sidebar-tip { transition: var(--duration-quick) var(--ease-smooth-out); transition-property: opacity, transform, filter; }
+.sidebar-tooltip:not([data-open]), .sidebar-tip[data-leaving] { opacity: 0; transform: translateY(-4px); filter: blur(2px); }
+.sidebar-tip { animation: tip-in 320ms var(--ease-smooth-out) 200ms backwards; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(6px); filter: blur(2px); } }
+.sidebar-tip[data-tip="copy"] { animation-name: tip-in-down; }
+@keyframes tip-in-down { from { opacity: 0; transform: translateY(-6px); filter: blur(2px); } }
+@media (hover: none) { .sidebar-tip[data-tip="shortcut"] { display: none; } }
+@media (prefers-reduced-motion: reduce) { .sidebar-tooltip, .sidebar-tip { transition: none; animation: none; } }
 `;

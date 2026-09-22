@@ -557,6 +557,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     sidebar.style.width = `${sidebarWidth}px`;
     sidebar.style.height =
       sidebarHeight == null ? "" : `${sidebarHeight}px`;
+    pointTips();
   }
   function persistSidebarPlacement() {
     savedSidebarPlacement = sidebarPlacement;
@@ -2219,6 +2220,75 @@ export function initComments(options: CommentsOptions): CommentsController {
       renderList();
     }, 2000);
   }
+  const dismissedTipsKey = "branch-comments:dismissed-tips";
+  const tips = [
+    ["copy", "Copy this page’s comments as a prompt for your agent."],
+    ["shortcut", "Press C, then click anything to comment."],
+  ] as const;
+  // Empty-state coach marks: persistent tooltips pinned to the buttons they
+  // describe. They live on the sidebar so they ride along as it parks/peeks.
+  function syncTips(show: boolean) {
+    let dismissed: string[] = [];
+    try {
+      dismissed = JSON.parse(localStorage.getItem(dismissedTipsKey) ?? "[]");
+    } catch {
+      /* Show every tip when storage is blocked. */
+    }
+    for (const [id, body] of tips) {
+      let card = sidebar.querySelector<HTMLElement>(`[data-tip="${id}"]`);
+      if (!show || dismissed.includes(id)) {
+        card?.remove();
+        continue;
+      }
+      if (card) continue;
+      card = el("div", "morphing-menu__tooltip sidebar-tip");
+      card.dataset.tip = id;
+      const node = card;
+      card.append(
+        el("p", "", body),
+        button(
+          "Dismiss tip",
+          () => {
+            dismissed.push(id);
+            try {
+              localStorage.setItem(dismissedTipsKey, JSON.stringify(dismissed));
+            } catch {
+              /* Dismissal lasts for this render only. */
+            }
+            node.dataset.leaving = "";
+            setTimeout(() => node.remove(), 150);
+          },
+          "icon",
+          "close",
+        ),
+      );
+      sidebar.append(card);
+    }
+    pointTips();
+  }
+  function pointTips() {
+    const frame = sidebar.getBoundingClientRect();
+    for (const card of sidebar.querySelectorAll<HTMLElement>(".sidebar-tip")) {
+      const up = card.dataset.tip === "copy";
+      const box = sidebar
+        .querySelector(
+          up ? ".copy-page-prompt" : '.toolbar [aria-label^="Add comment"]',
+        )
+        ?.getBoundingClientRect();
+      card.hidden = !box?.width;
+      if (!box?.width) continue;
+      const x = box.left + box.width / 2 - frame.left;
+      const left = Math.max(
+        12,
+        Math.min(frame.width - 12 - card.offsetWidth, x - card.offsetWidth / 2),
+      );
+      card.style.left = `${left}px`;
+      card.style.top = up
+        ? `${box.bottom - frame.top + 10}px`
+        : `${box.top - frame.top - 10 - card.offsetHeight}px`;
+      card.style.setProperty("--caret-x", `${x - left}px`);
+    }
+  }
   let cleanupIdentity: string | null | undefined;
   let cleanupOwner = false;
   function confirmResolvedCleanup(trigger: HTMLButtonElement) {
@@ -2424,6 +2494,41 @@ export function initComments(options: CommentsOptions): CommentsController {
       searchInner.append(searchRow);
       searchPanel.append(searchInner);
       head.append(title, searchPanel);
+      // Header icon tooltips reuse the toolbar's tooltip surface. It lives at
+      // the shadow root so the sidebar's park/peek transforms can't offset it.
+      const tip = el("div", "morphing-menu__tooltip sidebar-tooltip");
+      tip.setAttribute("aria-hidden", "true");
+      shadow.append(tip);
+      let tipTimer = 0;
+      let tipWarmUntil = 0;
+      const hideTip = () => {
+        clearTimeout(tipTimer);
+        if (!tip.dataset.open) return;
+        delete tip.dataset.open;
+        tipWarmUntil = Date.now() + 300;
+      };
+      const showTip = (target: HTMLElement) => {
+        clearTimeout(tipTimer);
+        const reveal = () => {
+          if (!target.isConnected) return;
+          const box = target.getBoundingClientRect();
+          tip.textContent = target.ariaLabel;
+          const half = tip.offsetWidth / 2;
+          tip.style.left = `${Math.max(8 + half, Math.min(innerWidth - 8 - half, box.left + box.width / 2))}px`;
+          tip.style.top = `${box.bottom + 8}px`;
+          tip.dataset.open = "true";
+        };
+        if (tip.dataset.open || Date.now() < tipWarmUntil) reveal();
+        else tipTimer = window.setTimeout(reveal, 400);
+      };
+      for (const node of tools.querySelectorAll("button")) {
+        node.removeAttribute("title");
+        node.addEventListener("pointerenter", (event) => {
+          if (event.pointerType === "mouse") showTip(node);
+        });
+        node.addEventListener("pointerleave", hideTip);
+      }
+      tools.addEventListener("pointerdown", hideTip);
       panel.append(head);
       sidebar.append(panel);
     }
@@ -2480,14 +2585,16 @@ export function initComments(options: CommentsOptions): CommentsController {
         next.animate([hidden, visible], timing);
       } else copyPage.replaceChildren(next);
     }
-    copyPage.title = deleting
-      ? cleanupOwner
-        ? "Delete resolved comments permanently"
-        : "Only the project owner can delete resolved comments"
-      : copiedPrompt === "page"
-        ? "Copied prompt"
-        : "Copy this page’s comments for agent";
-    copyPage.setAttribute("aria-label", copyPage.title);
+    copyPage.setAttribute(
+      "aria-label",
+      deleting
+        ? cleanupOwner
+          ? "Delete resolved comments permanently"
+          : "Only the project owner can delete resolved comments"
+        : copiedPrompt === "page"
+          ? "Copied prompt"
+          : "Copy this page’s comments for agent",
+    );
     panel.dataset.search = String(searchOpen);
     panel.querySelector<HTMLElement>(".filter-slot")!.inert = searchOpen;
     panel.querySelector<HTMLElement>(".scope-slot")!.inert = !searchOpen;
@@ -2641,7 +2748,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           );
         actions.append(button("Try again", retryConnection, "secondary"));
         empty.append(actions);
-      } else if (!search && filter !== "resolved")
+      } else if (!search && filter !== "resolved") {
         empty.append(
           button(
             "Add a comment",
@@ -2653,10 +2760,14 @@ export function initComments(options: CommentsOptions): CommentsController {
             "secondary",
           ),
         );
+      }
       list.append(empty);
+      list.dataset.empty = "";
     }
     if (existingList) existingList.replaceWith(list);
     else panel.append(list);
+    syncTips(!!list.querySelector(".empty [aria-label='Add a comment']"));
+    requestAnimationFrame(pointTips);
     list.scrollTop = scroll;
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
       let entered = 0;
