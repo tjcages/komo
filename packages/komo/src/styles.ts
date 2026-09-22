@@ -221,17 +221,6 @@ small {
   white-space: nowrap;
   max-width: 245px;
 }
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #709a78;
-  display: inline-block;
-  margin-right: 5px;
-}
-.dot.offline {
-  background: #b66b39;
-}
 .status {
   font-size: 11px;
   white-space: nowrap;
@@ -243,10 +232,6 @@ small {
 }
 .icon:hover {
   background: #ebe9e3;
-}
-.filters {
-  display: flex;
-  gap: 5px;
 }
 .filter {
   padding: 6px 10px;
@@ -373,17 +358,6 @@ small {
   justify-content: center;
   gap: 8px;
 }
-.panel-foot {
-  position: absolute;
-  bottom: 0;
-  background: #faf9f6;
-  left: 0;
-  right: 0;
-  padding: 14px 22px;
-  box-shadow: 0 -1px 0 #e8e5de;
-  font-size: 11px;
-  color: #77766f;
-}
 .dialog {
   position: fixed;
   width: 354px;
@@ -441,19 +415,6 @@ small {
   color: #5c5647;
   flex-shrink: 0;
 }
-.badge {
-  font-size: 9px;
-  line-height: 16px;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: #eeece5;
-  color: #777268;
-  font-weight: 400;
-}
-.badge.verified {
-  background: #e8efe7;
-  color: #4d7457;
-}
 .message-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -476,14 +437,6 @@ small {
 .reaction.mine {
   background: #ffead6;
   box-shadow: inset 0 0 0 1px #efb582;
-}
-.tiny {
-  font-size: 10px;
-  padding: 4px;
-  color: #827e73;
-}
-.tiny:hover {
-  color: #282620;
 }
 .reaction-picker {
   display: flex;
@@ -549,15 +502,6 @@ small {
   font-size: 12px;
   box-shadow: 0 4px 20px #0002;
 }
-.link-button {
-  color: #686255;
-  font-size: 11px;
-  padding: 4px;
-  text-decoration: none;
-}
-.link-button:hover {
-  color: #b95813;
-}
 .account {
   padding: 20px;
   display: grid;
@@ -574,12 +518,6 @@ small {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-}
-.resolved-note {
-  padding: 10px 16px;
-  font-size: 11px;
-  background: #ecf1e9;
-  color: #50704c;
 }
 @media (max-width: 760px) {
   .panel {
@@ -762,21 +700,6 @@ ${morphingMenuStyles}
 .panel-head .row {
   gap: 4px;
 }
-:host(.review-open) .panel .thread-filter {
-  width: auto;
-  max-width: 210px;
-  box-shadow: none;
-  background: transparent;
-  color: #f4f4f4;
-  font-weight: 600;
-  font-size: 15px;
-  padding: 8px 22px 8px 0;
-  cursor: pointer;
-}
-.thread-filter option {
-  color: #eee;
-  background: #202020;
-}
 :host(.review-open) .panel .icon {
   color: #909090;
   width: 28px;
@@ -948,10 +871,6 @@ ${morphingMenuStyles}
   height: 15px;
   width: 15px;
 }
-.tiny {
-  font-size: 10px;
-  color: #999;
-}
 .reaction {
   background: #f4f4f5;
   padding: 3px 7px;
@@ -1033,27 +952,6 @@ ${morphingMenuStyles}
 }
 .send:not(:disabled):active {
   transform: scale(0.94);
-}
-.dialog .link-button {
-  font-size: 10px;
-  margin: 0 0 7px 49px;
-  width: 24px;
-  height: 20px;
-  padding: 2px;
-  color: #aaa;
-}
-.dialog .link-button svg {
-  width: 14px;
-  height: 14px;
-}
-.resolved-note {
-  background: #f6f7f8;
-  color: #90959c;
-  font-size: 10px;
-  padding: 8px 16px;
-}
-.dialog:has(.resolved-note) .messages {
-  padding-top: 6px;
 }
 .account h2 {
   font-size: 16px;
@@ -1259,10 +1157,6 @@ ${morphingMenuStyles}
   color: #999;
   margin-left: auto;
 }
-.pin-preview .preview-replies {
-  display: block;
-  margin-top: 8px;
-}
 @media (max-width: 760px) {
   .dialog {
     width: calc(100vw - 32px);
@@ -1299,9 +1193,6 @@ ${morphingMenuStyles}
     inset 0 1px 0 #ffffff20,
     inset 0 0 0 1px #ffffff0c,
     0 4px 16px #0002;
-}
-.dialog .link-button {
-  margin-left: 12px;
 }
 .message + .message::before {
   left: 0;
@@ -1414,9 +1305,6 @@ ${morphingMenuStyles}
   right: -16px;
   background: #f0f0f2;
 }
-.dialog .link-button {
-  margin-left: 48px;
-}
 .composer {
   padding: 12px 16px;
 }
@@ -1467,8 +1355,7 @@ ${morphingMenuStyles}
 .pin-preview strong {
   color: #efefef;
 }
-.message small,
-.preview-replies {
+.message small {
   color: #8d8d8d;
 }
 .message + .message::before,
@@ -1513,12 +1400,6 @@ ${morphingMenuStyles}
 .reaction.mine {
   background: #6978ff22;
   box-shadow: inset 0 0 0 1px #8a97ff44;
-}
-.tiny {
-  color: #999;
-}
-.tiny:hover {
-  color: #eee;
 }
 .pin {
   touch-action: none;
@@ -1620,14 +1501,6 @@ ${morphingMenuStyles}
   padding: 5px 8px;
   border-radius: 6px;
   background: #ffffff10;
-}
-.identity-prompt {
-  color: #aaa;
-  font-size: 12px;
-  padding: 4px;
-}
-.identity-prompt:hover {
-  color: white;
 }
 .account-layer {
   position: fixed;
@@ -2482,7 +2355,6 @@ textarea {
 .account-project-slots { display: flex; gap: 6px; }
 .account-project-slots > span { flex: 1; height: 4px; border-radius: 2px; background: #ffffff0b; box-shadow: inset 0 0 0 1px #ffffff07; }
 .account-project-slots > span[data-used="true"] { background: #bda6ef; box-shadow: inset 0 1px 0 #ffffff26; }
-.account-usage-row { display: grid; gap: 8px; }
 .account-usage-label { line-height: 18px; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: #ddd; font-variant-numeric: tabular-nums; }
 .account-usage-label > :last-child { color: #aaa; }
 .account-comments { align-items: center; min-height: 24px; }

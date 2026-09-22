@@ -111,9 +111,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     return options.sidebar === "background" ? "background" : "edge";
   })();
   let edgeSidebar = sidebarMode === "edge";
-  // Localhost starts in a private "local" channel so a new install works
-  // before any site is shared; Shared reads the same comments as deploys.
-  const localSite = ["localhost", "127.0.0.1"].includes(location.hostname);
+  // Development comments use a separate server-backed channel.
+  const localSite = ["localhost", "127.0.0.1", "[::1]"].includes(
+    location.hostname,
+  );
   const sharedBranch = options.branch;
   const channelKey = `branch-comments:channel:${options.project}:${options.repo}`;
   let channel: "local" | "shared" = "local";
@@ -132,7 +133,9 @@ export function initComments(options: CommentsOptions): CommentsController {
     hidden = false,
     account = !!options.onboarding,
     pending = false,
-    refreshing = false;
+    refreshing = false,
+    knownThreads = !!options.onboarding,
+    sessionRevision = 0;
   let threads: Thread[] = [],
     selected: string | null = null,
     draft: Anchor | null = null;
@@ -302,8 +305,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   let google = false;
   let movingThread: string | null = null;
   let github = false,
-    guests = !options.onboarding,
-    guestResolve = true;
+    guests = false,
+    guestResolve = false;
   let parkedDraft: { anchor: Anchor; text: string } | null = null;
   const recoveredDrafts: { anchor: Anchor; text: string }[] = [];
   let dialogKey: string | null = null;
@@ -774,37 +777,60 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
   }
   function channelSetting() {
-    return selectSetting(
+    const setting = selectSetting(
       "channel",
       "Comments",
       [
-        ["local", "Local only"],
-        ["shared", "Shared with deploys"],
+        ["local", "Local development"],
+        ["shared", "Site comments"],
       ],
       channel,
       setChannel,
     );
+    setting.append(
+      el("p", "muted", "Separate channels, both saved to this project."),
+    );
+    return setting;
   }
   function setChannel(value: "local" | "shared") {
     if (value === channel || destroyed) return;
+    if (pending || optimistic.busy) {
+      notify("Wait for your changes to save.");
+      return;
+    }
     channel = value;
     try {
       localStorage.setItem(channelKey, value);
     } catch {
       /* Keep the choice in memory when storage is blocked. */
     }
-    const user = api.user;
     options = {
       ...options,
       branch: value === "local" ? "local" : sharedBranch,
     };
     api = new CommentsApi(options);
-    api.user = user;
+    refreshing = projectLoaded = false;
+    lastRefresh = undefined;
+    accessError = "";
+    issue = null;
+    connection = "Connecting";
+    google = github = guests = guestResolve = false;
     selected = null;
     draft = null;
     parkedDraft = null;
+    hydrateThreads();
     render();
     retryConnection();
+  }
+  function hydrateThreads() {
+    sessionRevision++;
+    refreshing = false;
+    accessError = "";
+    selected = null;
+    lastRefresh = undefined;
+    const cached = api.cached();
+    knownThreads = cached !== null;
+    optimistic.replace(visibleThreads(cached ?? []));
   }
   const grip = el("div", "edge-sidebar-grip");
   grip.setAttribute("aria-hidden", "true");
@@ -1209,10 +1235,20 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (destroyed || refreshing || optimistic.busy || options.onboarding)
       return;
     const revision = optimistic.revision;
+    const client = api;
+    const token = client.token;
+    const session = sessionRevision;
     refreshing = true;
     try {
-      const response = await api.list();
-      if (destroyed || optimistic.busy || revision !== optimistic.revision)
+      const response = await client.list();
+      if (
+        destroyed ||
+        client !== api ||
+        session !== sessionRevision ||
+        token !== client.token ||
+        optimistic.busy ||
+        revision !== optimistic.revision
+      )
         return;
       if (
         response === lastRefresh &&
@@ -1222,14 +1258,13 @@ export function initComments(options: CommentsOptions): CommentsController {
         return;
       lastRefresh = response;
       lastRefreshRevision = revision;
+      knownThreads = true;
       const next = visibleThreads(response);
-      if (destroyed || optimistic.busy || revision !== optimistic.revision)
-        return;
       const changed = JSON.stringify(next) !== JSON.stringify(threads);
       const recovered = connection !== "Live";
       accessError = "";
-      issue = null;
-      connection = "Live";
+      if (projectLoaded) issue = null;
+      connection = issue ? "Offline" : "Live";
       if (selected && !next.some((thread) => thread.id === selected))
         selected = null;
       if (changed) optimistic.replace(next, revision);
@@ -1238,6 +1273,8 @@ export function initComments(options: CommentsOptions): CommentsController {
         renderToolbar();
       }
     } catch (reason) {
+      if (destroyed || client !== api || session !== sessionRevision) return;
+      if (token !== client.token) hydrateThreads();
       if (
         reason instanceof ApiError &&
         (reason.status === 401 || reason.status === 403) &&
@@ -1254,7 +1291,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       renderToolbar();
       throw reason;
     } finally {
-      refreshing = false;
+      if (client === api && session === sessionRevision) refreshing = false;
     }
   }
   function setMode(value: boolean) {
@@ -2845,6 +2882,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       ),
     );
     const list = el("div", "list");
+    const loading = !knownThreads && connection === "Connecting";
+    list.setAttribute("aria-busy", String(loading));
     clearTimeout(listScrollTimer);
     list.addEventListener(
       "scroll",
@@ -2919,6 +2958,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     if (!list.childElementCount) {
       const empty = el("div", "empty");
+      if (loading) empty.setAttribute("role", "status");
       empty.append(
         icon("comment"),
         el(
@@ -2928,11 +2968,13 @@ export function initComments(options: CommentsOptions): CommentsController {
             ? "Private project"
             : connection === "Offline" && issue
               ? issue.title
-              : search
-                ? "No matching comments"
-                : filter === "resolved"
-                  ? "Nothing resolved yet"
-                  : "No comments yet",
+              : loading
+                ? "Loading comments…"
+                : search
+                  ? "No matching comments"
+                  : filter === "resolved"
+                    ? "Nothing resolved yet"
+                    : "No comments yet",
         ),
       );
       if (accessError) {
@@ -2970,7 +3012,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (issue.kind !== "site")
           actions.append(button("Try again", retryConnection, "secondary"));
         empty.append(actions);
-      } else if (!search && filter !== "resolved") {
+      } else if (knownThreads && !search && filter !== "resolved") {
         empty.append(
           button(
             "Add a comment",
@@ -2986,6 +3028,10 @@ export function initComments(options: CommentsOptions): CommentsController {
       list.append(empty);
       list.dataset.empty = "";
     }
+    if (threads.length && connection === "Offline")
+      list.prepend(
+        button("Saved comments · Try again", retryConnection, "secondary"),
+      );
     if (existingList) existingList.replaceWith(list);
     else panel.append(list);
     syncTips(!!list.querySelector(".empty [aria-label='Add a comment']"));
@@ -3290,6 +3336,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         )
           return;
         api.save({ token, user });
+        hydrateThreads();
         profileDraft = null;
         window.removeEventListener("message", listen);
         clearTimeout(githubTimer);
@@ -3298,7 +3345,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         render();
         if (options.onboarding) return;
         if (submitAfterIdentity) run(resumeSubmission);
-        else notify(`Signed in as ${user.name}`);
+        else {
+          run(refresh);
+          notify(`Signed in as ${user.name}`);
+        }
       };
       window.addEventListener("message", listen, { signal: abort.signal });
       githubTimer = window.setTimeout(() => {
@@ -3818,15 +3868,22 @@ export function initComments(options: CommentsOptions): CommentsController {
             "Sign out",
             () =>
               run(async () => {
+                if (optimistic.busy || pending) {
+                  notify("Wait for your changes to save.");
+                  return;
+                }
                 clearTimeout(profileSaveTimer);
                 queuedProfile = null;
                 const signingOut = api.logout();
+                hydrateThreads();
                 profileDraft = null;
                 confirmedProfile = null;
                 render();
                 try {
                   await signingOut;
                 } finally {
+                  hydrateThreads();
+                  run(refresh);
                   render();
                 }
               }),
@@ -4974,6 +5031,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   scalePage();
   const cached = options.onboarding ? null : api.cached();
+  knownThreads ||= cached !== null;
+  const reopen = restoring;
+  restoring = true;
   if (cached) optimistic.replace(visibleThreads(cached));
   render();
   if (edgeSidebar) {
@@ -4984,6 +5044,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     void sidebar.offsetWidth;
     sidebar.style.transition = "";
   }
+  restoring = reopen;
   if (restoring) {
     // Reopen where the reviewer left off: no frame, dock or card motion; one fade.
     toggleExpanded(true);
@@ -4996,6 +5057,8 @@ export function initComments(options: CommentsOptions): CommentsController {
         });
   }
   async function loadProject() {
+    const client = api;
+    const token = client.token;
     let config: {
       github: boolean;
       google?: boolean;
@@ -5003,16 +5066,23 @@ export function initComments(options: CommentsOptions): CommentsController {
       guestResolve: boolean;
     };
     // Threads need the settled session, not the config: load both in parallel.
-    const listed = api
+    const listed = client
       .restore()
       .catch(() => {
         /* An expired guest session can be renewed by entering a name. */
       })
-      .then(refresh);
+      .then(() => {
+        if (destroyed || client !== api) return;
+        if (token !== client.token) hydrateThreads();
+        renderToolbar();
+        if (account) renderDialog();
+        return refresh();
+      });
     listed.catch(() => {});
     try {
-      config = await api.request("config");
+      config = await client.request("config");
     } catch (reason) {
+      if (destroyed || client !== api) return;
       const next = connectionIssue(reason);
       const changed = issue?.detail !== next.detail;
       issue = next;
@@ -5020,12 +5090,14 @@ export function initComments(options: CommentsOptions): CommentsController {
       if (changed) render();
       throw reason;
     }
+    if (destroyed || client !== api) return;
     projectLoaded = true;
     google = !!config.google;
     github = config.github;
     guests = config.guests;
     guestResolve = config.guestResolve;
     await listed;
+    if (destroyed || client !== api) return;
     const deepLink = new URL(location.href).searchParams.get("comment");
     const thread = threads.find((t) => t.id === deepLink);
     if (thread) {
