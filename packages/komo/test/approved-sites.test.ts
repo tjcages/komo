@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CommentsApi } from "../src/api";
 import { originAllowed, sitePattern } from "../server/validation";
 import { approvedSites, siteInput } from "../src/approved-sites";
+import { editedOrigins } from "../server/project-sites";
 
 const valid: Array<[string, string]> = [
   ["https://your-site.com", "https://your-site.com"],
@@ -77,15 +78,15 @@ describe("approved site patterns", () => {
 describe("approved sites editor", () => {
   const fakeApi = (fail = false) => {
     const calls: Array<[string, string, unknown]> = [];
-    let sites = ["https://preview.example.com"];
+    let sites = ["https://example.com", "https://preview.example.com"];
     const api = {
       async request(path: string, method = "GET", data?: { sites: string[] }) {
         calls.push([path, method, data]);
         if (method === "PATCH") {
-          if (fail) throw new Error("Only the workspace owner can do that.");
+          if (fail) throw new Error("You can’t remove the site you’re on.");
           sites = data!.sites;
         }
-        return { sites, fixed: ["https://example.com"] };
+        return { sites, fixed: [] };
       },
     } as unknown as CommentsApi;
     return { api, calls };
@@ -95,12 +96,31 @@ describe("approved sites editor", () => {
     [...root.querySelectorAll(".approved-site > span")].map(
       (n) => n.textContent
     );
+  const toggle = (root: HTMLElement) =>
+    root.querySelector<HTMLButtonElement>(".approved-sites-toggle")!;
 
-  it("lists config sites as fixed and saves added and removed sites", async () => {
+  it("starts collapsed and expands from its header", async () => {
+    const { api } = fakeApi();
+    const editor = (await approvedSites(api))!;
+    expect(editor.dataset.open).toBe("false");
+    expect(toggle(editor).getAttribute("aria-expanded")).toBe("false");
+    expect(toggle(editor).textContent).toContain("2");
+    expect(
+      editor.querySelector<HTMLElement>(".approved-sites-reveal")!.inert
+    ).toBe(true);
+    toggle(editor).click();
+    expect(editor.dataset.open).toBe("true");
+    expect(toggle(editor).getAttribute("aria-expanded")).toBe("true");
+    expect(
+      editor.querySelector<HTMLElement>(".approved-sites-reveal")!.inert
+    ).toBe(false);
+  });
+
+  it("lets every site be removed and saves added sites", async () => {
     const { api, calls } = fakeApi();
     const editor = (await approvedSites(api, "?workspace=w1"))!;
     expect(labels(editor)).toEqual(["example.com", "preview.example.com"]);
-    expect(editor.querySelectorAll(".approved-site button")).toHaveLength(1);
+    expect(editor.querySelectorAll(".approved-site button")).toHaveLength(2);
     editor.querySelector("input")!.value = "*-komo-site.off-brand.workers.dev";
     editor
       .querySelector<HTMLButtonElement>(".approved-site-add button")!
@@ -111,31 +131,43 @@ describe("approved sites editor", () => {
       "PATCH",
       {
         sites: [
+          "https://example.com",
           "https://preview.example.com",
           "https://*-komo-site.off-brand.workers.dev",
         ],
       },
     ]);
-    expect(labels(editor)).toContain("*-komo-site.off-brand.workers.dev");
     editor.querySelector<HTMLButtonElement>(".approved-site button")!.click();
     await flush();
     expect(calls.at(-1)![2]).toEqual({
-      sites: ["https://*-komo-site.off-brand.workers.dev"],
+      sites: [
+        "https://preview.example.com",
+        "https://*-komo-site.off-brand.workers.dev",
+      ],
     });
+    expect(labels(editor)).not.toContain("example.com");
   });
 
-  it("restores the list and the typed site when saving fails", async () => {
+  it("puts a site back and explains when removing it fails", async () => {
     const { api } = fakeApi(true);
     const editor = (await approvedSites(api))!;
-    const input = editor.querySelector("input")!;
-    input.value = "https://new.example.com";
-    editor
-      .querySelector<HTMLButtonElement>(".approved-site-add button")!
-      .click();
+    editor.querySelector<HTMLButtonElement>(".approved-site button")!.click();
     await flush();
     expect(labels(editor)).toEqual(["example.com", "preview.example.com"]);
-    expect(input.value).toBe("https://new.example.com");
-    expect(editor.querySelector("[role=status]")!.textContent).toMatch(/owner/);
+    expect(editor.querySelector("[role=status]")!.textContent).toBe(
+      "You can’t remove the site you’re on."
+    );
+  });
+
+  it("shows config sites from older APIs as removable", async () => {
+    const api = {
+      request: async () => ({
+        sites: ["https://added.example.com"],
+        fixed: ["https://example.com"],
+      }),
+    } as unknown as CommentsApi;
+    const editor = (await approvedSites(api))!;
+    expect(labels(editor)).toEqual(["example.com", "added.example.com"]);
   });
 
   it("stays hidden for viewers who cannot manage the project", async () => {
@@ -145,5 +177,16 @@ describe("approved sites editor", () => {
       },
     } as unknown as CommentsApi;
     expect(await approvedSites(api)).toBeNull();
+  });
+});
+
+describe("configured project site edits", () => {
+  it("hides removed config sites and adds owner sites", () => {
+    expect(
+      editedOrigins(["https://a.com", "https://b.com"], {
+        added: ["https://*-x.example.com", "https://a.com"],
+        removed: ["https://b.com"],
+      })
+    ).toEqual(["https://a.com", "https://*-x.example.com"]);
   });
 });

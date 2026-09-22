@@ -1,5 +1,6 @@
 import { check, string, originAllowed } from "./validation";
 import type { Identity } from "../src/types";
+import { editedOrigins, siteEdits } from "./project-sites";
 export type Project = {
   repo: string;
   origins: string[];
@@ -43,24 +44,14 @@ export async function projectConfig(
   const staticConfig = (JSON.parse(env.PROJECTS) as Record<string, Project>)[
     project
   ];
-  if (staticConfig) {
-    const approved = await env.DB.prepare(
-      "SELECT origin FROM project_sites WHERE project=?"
-    )
-      .bind(project)
-      .all<{ origin: string }>()
-      // Serve config origins alone until migration 0013 has been applied.
-      .catch(() => ({ results: [] as { origin: string }[] }));
-    return approved.results.length
-      ? {
-          ...staticConfig,
-          origins: [
-            ...staticConfig.origins,
-            ...approved.results.map((item) => item.origin),
-          ],
-        }
-      : staticConfig;
-  }
+  if (staticConfig)
+    return {
+      ...staticConfig,
+      origins: editedOrigins(
+        staticConfig.origins,
+        await siteEdits(env, project)
+      ),
+    };
   const row = await env.DB.prepare(
     "SELECT repo,origins,suspended FROM workspaces WHERE id=?"
   )
