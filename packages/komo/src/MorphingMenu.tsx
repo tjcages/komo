@@ -18,6 +18,11 @@ import {
 } from "react";
 import { animate } from "motion";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  drawerCollapse,
+  drawerExpandCompress as compress,
+  drawerExpandSpring as spring,
+} from "./drawer-expand-motion.js";
 // Styles are installed in the comments ShadowRoot by the host.
 
 export type MenuAction = {
@@ -53,9 +58,9 @@ export type MorphingMenuProps = {
 };
 
 type View =
-  { kind: "collapsed" } | { kind: "main" } | { kind: "group"; id: string };
-const spring = { type: "spring", duration: 0.4, bounce: 0.24 } as const;
-const compress = { duration: 0.1, ease: [0.4, 0, 0.2, 1] } as const;
+  | { kind: "collapsed" }
+  | { kind: "main" }
+  | { kind: "group"; id: string };
 const HOVER_DELAY = 400;
 const HOVER_GRACE_PERIOD = 300;
 
@@ -90,11 +95,11 @@ export function MorphingMenu({
     const rect = tip.getBoundingClientRect();
     const dx = Math.max(
       8 - rect.left,
-      Math.min(0, window.innerWidth - 8 - rect.right)
+      Math.min(0, window.innerWidth - 8 - rect.right),
     );
     const dy = Math.max(
       8 - rect.top,
-      Math.min(0, window.innerHeight - 8 - rect.bottom)
+      Math.min(0, window.innerHeight - 8 - rect.bottom),
     );
     tip.style.left = `${tooltip.x + dx}px`;
     tip.style.top = `${tooltip.y + dy}px`;
@@ -108,10 +113,10 @@ export function MorphingMenu({
   const suppressHoverUntilMove = useRef(false);
   const focusNext = useRef<string | null>(null);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined
+    undefined,
   );
   const tooltipResetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined
+    undefined,
   );
   const hintsRevealed = useRef(false);
   const barHovered = useRef(false);
@@ -212,7 +217,7 @@ export function MorphingMenu({
       ...root.querySelectorAll<HTMLElement>(".morphing-menu__panel"),
     ];
     const panel = panels.find(
-      (element) => element.getAttribute("aria-hidden") === "false"
+      (element) => element.getAttribute("aria-hidden") === "false",
     );
     const running: ReturnType<typeof animate>[] = [];
     let cancelled = false;
@@ -239,23 +244,18 @@ export function MorphingMenu({
 
     if (snap) setSize();
     else if (crossingBar && !expanded) {
-      track(
-        animate(shell, targetSize(), {
-          duration: 0.25,
-          ease: [0.22, 1, 0.36, 1],
-        })
-      );
+      track(animate(shell, targetSize(), drawerCollapse));
     } else if (crossingBar) {
       const width = Math.min(
         bar.offsetWidth,
-        bar.offsetWidth > 250 ? 280 : 200
+        bar.offsetWidth > 250 ? 280 : 200,
       );
       const compression = track(
         animate(
           shell,
           { width, height: bar.offsetHeight > 52 ? 32 : 28 },
-          compress
-        )
+          compress,
+        ),
       );
       void compression.finished
         .then(() => {
@@ -264,13 +264,17 @@ export function MorphingMenu({
               animate(shell, targetSize(), {
                 ...spring,
                 bounce: expanded ? 0.24 : 0.15,
-              })
+              }),
             );
         })
         .catch(() => {}); // A stopped transition must never resume its second phase.
     } else {
       track(
-        animate(shell, targetSize(), { ...spring, duration: 0.25, bounce: 0.1 })
+        animate(shell, targetSize(), {
+          ...spring,
+          duration: 0.25,
+          bounce: 0.1,
+        }),
       );
     }
 
@@ -286,8 +290,8 @@ export function MorphingMenu({
           duration: snap ? 0 : expanded ? 0.15 : 0.22,
           delay: !snap && !expanded ? 0.08 : 0,
           ...(!expanded ? { ease: "easeOut" as const } : {}),
-        }
-      )
+        },
+      ),
     );
 
     for (const layer of panels) {
@@ -316,8 +320,8 @@ export function MorphingMenu({
               bounce: crossingBar ? 0.3 : 0,
               delay:
                 !snap && visible ? (crossingBar ? 0.2 : 0) + index * 0.02 : 0,
-            }
-          )
+            },
+          ),
         );
       }
     }
@@ -373,7 +377,7 @@ export function MorphingMenu({
       clearTimeout(tooltipTimer.current);
       clearTimeout(tooltipResetTimer.current);
     },
-    []
+    [],
   );
 
   function control(item: MenuItem, inBar: boolean) {

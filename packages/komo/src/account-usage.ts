@@ -1,6 +1,7 @@
 import type { AccountUsage } from "./types.js";
 import type { CommentsApi } from "./api.js";
 import { el, button } from "./dom.js";
+import { approvedSites } from "./approved-sites.js";
 
 export function accountUsage(api: CommentsApi, path = "usage", sites = true) {
   const usagePanel = el("section", "account-usage");
@@ -39,7 +40,6 @@ export function accountUsage(api: CommentsApi, path = "usage", sites = true) {
   // Owners get the approved-sites editor below their usage.
   const showSites = async () => {
     const query = path.includes("?") ? path.slice(path.indexOf("?")) : "";
-    const { approvedSites } = await import("./approved-sites.js");
     const editor = await approvedSites(api, query);
     if (editor && usagePanel.isConnected && api.user?.id === usageUser)
       usagePanel.append(editor);

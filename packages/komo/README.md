@@ -95,7 +95,7 @@ npx @tjcages/komo comments reply THREAD_ID --body "Fixed and verified on mobile.
 npx @tjcages/komo comments resolve THREAD_ID
 ```
 
-Run these from a project configured with `komo init`. The CLI searches parent directories for `.komo/project.json`. Google sign-in opens a local browser handoff; `--no-open` prints the local sign-in link instead. Credentials are stored outside your repository in `~/.config/komo`, with a private file per API/project. Sessions expire after 30 days. `komo logout` revokes the session and removes its file.
+Run these from a project configured with `komo init`. The CLI searches parent directories for `.komo/project.json`. Google sign-in opens a local browser handoff; `--no-open` prints the local sign-in link instead. Credentials are stored outside your repository in `~/.config/komo`, with a private file per API/project. Sessions stay valid until you sign out. `komo logout` revokes the session and removes its file.
 
 For an existing inline installation, pass `--project YOUR_PROJECT_KEY --origin https://your-site.example`. `--origin` is an approved website address; `--endpoint` is the comments API. New setups remember the website address. Older setups default to `http://localhost:3000`; override it if that site is not approved. `--repo` and `--branch` override detected scope; project scope defaults to `shared`.
 
@@ -131,7 +131,7 @@ The package adds an isolated ShadowRoot to your site. Comments live in the API�
 
 Every new hosted workspace has a Google-authenticated owner. Guests can review but cannot create or own a workspace. Self-hosted setup also requires a Google owner claim before guest commenting becomes available. Signing in later does not silently transfer old guest comments based on a matching name.
 
-The client polls every four seconds while visible. Revision checks avoid repeatedly loading unchanged threads. Successful writes refresh immediately. Sessions expire after 30 days and are revoked on sign-out. Local storage restores a reviewer on the same origin; unrelated preview domains cannot share browser storage. `sessionDomain` optionally shares a session across a parent domain you control and trust.
+The client polls every four seconds while visible. Revision checks avoid repeatedly loading unchanged threads. Successful writes refresh immediately. Sessions last until sign-out. Local storage restores a reviewer on the same origin; unrelated preview domains cannot share browser storage. `sessionDomain` optionally shares a session across a parent domain you control and trust.
 
 Projects default to link access. Owners can restrict feedback to invited Google accounts in Account → Project settings. The public project key identifies a workspace; it is not a credential. Approved origins control embedding, and private-project membership controls feedback access. Your website and repository permissions remain separate.
 
@@ -212,6 +212,7 @@ Pass these to `initKomo(config)` from `@tjcages/komo` or `useKomo(config)` from 
 | `page()` | `() => string` | `location.pathname` | Canonical page identifier. |
 | `drawerContainer` | `HTMLElement` | Viewport | Element used to center the drawer before it is dragged. |
 | `autoHideDrawer` | `boolean` | `true` | Set `false` to keep the drawer visible away from the pointer. |
+| `sidebar` | `"background" \| "edge"` | `"edge"` | `"edge"` (Floating) is a draggable sidebar that parks off and peeks from the viewport edge while closed. `"background"` (Frame) frames the site and shows the sidebar in the scaled review sheet. Account → Sidebar switches the two; that choice is remembered per project. |
 | `pollInterval` | `number` | `4000` | Refresh interval in milliseconds, minimum 2000. |
 | `sessionDomain` | `string` | Current origin only | Trusted parent domain for cross-preview sessions. |
 

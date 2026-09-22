@@ -1679,6 +1679,20 @@ ${morphingMenuStyles}
 @media (prefers-reduced-motion: reduce) { .account-avatar-button { transition: none !important; } }
 .account-session { padding-top: 20px; box-shadow: 0 -1px #ffffff0b; }
 .account-session .secondary { width: 100%; min-height: 40px; }
+.account-setting { display: grid; gap: 8px; }
+.account-setting-label { font-size: 11px; line-height: 16px; color: #a5a5a5; text-transform: uppercase; letter-spacing: .05em; }
+.account-setting select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #ffffff0a;
+  color: inherit;
+  font: inherit;
+  box-shadow: inset 0 0 0 1px #ffffff14;
+}
+.account-setting select:focus { box-shadow: inset 0 0 0 2px #bda6ef; }
+.account-setting select option { background: #242424; color: #eee; }
 @media (max-width: 760px) { .account-layer { width: 100%; } }
 
 :host {
@@ -2473,4 +2487,308 @@ textarea {
 }
 @keyframes komo-sheet-in { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
 @media(prefers-reduced-motion:reduce) { :host(.review-open) .panel { animation:none; transition:none; } }
+
+/* Edge sidebar: a floating, draggable sidebar that parks off and peeks from a
+   viewport edge while collapsed (panels-inspired; see NOTICE.md). */
+:host([data-sidebar="edge"]) .edge-sidebar {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  width: var(--edge-sidebar-width, 380px);
+  max-width: calc(100dvw - 32px);
+  max-height: min(calc(100dvh - 32px), 680px);
+  background: #0d0d0d;
+  color: #e9e6e1;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px #ffffff12, 0 24px 70px #00000066;
+  overflow: hidden;
+  pointer-events: auto;
+  z-index: 4;
+  transition: transform 320ms cubic-bezier(.22,1,.36,1), opacity 200ms ease;
+  transform-origin: right center;
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-collapsed="true"] {
+  transform: translateX(var(--edge-park-x, 404px));
+  opacity: 0;
+  pointer-events: none;
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-collapsed="true"][data-peek="true"] {
+  transform: translateX(var(--edge-peek-x, -304px)) scale(.96);
+  opacity: 1;
+  pointer-events: auto;
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-dragging="true"] {
+  overflow: visible;
+}
+:host([data-sidebar="edge"]) .edge-sidebar .edge-sidebar-grip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 7;
+  flex: none;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+:host([data-sidebar="edge"]) .edge-sidebar .edge-sidebar-grip::before {
+  content: "";
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: #ffffff22;
+}
+:host([data-sidebar="edge"]) .edge-sidebar .edge-sidebar-grip:hover::before,
+:host([data-sidebar="edge"]) .edge-sidebar[data-dragging="true"] .edge-sidebar-grip::before {
+  background: #ffffff3a;
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-dragging="true"] .edge-sidebar-grip {
+  cursor: grabbing;
+}
+.edge-sidebar-resize {
+  position: absolute;
+  z-index: 8;
+  touch-action: none;
+}
+.edge-sidebar-resize-n, .edge-sidebar-resize-s {
+  right: 12px;
+  left: 12px;
+  height: 5px;
+  cursor: ns-resize;
+}
+.edge-sidebar-resize-e, .edge-sidebar-resize-w {
+  top: 12px;
+  bottom: 12px;
+  width: 5px;
+  cursor: ew-resize;
+}
+.edge-sidebar-resize-n { top: 0; }
+.edge-sidebar-resize-s { bottom: 0; }
+.edge-sidebar-resize-e { right: 0; }
+.edge-sidebar-resize-w { left: 0; }
+.edge-sidebar-resize-ne, .edge-sidebar-resize-nw,
+.edge-sidebar-resize-se, .edge-sidebar-resize-sw {
+  width: 12px;
+  height: 12px;
+}
+.edge-sidebar-resize-ne { top: 0; right: 0; cursor: nesw-resize; }
+.edge-sidebar-resize-nw { top: 0; left: 0; cursor: nwse-resize; }
+.edge-sidebar-resize-se { right: 0; bottom: 0; cursor: nwse-resize; }
+.edge-sidebar-resize-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.edge-sidebar-resize-n::after, .edge-sidebar-resize-s::after,
+.edge-sidebar-resize-e::after, .edge-sidebar-resize-w::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: #ffffff99;
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 140ms cubic-bezier(.22,1,.36,1), transform 220ms cubic-bezier(.35,1.55,.65,1);
+}
+.edge-sidebar-resize-e::after, .edge-sidebar-resize-w::after {
+  top: 50%;
+  width: 3px;
+  height: 28px;
+  margin-top: -14px;
+}
+.edge-sidebar-resize-n::after, .edge-sidebar-resize-s::after {
+  left: 50%;
+  width: 28px;
+  height: 3px;
+  margin-left: -14px;
+}
+.edge-sidebar-resize-w::after { left: 7px; }
+.edge-sidebar-resize-e::after { right: 7px; }
+.edge-sidebar-resize-n::after { top: 7px; }
+.edge-sidebar-resize-s::after { bottom: 7px; }
+.edge-sidebar-resize-n:hover::after, .edge-sidebar-resize-s:hover::after,
+.edge-sidebar-resize-e:hover::after, .edge-sidebar-resize-w:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+.edge-sidebar-snap {
+  pointer-events: none;
+  position: absolute;
+  z-index: 9;
+  border-radius: 999px;
+  background: #0d0d0d;
+  box-shadow: inset 0 0 0 1px #ffffff12;
+  opacity: 0;
+  transition: opacity 140ms cubic-bezier(.22,1,.36,1), transform 220ms cubic-bezier(.35,1.55,.65,1);
+}
+.edge-sidebar-snap-left, .edge-sidebar-snap-right {
+  top: 50%;
+  width: 4px;
+  height: 28px;
+  transform: translateY(-50%) scale(0.4);
+}
+.edge-sidebar-snap-top, .edge-sidebar-snap-bottom {
+  left: 50%;
+  width: 28px;
+  height: 4px;
+  transform: translateX(-50%) scale(0.4);
+}
+.edge-sidebar-snap-left { left: -8px; }
+.edge-sidebar-snap-right { right: -8px; }
+.edge-sidebar-snap-top { top: -8px; }
+.edge-sidebar-snap-bottom { bottom: -8px; }
+:host([data-sidebar="edge"]) .edge-sidebar[data-snap-x="left"] .edge-sidebar-snap-left,
+:host([data-sidebar="edge"]) .edge-sidebar[data-snap-x="right"] .edge-sidebar-snap-right {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-snap-y="top"] .edge-sidebar-snap-top,
+:host([data-sidebar="edge"]) .edge-sidebar[data-snap-y="bottom"] .edge-sidebar-snap-bottom {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+:host([data-sidebar="edge"]) .edge-sidebar .panel {
+  position: static;
+  z-index: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 30px;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  border-radius: 0;
+}
+:host([data-sidebar="edge"]) .edge-sidebar .panel .list {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
+  box-sizing: border-box;
+  margin-inline: 0;
+  padding: 0 12px 24px;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+:host([data-sidebar="edge"]) .edge-sidebar .panel .list[data-scrolling="true"],
+:host([data-sidebar="edge"]) .edge-sidebar .panel .list:hover {
+  scrollbar-color: #ffffff30 transparent;
+}
+:host([data-sidebar="edge"]) .edge-sidebar-sensor {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  z-index: 3;
+  cursor: pointer;
+  pointer-events: auto;
+}
+:host([data-sidebar="edge"]) .edge-sidebar-sensor[hidden] { display: none; }
+/* Expanded edge sidebar keeps the drawer as a tab bar along the bottom. */
+:host([data-sidebar="edge"]) .toolbar[data-edge-tabs="true"] {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  transform: none;
+  flex: none;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px 12px;
+  z-index: 6;
+  pointer-events: none;
+  background: transparent;
+}
+:host([data-sidebar="edge"]) .toolbar[data-edge-tabs="true"] .morphing-menu {
+  pointer-events: auto;
+}
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu,
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu[data-vertical="true"] {
+  width: var(--mm-bar-width);
+  height: var(--mm-bar-height);
+}
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu__bar,
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu__shell {
+  flex-direction: row;
+  left: 50%;
+  right: auto;
+  top: auto;
+  bottom: 0;
+  translate: -50% 0;
+  width: var(--mm-bar-width);
+  height: var(--mm-bar-height);
+}
+:host([data-sidebar="edge"]) .toolbar[data-edge-orient="horizontal"] .morphing-menu__shortcut {
+  width: 0;
+  height: var(--mm-button);
+  flex: 1;
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-morphing="true"] .panel {
+  padding-top: 0;
+  flex-basis: 0;
+  overflow: hidden;
+}
+:host([data-sidebar="edge"]) .edge-sidebar[data-morphing="true"] .toolbar[data-edge-tabs="true"] {
+  padding-bottom: 0;
+}
+/* Account sits over the edge sidebar, inset from the sides and top, with no scrim.
+   Its height is the dialog's own height, so it can extend past the sidebar.
+   Background mode keeps the viewport column and overlay. */
+:host([data-sidebar="edge"]) .edge-sidebar:has(> .account-layer) {
+  overflow: visible;
+}
+:host([data-sidebar="edge"]) .edge-sidebar > .account-layer {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  left: 10px;
+  bottom: auto;
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  place-items: start stretch;
+  pointer-events: none;
+  z-index: 10;
+}
+:host([data-sidebar="edge"]) .edge-sidebar > .account-layer .account-dialog {
+  width: 100%;
+  pointer-events: auto;
+}
+:host([data-sidebar="edge"]) .toolbar[data-hidden="true"] > .morphing-menu {
+  transition: none;
+}
+.toolbar[data-hidden="true"] { pointer-events: none; }
+.toolbar[data-hidden="true"] > .morphing-menu {
+  translate: 0 8px;
+  scale: .92;
+  opacity: 0;
+  filter: blur(6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  :host([data-sidebar="edge"]) .edge-sidebar { transition: none; }
+  .toolbar[data-hidden="true"] > .morphing-menu { translate: none; scale: 1; filter: none; }
+}
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  :host([data-sidebar="edge"]) .edge-sidebar { width: min(380px, calc(100dvw - 32px)); }
+  :host([data-sidebar="edge"]) .edge-sidebar .panel {
+    top: auto; left: auto; right: auto; bottom: auto;
+    width: 100%; height: 100%;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    animation: none;
+    transition: none;
+  }
+  :host([data-sidebar="edge"]) .edge-sidebar .panel::before { display: none; }
+}
 `;

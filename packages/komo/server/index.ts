@@ -65,6 +65,9 @@ const identity = (row: UserRow): Identity => ({
 });
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const token = () => crypto.randomUUID() + crypto.randomUUID();
+// Sessions should not force reviewers back through sign-in:
+// keep them valid for a century and only revoke on logout.
+const SESSION_LIFETIME = 100 * 365 * 86400000;
 async function hash(value: string) {
   return Array.from(
     new Uint8Array(
@@ -178,7 +181,7 @@ async function session(env: Env, project: string, userId: string) {
       await hash(accessToken),
       userId,
       project,
-      Date.now() + 30 * 86400000
+      Date.now() + SESSION_LIFETIME
     ),
   ]);
   return accessToken;
