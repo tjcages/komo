@@ -33,7 +33,7 @@ export const pages = [
     description:
       "Pin notes to anything on your website, discuss them with your team, and give your coding agent the context to make changes.",
     body: `
- <div class="home-intro" id="hero"><div class="hero-copy"><h1>Sticky notes for<br>any website.</h1></div><div class="hero-aside"><p>Pin a note to anything on your site.<br>Talk it through with your team.<br>Give your agent the context.</p>
+ <div class="home-intro" id="hero"><div class="hero-copy"><h1>Sticky notes for any website.</h1></div><div class="hero-aside"><p>Pin a note to anything on your site. Talk it through with your team. Give your agent the context.</p>
  <div class="home-actions"><button class="pill" data-try-komo="#hero"><span data-icon="comment"></span> Leave a note</button><button class="text-link copy-link" data-copy="${escape(agentPrompt)}"><span data-icon="copy"></span> Copy prompt</button></div>
  <div class="hero-cta-space" aria-hidden="true"></div></div></div>
  ${scene}
