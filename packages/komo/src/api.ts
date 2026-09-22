@@ -216,14 +216,26 @@ export class CommentsApi {
     let offset: number | null = 0;
     let revision: number | undefined;
     while (offset !== null) {
-      const result: {
+      type ListResponse = {
         threads?: Thread[];
         next?: number | null;
         revision?: number;
         notModified?: boolean;
-      } = await this.request(
+      };
+      const result: ListResponse = await this.request<ListResponse>(
         `threads?offset=${offset}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`,
-      );
+      ).catch((error: unknown) => {
+        if (
+          error instanceof ApiError &&
+          error.status === 403 &&
+          this.token === token
+        ) {
+          this.revision = undefined;
+          this.cachedThreads = [];
+          this.persist();
+        }
+        throw error;
+      });
       // Never apply or persist a response requested by a previous account.
       if (this.token !== token) return this.list();
       if (
@@ -300,6 +312,7 @@ export class CommentsApi {
     const token = this.token;
     const result = await this.request<{ user: Identity }>("me");
     if (this.token !== token) return;
+    if (!identity(result.user)) throw invalidResponse();
     this.user = result.user;
     this.rememberUser();
   }

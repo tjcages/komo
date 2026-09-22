@@ -237,3 +237,60 @@ it("rejects invalid refreshes without overwriting the last healthy cache", async
     expect(new CommentsApi(options).cached()).toBeNull();
   }
 });
+
+it("preserves identity on invalid restore and clears only denied thread snapshots", async () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("location", { hostname: "localhost" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+  });
+  const options = {
+    endpoint: "https://example.com/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  };
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  const api = new CommentsApi(options);
+  const user = { id: "u1", name: "Ty", verified: true };
+  api.save({ token: "t1", user });
+  fetch.mockResolvedValueOnce(Response.json({}));
+  await expect(api.restore()).rejects.toThrow("Could not read comments");
+  expect(api.user).toEqual(user);
+  expect(new CommentsApi(options).user).toEqual(user);
+  fetch.mockResolvedValueOnce(
+    Response.json({ threads: [thread("private")], revision: 1 }),
+  );
+  const healthy = await api.list();
+  fetch.mockResolvedValueOnce(
+    Response.json({ error: "Forbidden" }, { status: 403 }),
+  );
+  await expect(api.request("usage")).rejects.toThrow("Forbidden");
+  expect(new CommentsApi(options).cached()).toEqual(healthy);
+  fetch.mockResolvedValueOnce(
+    Response.json({ code: "site_not_approved" }, { status: 403 }),
+  );
+  await expect(api.list()).rejects.toThrow("Comments aren’t turned on");
+  expect(new CommentsApi(options).cached()).toEqual([]);
+  expect(api.user).toEqual(user);
+  // A denied request from the former identity must not evict the new cache.
+  let finish!: (response: Response) => void;
+  fetch.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const stale = api.list();
+  api.save({ token: "t2", user });
+  fetch.mockResolvedValueOnce(
+    Response.json({ threads: [thread("current")], revision: 2 }),
+  );
+  const current = await api.list();
+  finish(Response.json({ error: "Forbidden" }, { status: 403 }));
+  await expect(stale).rejects.toThrow("Forbidden");
+  expect(new CommentsApi(options).cached()).toEqual(current);
+});
