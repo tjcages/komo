@@ -101,6 +101,11 @@ export function anchorValue(value: unknown): Anchor {
   };
 }
 
+/** A local dev server on any port. Browsers never send this from a remote site. */
+export function localOrigin(origin: string): boolean {
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
 export function originAllowed(origin: string, patterns: string[]): boolean {
   let url: URL;
   try {

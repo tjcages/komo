@@ -839,6 +839,15 @@ describe("shared comments against real workerd and SQLite", () => {
     );
     expect(denied.status).toBe(403);
     expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    // Any local dev port works without being listed.
+    const local = await fetch(
+      `http://localhost:${port}/threads?project=test&repo=owner/site&branch=feature/a`,
+      { headers: { Origin: "http://localhost:8123" } }
+    );
+    expect(local.status).toBe(200);
+    expect(local.headers.get("Access-Control-Allow-Origin")).toBe(
+      "http://localhost:8123"
+    );
     const refused = await fetch(
       `http://localhost:${port}/config?project=test&repo=owner/site&branch=feature/a`,
       { headers: { Origin: "https://evil.com" } }

@@ -21,6 +21,7 @@ import {
   cliReturnOrigin,
   check,
   HttpError,
+  localOrigin,
   originAllowed,
   pagePath,
   string,
@@ -643,6 +644,7 @@ async function route(
   if (
     !(
       originAllowed(origin, config.origins) ||
+      (project !== "_komo" && localOrigin(origin)) ||
       (origin === url.origin &&
         [
           "/auth/google/start",
@@ -1384,6 +1386,7 @@ export default {
     if (
       config &&
       (originAllowed(origin, config.origins) ||
+        (project !== "_komo" && localOrigin(origin)) ||
         (refusedSite && originAllowed(origin, [origin])))
     ) {
       headers.set("Access-Control-Allow-Origin", origin);
