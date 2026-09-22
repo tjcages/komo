@@ -513,6 +513,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   let framedAccount = false;
   let pageMotion: ReturnType<typeof animate> | undefined;
   let keyboardAction = false;
+  // True while reopening a remembered sidebar on load: skip the open motion.
+  let restoring = false;
+  const openKey = `branch-comments:open:${options.project}:${options.repo}`;
   let searchOpen = false;
   let dockMotion: ReturnType<typeof animate> | undefined;
   let edgeMotions: ReturnType<typeof animate>[] = [];
@@ -1317,6 +1320,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (
       (useFrame !== wasFramed || (layout.mobile && accountChanged)) &&
       !keyboardAction &&
+      !restoring &&
       !matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
       const after = useFrame
@@ -1527,7 +1531,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       }
       releaseEdgeBox();
     };
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced =
+      restoring || matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (opening) {
       const visual = interrupted ? sidebar.getBoundingClientRect() : null;
       const radius = sidebar.style.borderRadius || "16px";
@@ -1683,6 +1688,13 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function toggleExpanded(value: boolean) {
     expanded = value;
+    if (!options.onboarding)
+      try {
+        if (value) localStorage.setItem(openKey, "1");
+        else localStorage.removeItem(openKey);
+      } catch {
+        /* The sidebar starts closed next time. */
+      }
     if (value) mode = false;
     if (!value) {
       clearTimeout(accountOpenTimer);
@@ -1717,7 +1729,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     dockMotion?.stop();
     toolbar.style.translate = "0px 0px";
     const after = toolbar.getBoundingClientRect();
-    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
       dockMotion = animate(
         toolbar,
         {
@@ -2713,7 +2725,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (existingList) existingList.replaceWith(list);
     else panel.append(list);
     list.scrollTop = scroll;
-    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
       let entered = 0;
       for (const card of list.querySelectorAll<HTMLElement>("[data-thread]")) {
         const oldTop = previous.get(card.dataset.thread);
@@ -4648,6 +4660,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     refresh,
   };
   instances.set(document, controller);
+  try {
+    restoring = !options.onboarding && localStorage.getItem(openKey) === "1";
+  } catch {
+    /* Start closed when storage is blocked. */
+  }
   scalePage();
   const cached = options.onboarding ? null : api.cached();
   if (cached) optimistic.replace(visibleThreads(cached));
@@ -4659,6 +4676,17 @@ export function initComments(options: CommentsOptions): CommentsController {
     positionSidebar();
     void sidebar.offsetWidth;
     sidebar.style.transition = "";
+  }
+  if (restoring) {
+    // Reopen where the reviewer left off: no frame, dock or card motion; one fade.
+    toggleExpanded(true);
+    restoring = false;
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
+      for (const node of [host, framed ? surface : null])
+        node?.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: 200,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        });
   }
   async function loadProject() {
     let config: {
@@ -4694,7 +4722,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     const deepLink = new URL(location.href).searchParams.get("comment");
     const thread = threads.find((t) => t.id === deepLink);
     if (thread) {
-      toggleExpanded(true);
+      if (!expanded) toggleExpanded(true);
       selectThread(thread);
     }
     render();
