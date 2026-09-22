@@ -16,6 +16,69 @@ export class ApiError extends Error {
 export function previewSessionDomain(hostname: string): string {
   return hostname.match(/^[^.]+\.([^.]+\.(?:workers|pages)\.dev)$/)?.[1] ?? "";
 }
+// Validate persisted/network data before it reaches rendering code.
+function identity(value: Identity): boolean {
+  return (
+    !!value &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.verified === "boolean" &&
+    [value.avatarUrl, value.accentColor].every(
+      (v) => v === undefined || typeof v === "string",
+    )
+  );
+}
+function threadList(value: unknown): value is Thread[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (t: Thread) =>
+        t &&
+        typeof t.id === "string" &&
+        typeof t.page === "string" &&
+        typeof t.resolved === "boolean" &&
+        Number.isFinite(t.createdAt) &&
+        Number.isFinite(t.updatedAt) &&
+        (t.resolvedBy === null || identity(t.resolvedBy)) &&
+        t.anchor &&
+        typeof t.anchor.selector === "string" &&
+        typeof t.anchor.text === "string" &&
+        [
+          t.anchor.x,
+          t.anchor.y,
+          t.anchor.width,
+          t.anchor.height,
+          t.anchor.pageX,
+          t.anchor.pageY,
+          t.anchor.viewportWidth,
+        ].every(Number.isFinite) &&
+        Array.isArray(t.comments) &&
+        t.comments.every(
+          (c) =>
+            c &&
+            typeof c.id === "string" &&
+            typeof c.body === "string" &&
+            identity(c.author) &&
+            Number.isFinite(c.createdAt) &&
+            (c.editedAt === null || Number.isFinite(c.editedAt)) &&
+            c.reactions &&
+            typeof c.reactions === "object" &&
+            !Array.isArray(c.reactions) &&
+            Object.values(c.reactions).every(
+              (ids) =>
+                Array.isArray(ids) && ids.every((id) => typeof id === "string"),
+            ),
+        ),
+    )
+  );
+}
+function invalidResponse() {
+  return new ApiError(
+    0,
+    "Could not read comments. Try again.",
+    "invalid_response",
+  );
+}
 export class CommentsApi {
   token: string | null = null;
   user: Identity | null = null;
@@ -41,7 +104,8 @@ export class CommentsApi {
           ?.slice(this.cookieName.length + 1) || localStorage.getItem(this.key);
       // Last known account, shown at once; restore() confirms it with /me.
       const known = JSON.parse(localStorage.getItem(this.userKey) ?? "null");
-      if (this.token && known?.token === this.token) this.user = known.user;
+      if (this.token && known?.token === this.token && identity(known.user))
+        this.user = known.user;
     } catch {
       /* Private browsers can disable storage. */
     }
@@ -84,19 +148,27 @@ export class CommentsApi {
           : new ApiError(0, "Can’t connect to comments.", "unreachable");
       throw error;
     });
-    const result = await response.json().catch(() => ({}));
+    const result = await response.json().catch(() => {
+      if (response.ok) throw invalidResponse();
+      return {};
+    });
+    if (
+      response.ok &&
+      (!result || typeof result !== "object" || Array.isArray(result))
+    )
+      throw invalidResponse();
     if (!response.ok) {
       if (response.status === 401 && this.token === token) this.clear();
-      if (result.code === "site_not_approved")
+      if (result?.code === "site_not_approved")
         throw new ApiError(
           response.status,
           "Comments aren’t turned on for this site yet.",
-          result.code,
+          result?.code,
         );
       throw new ApiError(
         response.status,
-        result.error ?? "Could not load comments.",
-        result.code,
+        result?.error ?? "Could not load comments.",
+        result?.code,
       );
     }
     return result as T;
@@ -112,7 +184,9 @@ export class CommentsApi {
       const stored = JSON.parse(localStorage.getItem(this.listKey) ?? "null");
       if (
         stored?.token !== (this.token ?? "") ||
-        !Array.isArray(stored.threads)
+        !threadList(stored.threads) ||
+        (stored.revision !== undefined &&
+          (!Number.isSafeInteger(stored.revision) || stored.revision < 0))
       )
         return null;
       this.revision = stored.revision;
@@ -152,7 +226,20 @@ export class CommentsApi {
       );
       // Never apply or persist a response requested by a previous account.
       if (this.token !== token) return this.list();
-      if (result.notModified) return this.cachedThreads;
+      if (
+        result.notModified === true &&
+        offset === 0 &&
+        this.revision !== undefined
+      )
+        return this.cachedThreads;
+      if (
+        !threadList(result.threads) ||
+        (result.revision !== undefined &&
+          (!Number.isSafeInteger(result.revision) || result.revision < 0)) ||
+        (result.next != null &&
+          (!Number.isSafeInteger(result.next) || result.next <= offset))
+      )
+        throw invalidResponse();
       if (offset === 0) revision = result.revision;
       threads.push(...(result.threads ?? []));
       offset = result.next ?? null;

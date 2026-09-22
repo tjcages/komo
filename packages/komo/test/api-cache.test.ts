@@ -1,6 +1,35 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { CommentsApi } from "../src/api";
 
+const thread = (id: string) => ({
+  id,
+  page: "/",
+  resolved: false,
+  resolvedBy: null,
+  createdAt: 1,
+  updatedAt: 1,
+  anchor: {
+    selector: "body",
+    text: "",
+    x: 0,
+    y: 0,
+    width: 10,
+    height: 10,
+    pageX: 0,
+    pageY: 0,
+    viewportWidth: 1200,
+  },
+  comments: [
+    {
+      id: "c1",
+      body: "Feedback",
+      author: { id: "u1", name: "Ty", verified: true },
+      createdAt: 1,
+      editedAt: null,
+      reactions: {},
+    },
+  ],
+});
 afterEach(() => vi.unstubAllGlobals());
 it("reuses the revision cache and replaces it when comments change", async () => {
   vi.stubGlobal("location", { hostname: "localhost" });
@@ -9,11 +38,11 @@ it("reuses the revision cache and replaces it when comments change", async () =>
   const fetch = vi
     .fn()
     .mockResolvedValueOnce(
-      Response.json({ threads: [{ id: "first" }], revision: 1 }),
+      Response.json({ threads: [thread("first")], revision: 1 }),
     )
     .mockResolvedValueOnce(Response.json({ notModified: true }))
     .mockResolvedValueOnce(
-      Response.json({ threads: [{ id: "second" }], revision: 2 }),
+      Response.json({ threads: [thread("second")], revision: 2 }),
     );
   vi.stubGlobal("fetch", fetch);
   const api = new CommentsApi({
@@ -27,7 +56,7 @@ it("reuses the revision cache and replaces it when comments change", async () =>
   expect(fetch.mock.calls[1][0].searchParams.get("revision")).toBe("1");
   const changed = await api.list();
   expect(changed).not.toBe(first);
-  expect(changed).toEqual([{ id: "second" }]);
+  expect(changed).toEqual([thread("second")]);
 });
 
 it("explains network and CORS failures without claiming the cause is known", async () => {
@@ -61,7 +90,7 @@ it("persists the last list so a new page load reuses it", async () => {
   const fetch = vi
     .fn()
     .mockResolvedValueOnce(
-      Response.json({ threads: [{ id: "first" }], revision: 1 }),
+      Response.json({ threads: [thread("first")], revision: 1 }),
     )
     .mockResolvedValueOnce(Response.json({ notModified: true }));
   vi.stubGlobal("fetch", fetch);
@@ -73,8 +102,8 @@ it("persists the last list so a new page load reuses it", async () => {
   };
   await new CommentsApi(options).list();
   const reloaded = new CommentsApi(options);
-  expect(reloaded.cached()).toEqual([{ id: "first" }]);
-  expect(await reloaded.list()).toEqual([{ id: "first" }]);
+  expect(reloaded.cached()).toEqual([thread("first")]);
+  expect(await reloaded.list()).toEqual([thread("first")]);
   expect(fetch.mock.calls[1][0].searchParams.get("revision")).toBe("1");
   expect(new CommentsApi({ ...options, branch: "other" }).cached()).toBeNull();
   reloaded.clear();
@@ -113,6 +142,11 @@ it("remembers the signed-in account for the same token", () => {
   const user = { id: "u1", name: "Ty", verified: true };
   new CommentsApi(options).save({ token: "t1", user } as never);
   expect(new CommentsApi(options).user).toEqual(user);
+  store.set(
+    "branch-comments:https://example.com/api/:test:user",
+    JSON.stringify({ token: "t1", user: { name: null } }),
+  );
+  expect(new CommentsApi(options).user).toBeNull();
   new CommentsApi(options).clear();
   expect(new CommentsApi(options).user).toBeNull();
 });
@@ -136,7 +170,7 @@ it("discards a previous account's in-flight list before caching", async () => {
         }),
     )
     .mockResolvedValueOnce(
-      Response.json({ threads: [{ id: "public" }], revision: 2 }),
+      Response.json({ threads: [thread("public")], revision: 2 }),
     );
   vi.stubGlobal("fetch", fetch);
   const options = {
@@ -152,8 +186,54 @@ it("discards a previous account's in-flight list before caching", async () => {
   } as never);
   const pending = api.list();
   api.clear();
-  finish(Response.json({ threads: [{ id: "private" }], revision: 1 }));
-  expect(await pending).toEqual([{ id: "public" }]);
+  finish(Response.json({ threads: [thread("private")], revision: 1 }));
+  expect(await pending).toEqual([thread("public")]);
   expect(fetch.mock.calls[1][1].headers.Authorization).toBeUndefined();
-  expect(new CommentsApi(options).cached()).toEqual([{ id: "public" }]);
+  expect(new CommentsApi(options).cached()).toEqual([thread("public")]);
+});
+
+it("rejects invalid refreshes without overwriting the last healthy cache", async () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("location", { hostname: "localhost" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+  });
+  const options = {
+    endpoint: "https://example.com/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      Response.json({ threads: [thread("healthy")], revision: 1 }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const api = new CommentsApi(options);
+  const healthy = await api.list();
+  for (const response of [
+    new Response("not json"),
+    Response.json(null),
+    Response.json({}),
+    Response.json({ threads: [null] }),
+    Response.json({ threads: [], next: 0 }),
+  ]) {
+    fetch.mockResolvedValueOnce(response);
+    await expect(api.list()).rejects.toThrow("Could not read comments");
+    expect(new CommentsApi(options).cached()).toEqual(healthy);
+  }
+  fetch.mockResolvedValueOnce(Response.json({ notModified: true }));
+  expect(await api.list()).toBe(healthy);
+  const key = [...store.keys()].find((key) => key.endsWith(":threads"))!;
+  for (const threads of [
+    [null],
+    [{ ...thread("broken"), comments: [null] }],
+    [{ ...thread("broken"), anchor: null }],
+  ]) {
+    store.set(key, JSON.stringify({ token: "", revision: 1, threads }));
+    expect(new CommentsApi(options).cached()).toBeNull();
+  }
 });
