@@ -1,3 +1,15 @@
+# Final opening and Worker preview — 2026-09-22
+
+[Current Worker preview](https://07abe639-komo-site.off-brand.workers.dev/promo/) · [PR #28](https://github.com/tjcages/komo/pull/28)
+
+- Exact final copy: “Sticky notes for any website.” Single 96px line; middle and final-zoom frames have generous margins and no pin overlap.
+- Reading-time gate passes at 77 opening frames. All seven following scenes keep their choreography. The composition sums its edit to 626 frames; H.264 master is 1920×1080, 30fps, 20.866667 seconds, silent (shown as 20.9s in the review page).
+- Render source `72dec3f`; 2,988,206 bytes. Local and deployed movie SHA-256 match: `8edf4c97674817d992d2fae2de0b98241eecf64010ce6cb729d25c5233ac93d9`.
+- Remotion typecheck, opening reading validation, and local build/typecheck/test/size pass. 146 tests in 24 files. Re-rendered opening and assembled master; reviewed beginning/last opening frames and final-movie still. Boundary QC retains only the three intentional fade/match warnings recorded below.
+- Existing Worker preview version `07abe639-b19b-4dfb-b730-fdec069eed26`; `/promo/` returns HTTP200. Chrome playback shows the exact title with its final period, advances to the page pins/sidebar, and displays the correct 20.9s label and PR #28 link. No production deployment.
+
+## Previous opening revision (superseded)
+
 # Opening copy and Worker preview — 2026-09-22
 
 [Current Worker preview](https://80047cc4-komo-site.off-brand.workers.dev/promo/) · [PR #28](https://github.com/tjcages/komo/pull/28)
