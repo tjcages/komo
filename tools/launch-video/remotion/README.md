@@ -18,7 +18,7 @@ Proof: pins become a conversation, comments collect in the sidebar, and the draw
 
 ## Source and rendering
 
-Runtime is a sibling directory, outside the package workspace. Requires the owner's purchased `product-video` skills in `.agents/skills` (excluded from Git), Node 22+, and npm. Their helper source is not redistributed here. All Remotion packages are pinned to 4.0.484.
+Runtime is a sibling directory, outside the package workspace. Requires the owner's purchased `product-video` skills in `.claude/skills` or `.agents/skills` (excluded from Git), Node 22+, and npm. Their helper source is not redistributed here. All Remotion packages are pinned to 4.0.484.
 
 ```sh
 node tools/launch-video/remotion/setup.mjs
