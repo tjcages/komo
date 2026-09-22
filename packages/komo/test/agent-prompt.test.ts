@@ -113,3 +113,9 @@ describe("agent prompt export", () => {
     expect(agentPrompt([], context)).toBeNull();
   });
 });
+
+it("tells agents to read the local channel", () => {
+  const prompt = agentPrompt([thread("t1", "/")], { ...context, branch: "local" });
+  expect(prompt).toContain("Pass --branch local");
+  expect(agentPrompt([thread("t1", "/")], context)).not.toContain("--branch local");
+});

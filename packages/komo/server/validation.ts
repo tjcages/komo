@@ -4,7 +4,8 @@ import type { Anchor } from "../src/types.js";
 export class HttpError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public code?: string
   ) {
     super(message);
   }
@@ -100,6 +101,20 @@ export function anchorValue(value: unknown): Anchor {
   };
 }
 
+/** A local dev server on any port. Browsers never send this from a remote site. */
+export function localOrigin(origin: string): boolean {
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
+/**
+ * Every deploy of the same Cloudflare Pages project, derived from one of its
+ * origins. Only that project's owner can publish under *.<project>.pages.dev.
+ */
+export function previewPattern(origin: string): string | undefined {
+  const pages = /^https:\/\/(?:[a-z0-9-]+\.)?([a-z0-9-]+\.pages\.dev)$/.exec(origin);
+  return pages ? `https://*.${pages[1]}` : undefined;
+}
+
 export function originAllowed(origin: string, patterns: string[]): boolean {
   let url: URL;
   try {
@@ -116,6 +131,41 @@ export function originAllowed(origin: string, patterns: string[]): boolean {
       .join("[a-zA-Z0-9-]+");
     return new RegExp(`^${escaped}$`).test(origin);
   });
+}
+
+/**
+ * Validate an owner-approved site: an exact HTTPS origin, localhost, or an
+ * HTTPS pattern with `*` in the leftmost host label only, such as
+ * https://*-site.example.workers.dev. The wildcard never spans dots.
+ */
+export function sitePattern(value: unknown): string {
+  check(
+    typeof value === "string" && value.length <= 300,
+    400,
+    "Enter a site address."
+  );
+  const site = value.trim().replace(/\/$/, "").toLowerCase();
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(site)) return site;
+  const match = /^https:\/\/([^/?#@]+)$/.exec(site);
+  const host = match?.[1] ?? "";
+  const [first = "", ...rest] = host.split(".");
+  let url: URL | undefined;
+  try {
+    url = new URL(site);
+  } catch {
+    url = undefined;
+  }
+  check(
+    !!match &&
+      url?.origin === site &&
+      !rest.join(".").includes("*") &&
+      first.split("*").length - 1 <= 1 &&
+      (!first.includes("*") ||
+        (rest.length >= 2 && /^[a-z0-9*-]+$/.test(first))),
+    400,
+    "Use an HTTPS site like https://your-site.com, or a wildcard like https://*-preview.your-site.com."
+  );
+  return site;
 }
 
 export function cliReturnOrigin(value: unknown, fallback: string): string {

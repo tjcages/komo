@@ -7,7 +7,7 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "build": "pnpm --filter @tjcages/komo build && pnpm --filter komo-site build",
+    "build": "pnpm --filter komo-site build",
     "test": "pnpm --filter @tjcages/komo test",
     "typecheck": "pnpm -r typecheck",
     "size": "pnpm --filter @tjcages/komo size",
@@ -15,7 +15,8 @@
     "dev:api": "pnpm --filter @tjcages/komo dev:api",
     "deploy:site": "pnpm --filter komo-site run deploy",
     "deploy:api": "pnpm --filter @tjcages/komo build:setup && wrangler deploy --config packages/komo/server/hosted.jsonc",
-    "preview:deploy": "pnpm build && wrangler pages deploy packages/komo-site/dist --project-name komo --branch preview"
+    "preview:deploy": "pnpm build && wrangler pages deploy packages/komo-site/dist --project-name komo --branch preview",
+    "preview:site": "pnpm build && wrangler versions upload --config packages/komo-site/wrangler.jsonc --preview-alias \"$(git rev-parse --abbrev-ref HEAD | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')\""
   },
   "devDependencies": {
     "wrangler": "4.105.0",

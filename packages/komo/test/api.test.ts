@@ -94,7 +94,11 @@ beforeAll(async () => {
     cli: { repo: "owner/site", origins: [origin] },
     other: { repo: "owner/site", origins: [origin] },
     demo: { repo: "owner/site", origins: [origin], retainedCommentsPerUser: 3 },
-    owned: { repo: "owner/site", origins: [origin], requireOwner: true },
+    owned: {
+      repo: "owner/site",
+      origins: [origin, "https://docs.example.com"],
+      requireOwner: true,
+    },
     unclaimed: {
       repo: "owner/site",
       origins: [origin],
@@ -505,6 +509,57 @@ describe("shared comments against real workerd and SQLite", () => {
     expect(result.threads[0].anchor).toEqual(moved);
     expect(result.threads[0].resolved).toBe(false);
   });
+  it("lets a configured project's owner add and remove any approved site", async () => {
+    const sites = async (data?: unknown) =>
+      (
+        await request(
+          "/project/sites",
+          data ? "PATCH" : "GET",
+          data,
+          "owned-token",
+          "shared",
+          "owner/site",
+          "owned"
+        )
+      ).json();
+    expect(await sites()).toEqual({
+      sites: ["https://docs.example.com", origin].sort(),
+      fixed: [],
+    });
+    const docs = async () =>
+      fetch(
+        `http://localhost:${port}/config?project=owned&repo=owner/site&branch=shared`,
+        { headers: { Origin: "https://docs.example.com" } }
+      );
+    expect((await docs()).status).toBe(200);
+    expect(
+      await sites({ sites: [origin, "https://*-preview.example.com"] })
+    ).toEqual({
+      sites: ["https://*-preview.example.com", origin].sort(),
+      fixed: [],
+    });
+    expect((await docs()).status).toBe(403);
+    const preview = await fetch(
+      `http://localhost:${port}/config?project=owned&repo=owner/site&branch=shared`,
+      { headers: { Origin: "https://pr-9-preview.example.com" } }
+    );
+    expect(preview.status).toBe(200);
+    const locked = await request(
+      "/project/sites",
+      "PATCH",
+      { sites: ["https://*-preview.example.com"] },
+      "owned-token",
+      "shared",
+      "owner/site",
+      "owned"
+    );
+    expect(locked.status).toBe(400);
+    expect((await locked.json()).error).toBe(
+      "You can’t remove the site you’re on."
+    );
+    await sites({ sites: [origin, "https://docs.example.com"] });
+    expect((await docs()).status).toBe(200);
+  });
   it("offers Google sign-in when credentials are configured", async () => {
     const config = await (await request("/config")).json();
     expect(config.google).toBe(true);
@@ -784,6 +839,42 @@ describe("shared comments against real workerd and SQLite", () => {
     );
     expect(denied.status).toBe(403);
     expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    // Any local dev port works without being listed.
+    const local = await fetch(
+      `http://localhost:${port}/threads?project=test&repo=owner/site&branch=feature/a`,
+      { headers: { Origin: "http://localhost:8123" } }
+    );
+    expect(local.status).toBe(200);
+    expect(local.headers.get("Access-Control-Allow-Origin")).toBe(
+      "http://localhost:8123"
+    );
+    const refused = await fetch(
+      `http://localhost:${port}/config?project=test&repo=owner/site&branch=feature/a`,
+      { headers: { Origin: "https://evil.com" } }
+    );
+    expect(refused.status).toBe(403);
+    expect(refused.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://evil.com"
+    );
+    expect(await refused.json()).toEqual({
+      error: "This site is not approved for this komo project.",
+      code: "site_not_approved",
+    });
+    const preflight = await fetch(
+      `http://localhost:${port}/config?project=test&repo=owner/site&branch=feature/a`,
+      {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://evil.com",
+          "Access-Control-Request-Method": "GET",
+          "Access-Control-Request-Headers": "authorization",
+        },
+      }
+    );
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("Access-Control-Allow-Origin")).toBe(
+      "https://evil.com"
+    );
     expect((await request("/auth/github/start", "POST", {})).status).toBe(503);
   });
 });
@@ -1247,6 +1338,18 @@ describe("workspace ownership and hosted limits", () => {
           (await (await manage(`workspace?workspace=${poll.project}`)).json())
             .sites
         ).toEqual(["https://unverified.example"]);
+        // Configured projects use the same approve page.
+        expect(
+          (
+            await manage("workspace/sites", "owner-token", "POST", {
+              project: "owned",
+              origin: "https://approved.example",
+            })
+          ).status
+        ).toBe(200);
+        expect(
+          (await (await manage("workspace?workspace=owned")).json()).sites
+        ).toContain("https://approved.example");
         const sameSite = new URL(
           `http://localhost:${port}/workspace?workspace=${poll.project}&project=_komo`
         );

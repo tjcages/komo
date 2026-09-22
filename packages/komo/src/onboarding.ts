@@ -1,6 +1,10 @@
 import type { CommentsApi } from "./api.js";
 import type { OnboardingOptions } from "./types.js";
 import { accountUsage } from "./account-usage.js";
+
+// One lazy chunk serves every account dialog panel.
+export { accountUsage };
+export { projectManagement } from "./project-management.js";
 import { button, el, icon } from "./dom.js";
 
 export function onboardingPanel(api: CommentsApi, options: OnboardingOptions) {
@@ -19,7 +23,7 @@ export function onboardingPanel(api: CommentsApi, options: OnboardingOptions) {
     sitePlaceholder.setAttribute("aria-busy", "true");
     status.textContent = "";
     panel.replaceChildren(
-      accountUsage(api, `usage?workspace=${workspace}`),
+      accountUsage(api, `usage?workspace=${workspace}`, false),
       sitePlaceholder,
       status
     );

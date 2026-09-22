@@ -1,3 +1,4 @@
+import { projectSites, saveProjectSites } from "./project-sites";
 import {
   manageProject,
   privateAccess,
@@ -21,7 +22,9 @@ import {
   cliReturnOrigin,
   check,
   HttpError,
+  localOrigin,
   originAllowed,
+  previewPattern,
   pagePath,
   string,
 } from "./validation";
@@ -65,6 +68,9 @@ const identity = (row: UserRow): Identity => ({
 });
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const token = () => crypto.randomUUID() + crypto.randomUUID();
+// Sessions should not force reviewers back through sign-in:
+// keep them valid for a century and only revoke on logout.
+const SESSION_LIFETIME = 100 * 365 * 86400000;
 async function hash(value: string) {
   return Array.from(
     new Uint8Array(
@@ -116,7 +122,9 @@ async function body(request: Request): Promise<Record<string, unknown>> {
             ? ["email"]
             : path === "/project/members"
               ? ["user"]
-              : ["access", "confirm", "threadIds"]
+              : path === "/project/sites"
+                ? ["sites"]
+                : ["access", "confirm", "threadIds"]
       : ["/auth/google/start", "/auth/github/start"].includes(path)
         ? ["returnOrigin"]
         : path === "/setup/start"
@@ -176,7 +184,7 @@ async function session(env: Env, project: string, userId: string) {
       await hash(accessToken),
       userId,
       project,
-      Date.now() + 30 * 86400000
+      Date.now() + SESSION_LIFETIME
     ),
   ]);
   return accessToken;
@@ -231,7 +239,11 @@ async function completeSetup(
       .run();
     throw error;
   }
-  const httpsSites = sites.filter((site) => site.startsWith("https://"));
+  // The site setup ran on proves the deploy host, so its previews come too.
+  const preview = origin && previewPattern(origin);
+  const httpsSites = [
+    ...new Set([...sites, ...(preview ? [preview] : [])]),
+  ].filter((site) => site.startsWith("https://"));
   if (httpsSites.length) {
     await env.DB.batch(
       httpsSites.map((site) =>
@@ -635,8 +647,10 @@ async function route(
   const origin =
     request.headers.get("Origin") ??
     (request.headers.get("Sec-Fetch-Site") === "same-origin" ? url.origin : "");
-  check(
-    originAllowed(origin, config.origins) ||
+  if (
+    !(
+      originAllowed(origin, config.origins) ||
+      (project !== "_komo" && localOrigin(origin)) ||
       (origin === url.origin &&
         [
           "/auth/google/start",
@@ -651,10 +665,14 @@ async function route(
           "/config",
           "/me",
           "/usage",
-        ].includes(url.pathname)),
-    403,
-    "This site is not enabled for comments."
-  );
+        ].includes(url.pathname))
+    )
+  )
+    throw new HttpError(
+      403,
+      "This site is not approved for this komo project.",
+      "site_not_approved"
+    );
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   check(
     project !== "_komo" ||
@@ -717,28 +735,17 @@ async function route(
     const target = string(data.project, 100, "project");
     await googleOwner(env, target, user);
     const origin = string(data.origin, 300, "origin");
-    const workspace = await env.DB.prepare(
-      "SELECT origins FROM workspaces WHERE id=?"
-    )
-      .bind(target)
-      .first<{ origins: string }>();
     check(
-      workspace &&
+      (await projectConfig(env, target)) &&
         origin.startsWith("https://") &&
         originAllowed(origin, [origin]),
       400,
       "Use an exact HTTPS origin for a hosted workspace."
     );
-    const verified = await env.DB.prepare(
-      "INSERT INTO workspace_domains(project,origin,verified_at) SELECT ?,?,? WHERE (SELECT COUNT(*) FROM workspace_domains WHERE project=?)<10 OR EXISTS(SELECT 1 FROM workspace_domains WHERE project=? AND origin=?) ON CONFLICT(project,origin) DO UPDATE SET verified_at=excluded.verified_at"
-    )
-      .bind(target, origin, Date.now(), target, target, origin)
-      .run();
-    check(
-      verified.meta.changes,
-      409,
-      "This workspace has reached ten approved websites."
-    );
+    // Shared with the sidebar editor: covers hosted and configured projects.
+    const sites = await projectSites(env, target);
+    if (!sites.includes(origin))
+      await saveProjectSites(env, target, [...sites, origin]);
     return json({ ok: true });
   }
   if (
@@ -749,23 +756,21 @@ async function route(
     const user = await authenticate(request, env, project);
     const target = string(url.searchParams.get("workspace"), 100, "workspace");
     await googleOwner(env, target, user);
+    const config = await projectConfig(env, target);
+    check(config, 404, "Workspace not found.");
     const workspace = await env.DB.prepare(
-      "SELECT repo,origins FROM workspaces WHERE id=?"
+      "SELECT origins FROM workspaces WHERE id=?"
     )
       .bind(target)
-      .first<{ repo: string; origins: string }>();
-    check(workspace, 404, "Workspace not found.");
-    const sites = await env.DB.prepare(
-      "SELECT origin FROM workspace_domains WHERE project=? ORDER BY origin"
-    )
-      .bind(target)
-      .all<{ origin: string }>();
+      .first<{ origins: string }>();
     return json({
-      repo: workspace.repo,
-      sites: sites.results.map((site) => site.origin),
-      suggested: (JSON.parse(workspace.origins) as string[]).filter((origin) =>
-        origin.startsWith("https://")
-      ),
+      repo: config.repo,
+      sites: await projectSites(env, target),
+      suggested: workspace
+        ? (JSON.parse(workspace.origins) as string[]).filter((origin) =>
+            origin.startsWith("https://")
+          )
+        : [],
     });
   }
   if (url.pathname === "/project" || url.pathname.startsWith("/project/")) {
@@ -1324,11 +1329,24 @@ export default {
   },
   async fetch(request, env, ctx) {
     let response: Response;
+    // An unapproved site may read why /config refused it, and nothing else.
+    let refusedSite = false;
     try {
       response = await route(request, env, ctx);
     } catch (error) {
-      if (error instanceof HttpError)
-        response = json({ error: error.message }, error.status);
+      refusedSite =
+        error instanceof HttpError &&
+        error.code === "site_not_approved" &&
+        new URL(request.url).pathname === "/config";
+      if (refusedSite && request.method === "OPTIONS")
+        response = new Response(null, { status: 204 });
+      else if (error instanceof HttpError)
+        response = json(
+          error.code
+            ? { error: error.message, code: error.code }
+            : { error: error.message },
+          error.status
+        );
       else if (
         error instanceof Error &&
         error.message.includes("komo_quota_exceeded")
@@ -1358,7 +1376,12 @@ export default {
         : await projectConfig(env, project)
       : undefined;
     const origin = request.headers.get("Origin") ?? "";
-    if (config && originAllowed(origin, config.origins)) {
+    if (
+      config &&
+      (originAllowed(origin, config.origins) ||
+        (project !== "_komo" && localOrigin(origin)) ||
+        (refusedSite && originAllowed(origin, [origin])))
+    ) {
       headers.set("Access-Control-Allow-Origin", origin);
       headers.set(
         "Access-Control-Allow-Methods",

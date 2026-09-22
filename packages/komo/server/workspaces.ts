@@ -1,5 +1,6 @@
 import { check, string, originAllowed } from "./validation";
 import type { Identity } from "../src/types";
+import { editedOrigins, siteEdits } from "./project-sites";
 export type Project = {
   repo: string;
   origins: string[];
@@ -43,7 +44,14 @@ export async function projectConfig(
   const staticConfig = (JSON.parse(env.PROJECTS) as Record<string, Project>)[
     project
   ];
-  if (staticConfig) return staticConfig;
+  if (staticConfig)
+    return {
+      ...staticConfig,
+      origins: editedOrigins(
+        staticConfig.origins,
+        await siteEdits(env, project)
+      ),
+    };
   const row = await env.DB.prepare(
     "SELECT repo,origins,suspended FROM workspaces WHERE id=?"
   )
@@ -55,12 +63,10 @@ export async function projectConfig(
   )
     .bind(project)
     .all<{ origin: string }>();
-  const local = (JSON.parse(row.origins) as string[]).filter((origin) =>
-    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
-  );
+  // Localhost is allowed for every project at the router.
   return {
     repo: row.repo,
-    origins: [...local, ...verified.results.map((item) => item.origin)],
+    origins: verified.results.map((item) => item.origin),
     requireOwner: true,
     suspended: !!row.suspended,
     writesPerDay: 500,
