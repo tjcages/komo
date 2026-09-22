@@ -9,6 +9,8 @@ export const styles: string = `
 .project-member { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; overflow-wrap:anywhere; }
 .project-danger { display:grid; gap:10px; font-size:12px; }
 .project-danger p { color:#999; line-height:1.5; }
+/* <details> ignores grid gap, so space its actions directly. */
+.project-danger > button { display:block; width:100%; margin-top:12px; }
 .project-help { color:var(--accent,#c8b5f4); font-size:12px; }
 .project-management .destructive { color:#fda29b; }
 
