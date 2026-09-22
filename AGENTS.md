@@ -6,7 +6,7 @@
 - Keep browser bundle costs within the existing measured budgets. CLI-only code must not enter browser bundles.
 - Never commit credentials, local databases, generated bundles, or npm tarballs.
 - Preserve API authentication, project boundaries, quotas, and data compatibility.
-- Deliver changes on a feature branch with a pull request and a verified deployed preview. Never merge without approval. Validate locally; hosted CI is not a delivery gate.
+- Deliver changes on a feature branch with a pull request and a verified deployed preview. Use preview versions of the existing `komo-site` Worker; do not use Cloudflare Pages. Never merge without approval. Validate locally; hosted CI is not a delivery gate.
 - Keep user-facing copy concise and use the existing components and motion conventions.
 
 ## Linear tracking
@@ -23,6 +23,6 @@
 
 ## Launch film
 
-- Render source lives in `tools/launch-video`, a private project outside the package workspace. Keep recording dependencies out of the npm package and production browser runtime.
+- Render source lives in `tools/launch-video/remotion`, a Remotion project outside the package workspace. Keep recording dependencies out of the npm package and production browser runtime.
 - Use fixture feedback and the existing site/product components. The agent edits code; komo carries feedback. Keep that distinction visible.
-- Rendered media stays in ignored `tools/launch-video/output/`. Follow its README for exact rendering and preview commands.
+- Rendered media stays in the sibling `../komo-promo/out/`, outside Git. Follow `tools/launch-video/remotion/README.md` for exact rendering and preview commands.

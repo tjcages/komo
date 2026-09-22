@@ -1,13 +1,10 @@
 # komo public beta review
 
-Current review: a fresh 14-second Remotion promo. The previous beat-driven webpage remains available. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
+Current review: the 20.9-second Remotion promo. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
 
-- **[New 14-second Remotion promo](https://08394749.komo-wb5.pages.dev/promo/)** · [MP4](https://08394749.komo-wb5.pages.dev/promo/komo-promo.mp4) · [Source](../../tools/launch-video/remotion/README.md)
-- **[Previous animated webpage — 144 BPM](https://a51ec679.komo-wb5.pages.dev/launch-demo/?bpm=144)**
+- **[Remotion promo](https://427324ea-komo-site.off-brand.workers.dev/promo/)** · [MP4](https://427324ea-komo-site.off-brand.workers.dev/promo/komo-promo.mp4) · [Source](../../tools/launch-video/remotion/README.md)
 - [Previous rendered asset gallery](https://4adc4b37.komo-wb5.pages.dev/launch-assets/)
-- [Draft PR #10](https://github.com/tjcages/komo/pull/10)
-- [Previous landscape source preview](https://4adc4b37.komo-wb5.pages.dev/launch-demo/)
-- [Previous portrait source preview](https://4adc4b37.komo-wb5.pages.dev/launch-demo/?format=vertical)
+- [Draft PR #28](https://github.com/tjcages/komo/pull/28)
 
 ## Previous film pass (historical assets)
 
@@ -20,17 +17,13 @@ Current review: a fresh 14-second Remotion promo. The previous beat-driven webpa
 | Captions | [SRT](./captions.srt) |
 | Transcript | [Transcript](./transcript.md) |
 | Announcement drafts | [Three options, thread, replies, counts](./copy.md) |
-| Render source and commands | [Recording README](../../tools/launch-video/README.md) |
+| Render source and commands | [Remotion README](../../tools/launch-video/remotion/README.md) |
 | Verification | [Asset QA](./qa.md), [media hashes](./render-evidence.json), [release readiness](./readiness.md) |
 
-Local media lives in `tools/launch-video/output/`, excluded from Git. No customer comments were used. Recording dependencies live outside the npm/browser runtime.
+Rendered media lives in the sibling `../komo-promo/out/`, outside Git. No customer comments were used. Recording dependencies live outside the npm/browser runtime.
 
 ## Tracking
 
-[Linear project](https://linear.app/off-brand-studio/project/komo-9f81aa4f25a3) · [Beat studio review OFF-672](https://linear.app/off-brand-studio/issue/OFF-672) · [Readiness and issue index](./readiness.md).
+[Linear project](https://linear.app/off-brand-studio/project/komo-9f81aa4f25a3) · [Creative review OFF-672](https://linear.app/off-brand-studio/issue/OFF-672) · [Readiness and issue index](./readiness.md).
 
-Current source and preview commands: [beat studio README](../../tools/launch-video/README.md). This pass uses a 76-beat sequence at 144 BPM by default, adjustable 60–240 BPM, optional ramp and metronome click. Titles have at most four words. The previous films above do not represent this revision.
-
-Current cut: opacity-only staggered title → doubled pins/cursor click → fullscreen conversation → centered native drawer moving down while the website scrolls behind → comment close-up → wider native sidebar opening and quick zoom → eight rapid incoming comments and six right-side emoji pops → centered drawer cursor sweep/copy → centered abstract prompt bar, cursor click and full comments paste → fade to animated komo logo and loop.
-
-76 beats, 31.67 seconds at 144 BPM. Loop is on by default. The prompt bar displays the complete fixture comments prompt; no real agent executes changes. The fixture clipboard captures the real generated prompt without changing the user's clipboard. Video export remains deferred.
+Source and render commands: [Remotion README](../../tools/launch-video/remotion/README.md).

@@ -171,18 +171,18 @@ function Context() {
           <div
             style={{
               whiteSpace: "nowrap",
-              fontSize: 108,
+              fontSize: 96,
               fontWeight: 550,
               letterSpacing: -6,
             }}
           >
-            {["Leave", "feedback", "anywhere."].map((w, i) => (
+            {["Figma", "comments", "for", "any", "site"].map((w, i) => (
               <span
                 key={w}
                 style={{
                   opacity: ramp(f, [i * 3, i * 3 + 9], "arrive"),
                   display: "inline-block",
-                  marginRight: 26,
+                  marginRight: i === 4 ? 0 : 24,
                 }}
               >
                 {w}
@@ -213,8 +213,15 @@ function Conversation() {
         <Native
           css={`
             .native [aria-label="Resolve comment"] {
-              background: ${f >= 79 ? "#ffffff12" : "transparent"}!important;
-              transform: scale(${1 - 0.15 * ramp(f, [83, 85])}) !important;
+              background: ${f >= 78
+                ? "#bba2ee26"
+                : f >= 73
+                  ? "#ffffff12"
+                  : "transparent"}!important;
+              color: ${f >= 78 ? "#cbb9ec" : "inherit"}!important;
+              transform: scale(
+                ${1 - 0.15 * ramp(f, [77, 79]) * (1 - ramp(f, [79, 83]))}
+              ) !important;
             }
           `}
         >
@@ -228,10 +235,10 @@ function Conversation() {
                   <div
                     key={i}
                     style={{
-                      height: (i ? 73 : 76) * p,
+                      height: i ? 73 : 76,
                       opacity: p,
                       overflow: "visible",
-                      transform: `scale(${0.98 + 0.02 * p})`,
+                      transform: `translateY(${8 * (1 - p)}px)`,
                     }}
                     dangerouslySetInnerHTML={html(
                       m
@@ -262,7 +269,7 @@ function Conversation() {
         </Native>
       </Center>
       <div style={{ opacity: 1 - ramp(f, [84, 89]) }}>
-        <Pointer frame={f} start={63} click={84} at={[1225, 270]} />
+        <Pointer frame={f} start={57} click={78} at={[1225, 270]} />
       </div>
     </Canvas>
   );
@@ -727,7 +734,10 @@ function Agent() {
           size={76}
           x={px + 19}
           y={py + 21}
-          press={f === 20 || f === 53 ? 1 : 0}
+          press={
+            ramp(f, [19, 21]) * (1 - ramp(f, [21, 25])) +
+            ramp(f, [52, 54]) * (1 - ramp(f, [54, 58]))
+          }
         />
       </div>
     </Canvas>
@@ -793,7 +803,7 @@ export const PARTS = [
   "logo",
 ];
 const defs = [
-  ["context", Context, 66, "context", "PUSH", "pins", "entrance"],
+  ["context", Context, 77, "context", "PUSH", "pins", "entrance"],
   [
     "conversation",
     Conversation,
@@ -806,7 +816,7 @@ const defs = [
   ["sidebar", Sidebar, 42, "action", "PUSH", "sidebar", "reveal"],
   ["feed", Feed, 114, "action", "CLOSE", "sidebar", "reveal"],
   ["drawer", Drawer, 84, "action", "CLOSE", "drawer", "interaction"],
-  ["copy", Copy, 60, "action", "MACRO", "copy", "interaction"],
+  ["copy", Copy, 57, "action", "MACRO", "copy", "interaction"],
   ["agent", Agent, 84, "consequence", "CLOSE", "agent", "interaction"],
   ["logo", Logo, 78, "consequence", "PUSH", "logo", "entrance"],
 ] as const;
@@ -823,7 +833,7 @@ export const SCENES: Scene[] = defs.map(
     motion: { from: 0, to: length + 20, tag: "push-in" },
   }),
 );
-validateReadingHold("context", "Leave feedback anywhere.", 66);
+validateReadingHold("context", "Figma comments for any site", 77);
 export function Film() {
   let offset = 0;
   return (

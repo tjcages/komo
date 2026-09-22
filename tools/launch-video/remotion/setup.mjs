@@ -11,10 +11,12 @@ import { fileURLToPath } from "node:url";
 const source = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(source, "../../..");
 const target = resolve(repo, "../komo-promo");
-const assets = resolve(repo, ".agents/skills/product-video/assets");
-if (!existsSync(assets))
+const assets = [".claude/skills", ".agents/skills"]
+  .map((dir) => resolve(repo, dir, "product-video/assets"))
+  .find(existsSync);
+if (!assets)
   throw Error(
-    "Install the purchased product-video skill in .agents/skills first.",
+    "Install the purchased product-video skill in .claude/skills or .agents/skills first.",
   );
 mkdirSync(resolve(target, "src"), { recursive: true });
 for (const name of [
@@ -40,7 +42,7 @@ for (const name of ["package.json", "package-lock.json"])
   cpSync(resolve(source, name), resolve(target, name));
 console.log(`Prepared ${target}. Run npm ci there, then node build.mjs.`);
 
-// The added post-reaction hold requires a 20.6-second film; retain a 21s validation cap.
+// The five-word opening and interaction holds need 626 frames; retain a 21s cap.
 const sceneHelper = resolve(target, "src/scenes.ts");
 writeFileSync(
   sceneHelper,
