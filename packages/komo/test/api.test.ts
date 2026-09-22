@@ -839,6 +839,15 @@ describe("shared comments against real workerd and SQLite", () => {
     );
     expect(denied.status).toBe(403);
     expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    // Any local dev port works without being listed.
+    const local = await fetch(
+      `http://localhost:${port}/threads?project=test&repo=owner/site&branch=feature/a`,
+      { headers: { Origin: "http://localhost:8123" } }
+    );
+    expect(local.status).toBe(200);
+    expect(local.headers.get("Access-Control-Allow-Origin")).toBe(
+      "http://localhost:8123"
+    );
     const refused = await fetch(
       `http://localhost:${port}/config?project=test&repo=owner/site&branch=feature/a`,
       { headers: { Origin: "https://evil.com" } }
@@ -1329,6 +1338,18 @@ describe("workspace ownership and hosted limits", () => {
           (await (await manage(`workspace?workspace=${poll.project}`)).json())
             .sites
         ).toEqual(["https://unverified.example"]);
+        // Configured projects use the same approve page.
+        expect(
+          (
+            await manage("workspace/sites", "owner-token", "POST", {
+              project: "owned",
+              origin: "https://approved.example",
+            })
+          ).status
+        ).toBe(200);
+        expect(
+          (await (await manage("workspace?workspace=owned")).json()).sites
+        ).toContain("https://approved.example");
         const sameSite = new URL(
           `http://localhost:${port}/workspace?workspace=${poll.project}&project=_komo`
         );
