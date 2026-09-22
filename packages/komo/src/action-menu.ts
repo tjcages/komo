@@ -28,7 +28,7 @@ export function actionMenu(label: string, actions: MenuAction[]) {
         action.onSelect();
       },
       `menu-action${action.destructive ? " destructive" : ""}`,
-      action.icon
+      action.icon,
     );
     item.append(el("span", "", action.label));
     item.setAttribute("role", "menuitem");
@@ -43,7 +43,10 @@ export function actionMenu(label: string, actions: MenuAction[]) {
       const rect = toggle.getBoundingClientRect();
       menu.style.left = `${Math.max(8, Math.min(rect.right - menu.offsetWidth, innerWidth - menu.offsetWidth - 8))}px`;
       menu.style.top = `${Math.max(8, Math.min(rect.bottom + 6, innerHeight - menu.offsetHeight - 8))}px`;
-      items[0]?.focus({ preventScroll: true });
+      (
+        items.find((item) => item.getAttribute("aria-checked") === "true") ??
+        items[0]
+      )?.focus({ preventScroll: true });
     } else menu.hidePopover();
   });
   root.addEventListener("keydown", (event) => {
@@ -75,7 +78,7 @@ export function selectionMenu(
   label: string,
   choices: readonly (readonly [string, string])[],
   value: string,
-  onSelect: (value: string) => void
+  onSelect: (value: string) => void,
 ) {
   const root = actionMenu(
     label,
@@ -83,14 +86,14 @@ export function selectionMenu(
       label: text,
       icon: "check",
       onSelect: () => onSelect(key),
-    }))
+    })),
   );
   root.classList.add("selection-menu");
   const summary = root.querySelector("summary")!;
   summary.className = "selection-trigger";
   summary.replaceChildren(
     el("span", "selection-label", choices.find(([key]) => key === value)?.[1]),
-    icon("chevron")
+    icon("chevron"),
   );
   root
     .querySelectorAll<HTMLElement>("[role=menuitem]")

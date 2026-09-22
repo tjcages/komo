@@ -1,7 +1,5 @@
 import { morphingMenuStyles } from "./morphing-menu-styles.js";
 export const styles: string = `
-.project-management select { width:100%; padding:10px; border:0; border-radius:10px; background:#ffffff0a; color:inherit; font:inherit; }
-.project-management select option { background:#242424; color:#eee; }
 .project-management[hidden], .project-management [hidden] { display:none !important; }
 .project-management .account-sites-summary { justify-content: space-between; }
 .project-management .account-usage-status { padding: 0 16px; }
@@ -1650,6 +1648,10 @@ ${morphingMenuStyles}
   width: 100%;
   max-height: calc(100dvh - 120px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff30 transparent;
 }
 .account {
   padding: 36px 24px 24px;
@@ -1695,7 +1697,7 @@ ${morphingMenuStyles}
 }
 
 .account-layer .account-dialog { border-radius: 24px; background: #202020; box-shadow: 0 16px 48px #0006, inset 0 0 0 1px #ffffff12; }
-.account-layer .account { padding: 32px 24px 24px; gap: 20px; }
+.account-layer .account { flex: none; padding: 32px 24px 24px; gap: 20px; }
 .account-summary { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 8px; }
 .account-summary .avatar { width: 72px; height: 72px; font-size: 24px; box-shadow: 0 0 0 4px #ffffff06; }
 .account-summary h3 { margin: 6px 0 0; }
@@ -1721,18 +1723,20 @@ ${morphingMenuStyles}
 .account-session .secondary { width: 100%; min-height: 40px; }
 .account-setting { display: grid; gap: 8px; }
 .account-setting-label { font-size: 11px; line-height: 16px; color: #a5a5a5; text-transform: uppercase; letter-spacing: .05em; }
-.account-setting select {
+.account .selection-menu > summary.selection-trigger {
   width: 100%;
-  padding: 10px 12px;
-  border: 0;
+  min-height: 44px;
+  padding: 10px 14px 10px 12px;
+  justify-content: space-between;
   border-radius: 12px;
   background: #ffffff0a;
   color: inherit;
   font: inherit;
   box-shadow: inset 0 0 0 1px #ffffff14;
 }
-.account-setting select:focus { box-shadow: inset 0 0 0 2px #bda6ef; }
-.account-setting select option { background: #242424; color: #eee; }
+.selection-trigger:focus-visible { outline: 2px solid var(--accent, #bda6ef); outline-offset: 2px; }
+.account .selection-menu { min-width: 0; }
+.account .selection-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 760px) { .account-layer { width: 100%; } }
 
 :host {
@@ -1895,7 +1899,7 @@ ${morphingMenuStyles}
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 0;
+  padding: 8px 12px 8px 0;
   color: #eee;
   font-size: 15px;
   font-weight: 500;
@@ -1905,6 +1909,7 @@ ${morphingMenuStyles}
 .selection-trigger svg {
   width: 14px;
   height: 14px;
+  flex: none;
   color: #888;
   transition: transform 150ms ease-out;
 }
@@ -2007,7 +2012,7 @@ ${morphingMenuStyles}
 .scope-slot .selection-trigger {
   font-size: 12px;
   color: #999;
-  padding: 10px 0 0;
+  padding: 10px 12px 0 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar-search,
@@ -2318,7 +2323,7 @@ textarea {
 .sidebar-selector .scope-slot { opacity: 0; transform: translateY(6px); pointer-events: none; }
 .panel[data-search="true"] .sidebar-selector .filter-slot { opacity: 0; transform: translateY(-6px); pointer-events: none; }
 .panel[data-search="true"] .sidebar-selector .scope-slot { opacity: 1; transform: none; pointer-events: auto; }
-.sidebar-selector .scope-slot .selection-trigger { font-size: 15px; color: #f4f4f4; padding: 8px 0; font-weight: 600; }
+.sidebar-selector .scope-slot .selection-trigger { font-size: 15px; color: #f4f4f4; padding: 8px 12px 8px 0; font-weight: 600; }
 .copy-page-prompt { display: grid; place-items: center; translate: 0 0; transition: translate 280ms cubic-bezier(.22,1,.36,1); }
 .copy-page-prompt > svg { grid-area: 1 / 1; transform-origin: center; }
 .panel[data-search="true"] .copy-page-prompt { display: grid; place-items: center; translate: calc(100% + 4px) 0; }
@@ -2803,6 +2808,7 @@ textarea {
   z-index: 10;
 }
 :host([data-sidebar="edge"]) .edge-sidebar > .account-layer .account-dialog {
+  max-height: min(calc(100dvh - 32px), var(--edge-account-max-height, calc(100dvh - 120px)));
   width: 100%;
   pointer-events: auto;
 }

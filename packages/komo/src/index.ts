@@ -625,6 +625,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
     sidebar.style.left = `${geometry.x}px`;
     sidebar.style.top = `${geometry.y}px`;
+    sidebar.style.setProperty(
+      "--edge-account-max-height",
+      `${Math.max(0, window.innerHeight - geometry.y - 28)}px`,
+    );
     sidebar.style.right = "auto";
     sidebar.style.bottom = "auto";
     sidebar.style.transformOrigin =
@@ -664,9 +668,35 @@ export function initComments(options: CommentsOptions): CommentsController {
     void sidebar.offsetWidth;
     sidebar.style.transition = "";
   }
+  let layoutMotions: Animation[] = [];
+  let switchingSidebar = false;
+  function stopLayoutMotion() {
+    for (const motion of layoutMotions) motion.cancel();
+    layoutMotions = [];
+    pageTransitioning = false;
+    pins.style.opacity = "1";
+  }
   function setSidebarMode(mode: "background" | "edge") {
-    stopEdgeMotion(true);
     if (mode === sidebarMode || destroyed) return;
+    // Read the visible, possibly interrupted positions before settling layout.
+    const nodes = () => [
+      surface,
+      sidebar.querySelector<HTMLElement>(".panel"),
+      toolbar,
+      dialogs.querySelector<HTMLElement>(".account-dialog"),
+    ];
+    const before = nodes().map((node) => node?.getBoundingClientRect());
+    stopLayoutMotion();
+    pageMotion?.stop();
+    pageMotion = undefined;
+    dockMotion?.stop();
+    dockMotion = undefined;
+    stopEdgeMotion(true);
+    clearEdgeRows();
+    undockEdgeTabs();
+    toolbar.style.translate = "";
+    dockCenter = undefined;
+    switchingSidebar = true;
     sidebarMode = mode;
     edgeSidebar = mode === "edge";
     options = { ...options, sidebar: mode };
@@ -678,12 +708,42 @@ export function initComments(options: CommentsOptions): CommentsController {
     syncEdgeMode();
     scalePage();
     render();
-    if (edgeSidebar) {
-      sidebar.style.transition = "none";
-      positionSidebar();
-      void sidebar.offsetWidth;
-      sidebar.style.transition = "";
-    }
+    switchingSidebar = false;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    nodes().forEach((node, index) => {
+      const from = before[index];
+      if (!node?.isConnected || !from?.width) return;
+      if (node !== surface)
+        node.getAnimations().forEach((motion) => motion.cancel());
+      const to = node.getBoundingClientRect();
+      if (!to.width) return;
+      const zoom = to.width / node.offsetWidth;
+      const end = getComputedStyle(node).transform;
+      layoutMotions.push(
+        node.animate(
+          [
+            {
+              transform: `${end === "none" ? "" : end} translate(${(from.left - to.left) / zoom}px, ${(from.top - to.top) / zoom}px) scale(${from.width / to.width})`,
+              transformOrigin: "top left",
+            },
+            { transform: end, transformOrigin: "top left" },
+          ],
+          { duration: 250, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+        ),
+      );
+    });
+    const motions = layoutMotions;
+    pageTransitioning = true;
+    pins.style.opacity = "0";
+    void Promise.all(motions.map((motion) => motion.finished))
+      .then(() => {
+        if (destroyed || motions !== layoutMotions) return;
+        layoutMotions = [];
+        pageTransitioning = false;
+        pins.style.opacity = "1";
+        geometry();
+      })
+      .catch(() => {});
   }
   function selectSetting<T extends string>(
     name: string,
@@ -692,18 +752,12 @@ export function initComments(options: CommentsOptions): CommentsController {
     value: T,
     onChange: (value: T) => void,
   ) {
-    const field = el("label", "account-setting");
+    const field = el("div", "account-setting");
     const label = el("span", "account-setting-label", labelText);
-    const select = el("select");
-    select.name = name;
-    select.setAttribute("aria-label", labelText);
-    for (const [choice, text] of choices) {
-      const option = el("option", "", text);
-      option.value = choice;
-      select.append(option);
-    }
-    select.value = value;
-    select.addEventListener("change", () => onChange(select.value as T));
+    const select = selectionMenu(labelText, choices, value, (next) =>
+      onChange(next as T),
+    );
+    select.querySelector("summary")!.dataset.focusKey = `setting-${name}`;
     field.append(label, select);
     return field;
   }
@@ -1240,14 +1294,20 @@ export function initComments(options: CommentsOptions): CommentsController {
           window.visualViewport?.height ?? window.innerHeight,
         )
       : window.innerHeight;
-    const viewportKey = `${window.innerWidth}:${window.innerHeight}:${viewportHeight}:${zoom}:${expanded}:${account}:${window.visualViewport?.offsetTop ?? 0}`;
+    const viewportKey = `${window.innerWidth}:${window.innerHeight}:${viewportHeight}:${zoom}:${expanded}:${account}:${sidebarMode}:${window.visualViewport?.offsetTop ?? 0}`;
     if (appliedViewport === viewportKey) return;
+    stopLayoutMotion();
     appliedViewport = viewportKey;
     if (edgeSidebar) {
       // The edge sidebar floats over the live page: never frame or zoom it.
       pageMotion?.stop();
       pageTransitioning = false;
       pins.style.opacity = "1";
+      const scroll = framed
+        ? nativeReviewScroll
+          ? window.scrollY / appliedScale
+          : surface.scrollTop * zoom
+        : null;
       if (framed) {
         for (const [header, styles] of fixedHeaders)
           Object.assign(header.style, styles);
@@ -1258,6 +1318,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       document.documentElement.style.overflow = savedHtmlOverflow;
       Object.assign(document.body.style, savedBody);
       document.documentElement.style.background = savedHtmlBackground;
+      if (scroll !== null)
+        window.scrollTo({ top: scroll, behavior: "instant" });
       host.style.zoom = String(1 / zoom);
       host.style.width = `${window.innerWidth}px`;
       host.style.height = `${viewportHeight}px`;
@@ -1374,6 +1436,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (
       (useFrame !== wasFramed || (layout.mobile && accountChanged)) &&
       !keyboardAction &&
+      !switchingSidebar &&
       !restoring &&
       !matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
@@ -1748,6 +1811,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     });
   }
   function toggleExpanded(value: boolean) {
+    stopLayoutMotion();
     expanded = value;
     delete sidebar.dataset.tipsReady;
     sidebar.toggleAttribute("data-tips-restored", restoring);
@@ -3429,6 +3493,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     const focusKey = active?.dataset.focusKey;
     const caret = focusKey ? active?.selectionStart : null;
     const scroll = dialogs.querySelector(".messages")?.scrollTop ?? 0;
+    const accountScroll =
+      dialogs.querySelector(".account-dialog")?.scrollTop ?? 0;
     const nextKey = account ? "account" : draft ? "draft" : selected;
     const previousDialog = dialogs.firstElementChild as HTMLElement | null;
     const changing = dialogKey !== nextKey;
@@ -4039,6 +4105,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     openingPreview = null;
     const messages = dialog.querySelector(".messages");
     if (messages) messages.scrollTop = scroll;
+    if (account && !changing) dialog.scrollTop = accountScroll;
     if (focusKey) {
       const next = dialog.querySelector<HTMLInputElement | HTMLTextAreaElement>(
         `[data-focus-key="${focusKey}"]`,
@@ -4822,6 +4889,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
   const controller: CommentsController = {
     destroy() {
+      stopLayoutMotion();
       disposeHeaderTip?.();
       clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
