@@ -19,7 +19,7 @@ export function onboardingPanel(api: CommentsApi, options: OnboardingOptions) {
     sitePlaceholder.setAttribute("aria-busy", "true");
     status.textContent = "";
     panel.replaceChildren(
-      accountUsage(api, `usage?workspace=${workspace}`),
+      accountUsage(api, `usage?workspace=${workspace}`, false),
       sitePlaceholder,
       status
     );

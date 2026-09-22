@@ -118,6 +118,41 @@ export function originAllowed(origin: string, patterns: string[]): boolean {
   });
 }
 
+/**
+ * Validate an owner-approved site: an exact HTTPS origin, localhost, or an
+ * HTTPS pattern with `*` in the leftmost host label only, such as
+ * https://*-site.example.workers.dev. The wildcard never spans dots.
+ */
+export function sitePattern(value: unknown): string {
+  check(
+    typeof value === "string" && value.length <= 300,
+    400,
+    "Enter a site address."
+  );
+  const site = value.trim().replace(/\/$/, "").toLowerCase();
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(site)) return site;
+  const match = /^https:\/\/([^/?#@]+)$/.exec(site);
+  const host = match?.[1] ?? "";
+  const [first = "", ...rest] = host.split(".");
+  let url: URL | undefined;
+  try {
+    url = new URL(site);
+  } catch {
+    url = undefined;
+  }
+  check(
+    !!match &&
+      url?.origin === site &&
+      !rest.join(".").includes("*") &&
+      first.split("*").length - 1 <= 1 &&
+      (!first.includes("*") ||
+        (rest.length >= 2 && /^[a-z0-9*-]+$/.test(first))),
+    400,
+    "Use an HTTPS site like https://your-site.com, or a wildcard like https://*-preview.your-site.com."
+  );
+  return site;
+}
+
 export function cliReturnOrigin(value: unknown, fallback: string): string {
   if (value === undefined) return fallback;
   check(typeof value === "string", 400, "Invalid CLI return origin.");

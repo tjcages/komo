@@ -43,7 +43,24 @@ export async function projectConfig(
   const staticConfig = (JSON.parse(env.PROJECTS) as Record<string, Project>)[
     project
   ];
-  if (staticConfig) return staticConfig;
+  if (staticConfig) {
+    const approved = await env.DB.prepare(
+      "SELECT origin FROM project_sites WHERE project=?"
+    )
+      .bind(project)
+      .all<{ origin: string }>()
+      // Serve config origins alone until migration 0013 has been applied.
+      .catch(() => ({ results: [] as { origin: string }[] }));
+    return approved.results.length
+      ? {
+          ...staticConfig,
+          origins: [
+            ...staticConfig.origins,
+            ...approved.results.map((item) => item.origin),
+          ],
+        }
+      : staticConfig;
+  }
   const row = await env.DB.prepare(
     "SELECT repo,origins,suspended FROM workspaces WHERE id=?"
   )
