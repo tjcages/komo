@@ -2,6 +2,7 @@ import "./site.css";
 import "./theme.css";
 import "./logo";
 import { createTryCursors } from "./try-cursors";
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const check =
   document.querySelector<HTMLTemplateElement>("#check-icon")!.innerHTML;
 document
@@ -16,11 +17,20 @@ document
         await navigator.clipboard.writeText(button.dataset.copy!);
         clearTimeout(timer);
         icon.innerHTML = check;
+        button.classList.remove("uncopying", "restored");
         button.classList.add("copied");
         document.querySelector("#copy-status")!.textContent = "Copied";
+        // Shrink the check out, then pop the copy icon back in.
         timer = window.setTimeout(() => {
-          icon.innerHTML = original;
-          button.classList.remove("copied");
+          button.classList.add("uncopying");
+          timer = window.setTimeout(
+            () => {
+              icon.innerHTML = original;
+              button.classList.remove("copied", "uncopying");
+              button.classList.add("restored");
+            },
+            reduceMotion.matches ? 0 : 180
+          );
         }, 1800);
       } catch {
         document.querySelector("#copy-status")!.textContent =
