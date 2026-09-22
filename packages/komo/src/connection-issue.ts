@@ -13,7 +13,7 @@ export function connectionIssue(reason: unknown): ConnectionIssue {
     return {
       kind: "site",
       title: "Comments aren’t on for this site",
-      detail: "Send this link to the project owner so they can turn them on.",
+      detail: "Own this site? Turn comments on. Otherwise, send this link to the owner.",
     };
   if (code === "offline")
     return {

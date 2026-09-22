@@ -2688,6 +2688,18 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (issue.kind === "site")
           actions.append(
             button(
+              "Turn on comments",
+              () => {
+                // The owner approves this site on the komo service, where
+                // sign-in isn't blocked; returning to this tab retries.
+                const setup = new URL("/setup", options.endpoint);
+                setup.searchParams.set("workspace", options.project);
+                setup.searchParams.set("site", location.origin);
+                window.open(setup, "_blank", "noopener");
+              },
+              "primary"
+            ),
+            button(
               "Copy link",
               () =>
                 void navigator.clipboard
@@ -2697,7 +2709,9 @@ export function initComments(options: CommentsOptions): CommentsController {
               "secondary"
             )
           );
-        actions.append(button("Try again", retryConnection, "secondary"));
+        // Returning focus retries a site approval; other issues need a button.
+        if (issue.kind !== "site")
+          actions.append(button("Try again", retryConnection, "secondary"));
         empty.append(actions);
       } else if (!search && filter !== "resolved")
         empty.append(
@@ -4555,6 +4569,13 @@ export function initComments(options: CommentsOptions): CommentsController {
   dialogs.addEventListener("pointerdown", (event) => {
     if (account && event.target === dialogs) dismiss();
   });
+  window.addEventListener(
+    "focus",
+    () => {
+      if (issue?.kind === "site") retryConnection();
+    },
+    { signal: abort.signal },
+  );
   // Frame mode: a click on the framed site closes the sidebar, like a scrim.
   // Armed on pointerdown so a press that only dismisses a draft or selection
   // keeps the sidebar open; click (not pointerdown) so scrolling never closes.
