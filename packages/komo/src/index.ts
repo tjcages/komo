@@ -571,8 +571,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function applySidebarSize() {
     sidebar.style.width = `${sidebarWidth}px`;
-    sidebar.style.height =
-      sidebarHeight == null ? "" : `${sidebarHeight}px`;
+    sidebar.style.height = sidebarHeight == null ? "" : `${sidebarHeight}px`;
     pointTips();
   }
   function persistSidebarPlacement() {
@@ -785,12 +784,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     handle.addEventListener(
       "pointerdown",
       (event) => {
-        if (
-          event.button !== 0 ||
-          !expanded ||
-          !edgeSidebar ||
-          edgeMorphing
-        )
+        if (event.button !== 0 || !expanded || !edgeSidebar || edgeMorphing)
           return;
         event.preventDefault();
         event.stopPropagation();
@@ -810,7 +804,8 @@ export function initComments(options: CommentsOptions): CommentsController {
             window.innerHeight,
           );
           sidebarWidth = next.width;
-          if (dir.includes("n") || dir.includes("s")) sidebarHeight = next.height;
+          if (dir.includes("n") || dir.includes("s"))
+            sidebarHeight = next.height;
           sidebarPlacement = { x: next.left, y: next.top };
           sidebar.style.left = `${next.left}px`;
           sidebar.style.top = `${next.top}px`;
@@ -1122,8 +1117,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     return later(
       el("section", "account-usage"),
       import("./onboarding.js").then(({ accountUsage }) =>
-        accountUsage(api, path, true, localSite && channel === "local")
-      )
+        accountUsage(api, path, true, localSite && channel === "local"),
+      ),
     );
   }
   // Retry from the start if the project config never loaded.
@@ -1553,7 +1548,12 @@ export function initComments(options: CommentsOptions): CommentsController {
   function morphEdgeSidebar(
     opening: boolean,
     interrupted: boolean,
-    openingPill?: { left: number; top: number; width: number; height: number } | null,
+    openingPill?: {
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    } | null,
   ) {
     const closingRect = sidebar.getBoundingClientRect();
     const closingFrom = opening
@@ -2294,6 +2294,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       renderList();
     }, 2000);
   }
+  let disposeHeaderTip: (() => void) | undefined;
+  const dismissedTips = new Set<string>();
   const dismissedTipsKey = "branch-comments:dismissed-tips";
   const tips = [
     ["copy", "Copy this page’s comments as a prompt for your agent."],
@@ -2302,15 +2304,17 @@ export function initComments(options: CommentsOptions): CommentsController {
   // Empty-state coach marks: persistent tooltips pinned to the buttons they
   // describe. They live on the sidebar so they ride along as it parks/peeks.
   function syncTips(show: boolean) {
-    let dismissed: string[] = [];
     try {
-      dismissed = JSON.parse(localStorage.getItem(dismissedTipsKey) ?? "[]");
+      const stored = JSON.parse(localStorage.getItem(dismissedTipsKey) ?? "[]");
+      if (Array.isArray(stored))
+        for (const id of stored)
+          if (typeof id === "string") dismissedTips.add(id);
     } catch {
       /* Show every tip when storage is blocked. */
     }
     for (const [id, body] of tips) {
       let card = sidebar.querySelector<HTMLElement>(`[data-tip="${id}"]`);
-      if (!show || dismissed.includes(id)) {
+      if (!show || dismissedTips.has(id)) {
         card?.remove();
         continue;
       }
@@ -2323,11 +2327,14 @@ export function initComments(options: CommentsOptions): CommentsController {
         button(
           "Dismiss tip",
           () => {
-            dismissed.push(id);
+            dismissedTips.add(id);
             try {
-              localStorage.setItem(dismissedTipsKey, JSON.stringify(dismissed));
+              localStorage.setItem(
+                dismissedTipsKey,
+                JSON.stringify([...dismissedTips]),
+              );
             } catch {
-              /* Dismissal lasts for this render only. */
+              /* Dismissal still lasts for this widget instance. */
             }
             node.dataset.leaving = "";
             setTimeout(() => node.remove(), 150);
@@ -2428,8 +2435,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     prompt.style.top = `${Math.max(12, Math.min(rect.bottom + 8, innerHeight - prompt.offsetHeight - 12))}px`;
     actions.querySelector<HTMLButtonElement>("button")?.focus();
   }
-  const canResolve = () =>
-    !pending && (guestResolve || !!api.user?.verified);
+  const canResolve = () => !pending && (guestResolve || !!api.user?.verified);
   function toggleResolved(
     thread: Thread,
     noticeAnchor?: ReturnType<typeof captureNoticePosition>,
@@ -2472,6 +2478,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function renderList() {
     if (options.onboarding) {
+      disposeHeaderTip?.();
       sidebar.replaceChildren();
       if (options.onboarding.inProject) return;
       if (expanded) {
@@ -2502,6 +2509,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       ? (shadow.activeElement as HTMLInputElement).selectionStart
       : null;
     if (!expanded && !edgeSidebar) {
+      disposeHeaderTip?.();
       sidebar.replaceChildren();
       return;
     }
@@ -2623,6 +2631,11 @@ export function initComments(options: CommentsOptions): CommentsController {
         delete tip.dataset.open;
         tipWarmUntil = Date.now() + 300;
       };
+      disposeHeaderTip = () => {
+        clearTimeout(tipTimer);
+        tip.remove();
+        disposeHeaderTip = undefined;
+      };
       const showTip = (target: HTMLElement) => {
         clearTimeout(tipTimer);
         const reveal = () => {
@@ -2643,6 +2656,8 @@ export function initComments(options: CommentsOptions): CommentsController {
           if (event.pointerType === "mouse") showTip(node);
         });
         node.addEventListener("pointerleave", hideTip);
+        node.addEventListener("focus", () => showTip(node));
+        node.addEventListener("blur", hideTip);
       }
       tools.addEventListener("pointerdown", hideTip);
       panel.append(head);
@@ -2871,7 +2886,7 @@ export function initComments(options: CommentsOptions): CommentsController {
                 setup.searchParams.set("site", location.origin);
                 window.open(setup, "_blank", "noopener");
               },
-              "primary"
+              "primary",
             ),
             button(
               "Copy link",
@@ -2880,8 +2895,8 @@ export function initComments(options: CommentsOptions): CommentsController {
                   .writeText(location.origin)
                   .then(() => notify("Link copied"))
                   .catch(() => notify(location.origin)),
-              "secondary"
-            )
+              "secondary",
+            ),
           );
         // Returning focus retries a site approval; other issues need a button.
         if (issue.kind !== "site")
@@ -3681,9 +3696,9 @@ export function initComments(options: CommentsOptions): CommentsController {
             later(
               el("section", "onboarding-panel"),
               import("./onboarding.js").then(({ onboardingPanel }) =>
-                onboardingPanel(api, onboarding)
-              )
-            )
+                onboardingPanel(api, onboarding),
+              ),
+            ),
           );
         } else {
           content.append(sidebarSetting());
@@ -3698,32 +3713,30 @@ export function initComments(options: CommentsOptions): CommentsController {
         ) {
           const settings = el("div");
           content.append(settings);
-          void import("./onboarding.js").then(
-            ({ projectManagement }) => {
-              if (settings.isConnected)
-                settings.replaceWith(
-                  projectManagement(
-                    api,
-                    options.onboarding?.workspace,
-                    (deleted) => {
-                      if (deleted) {
-                        selected = null;
-                        optimistic.replace([], optimistic.revision);
-                        content.querySelector(".account-usage")?.remove();
-                      } else {
-                        const path = options.onboarding?.workspace
-                          ? `usage?workspace=${encodeURIComponent(options.onboarding.workspace)}`
-                          : "usage";
-                        content
-                          .querySelector(".account-usage")
-                          ?.replaceWith(usagePanel(path));
-                        void refresh().catch(() => {});
-                      }
-                    },
-                  ),
-                );
-            },
-          );
+          void import("./onboarding.js").then(({ projectManagement }) => {
+            if (settings.isConnected)
+              settings.replaceWith(
+                projectManagement(
+                  api,
+                  options.onboarding?.workspace,
+                  (deleted) => {
+                    if (deleted) {
+                      selected = null;
+                      optimistic.replace([], optimistic.revision);
+                      content.querySelector(".account-usage")?.remove();
+                    } else {
+                      const path = options.onboarding?.workspace
+                        ? `usage?workspace=${encodeURIComponent(options.onboarding.workspace)}`
+                        : "usage";
+                      content
+                        .querySelector(".account-usage")
+                        ?.replaceWith(usagePanel(path));
+                      void refresh().catch(() => {});
+                    }
+                  },
+                ),
+              );
+          });
         }
         content.addEventListener("submit", (event) => {
           event.preventDefault();
@@ -4782,7 +4795,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     () => {
       if (connection === "Offline" && !options.onboarding) retryConnection();
     },
-    { signal: abort.signal }
+    { signal: abort.signal },
   );
   document.addEventListener(
     "visibilitychange",
@@ -4805,6 +4818,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
   const controller: CommentsController = {
     destroy() {
+      disposeHeaderTip?.();
       clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
       clearTimeout(accountOpenTimer);

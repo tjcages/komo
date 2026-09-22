@@ -3,7 +3,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public code?: string
+    public code?: string,
   ) {
     super(message);
   }
@@ -54,7 +54,7 @@ export class CommentsApi {
       if (this.token && this.user)
         localStorage.setItem(
           this.userKey,
-          JSON.stringify({ token: this.token, user: this.user })
+          JSON.stringify({ token: this.token, user: this.user }),
         );
       else localStorage.removeItem(this.userKey);
     } catch {
@@ -91,12 +91,12 @@ export class CommentsApi {
         throw new ApiError(
           response.status,
           "Comments aren’t turned on for this site yet.",
-          result.code
+          result.code,
         );
       throw new ApiError(
         response.status,
         result.error ?? "Could not load comments.",
-        result.code
+        result.code,
       );
     }
     return result as T;
@@ -110,7 +110,10 @@ export class CommentsApi {
   cached(): Thread[] | null {
     try {
       const stored = JSON.parse(localStorage.getItem(this.listKey) ?? "null");
-      if (stored?.token !== (this.token ?? "") || !Array.isArray(stored.threads))
+      if (
+        stored?.token !== (this.token ?? "") ||
+        !Array.isArray(stored.threads)
+      )
         return null;
       this.revision = stored.revision;
       this.cachedThreads = stored.threads;
@@ -127,13 +130,14 @@ export class CommentsApi {
           token: this.token ?? "",
           revision: this.revision,
           threads: this.cachedThreads,
-        })
+        }),
       );
     } catch {
       /* Storage full or blocked; the next load fetches normally. */
     }
   }
   async list(): Promise<Thread[]> {
+    const token = this.token;
     const threads: Thread[] = [];
     let offset: number | null = 0;
     let revision: number | undefined;
@@ -144,8 +148,10 @@ export class CommentsApi {
         revision?: number;
         notModified?: boolean;
       } = await this.request(
-        `threads?offset=${offset}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`
+        `threads?offset=${offset}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`,
       );
+      // Never apply or persist a response requested by a previous account.
+      if (this.token !== token) return this.list();
       if (result.notModified) return this.cachedThreads;
       if (offset === 0) revision = result.revision;
       threads.push(...(result.threads ?? []));
@@ -157,7 +163,10 @@ export class CommentsApi {
     return threads;
   }
   save(data: { token: string; user: Identity }) {
-    if (data.token !== this.token) this.revision = undefined;
+    if (data.token !== this.token) {
+      this.revision = undefined;
+      this.cachedThreads = [];
+    }
     this.token = data.token;
     this.user = data.user;
     this.rememberUser();
