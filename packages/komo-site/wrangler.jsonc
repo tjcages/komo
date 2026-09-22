@@ -38,8 +38,8 @@
       "custom_domain": true,
     },
   ],
-  // Per-branch preview aliases from .github/workflows/preview.yml; production
-  // traffic on komo.offbr.co is unaffected by version uploads.
+  // Workers Builds uploads non-production branches as preview versions with a
+  // branch alias; production traffic on komo.offbr.co is unaffected.
   "preview_urls": true,
   "observability": {
     "enabled": true,
