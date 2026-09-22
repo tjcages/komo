@@ -57,6 +57,13 @@
   .workflow-steps button { color: var(--fg2); }
   .workflow-steps button > span { background: #ffffff0c; }
   .workflow-steps button[aria-pressed="true"] { color: var(--accent); background: #d3bdf514; }
+  .framework-tab[aria-selected="true"] { background: #ffffff14; box-shadow: 0 1px 2px #0004, 0 0 0 1px #ffffff10; }
+  .connect-site-window, .connect-signin-window { background: var(--theme-raised); box-shadow: 0 0 0 1px #ffffff16, 0 12px 24px -10px #0006; }
+  .connect-site-window .desktop-titlebar, .connect-signin-window .desktop-titlebar { background: #36363b; box-shadow: inset 0 -1px var(--theme-border); }
+  .connect-page-nav span, .connect-signin-bar { background: #ffffff16; }
+  .connect-page-nav i { background: #ffffff20; }
+  .connect-hero span { background: #ffffff35; }
+  .connect-media { background: #ffffff09; }
   .example-dots button::before { background: #ffffff26; }
   .example-dots button[aria-pressed="true"]::before { background: var(--accent); }
   .scene-pin { box-shadow: 0 0 0 2px var(--theme-raised), 0 3px 10px #0004; }

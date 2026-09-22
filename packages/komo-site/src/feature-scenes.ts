@@ -3,7 +3,7 @@ export function mountFeatureScenes() {
   const playIcon =
     document.querySelector<HTMLTemplateElement>("#play-icon")!.innerHTML;
   document
-    .querySelectorAll<HTMLElement>("[data-example]")
+    .querySelectorAll<HTMLElement>('[data-example]:not([data-example="connect"])')
     .forEach((example) => {
       const comments = example.dataset.example === "comments";
       const durations = comments
