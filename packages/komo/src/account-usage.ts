@@ -3,7 +3,12 @@ import type { CommentsApi } from "./api.js";
 import { el, button } from "./dom.js";
 import { approvedSites } from "./approved-sites.js";
 
-export function accountUsage(api: CommentsApi, path = "usage", sites = true) {
+export function accountUsage(
+  api: CommentsApi,
+  path = "usage",
+  sites = true,
+  local = false
+) {
   const usagePanel = el("section", "account-usage");
   usagePanel.setAttribute("aria-label", "Account usage");
   const skeleton = (className = "") => {
@@ -52,7 +57,11 @@ export function accountUsage(api: CommentsApi, path = "usage", sites = true) {
       if (sites && api.user?.verified) void showSites().catch(() => {});
       usagePanel.setAttribute("aria-busy", "false");
       usagePanel.replaceChildren(
-        el("h3", "", usage.hosted ? "Starter plan" : "Self-hosted")
+        el(
+          "h3",
+          "",
+          `${usage.hosted ? "Starter plan" : "Self-hosted"}${local ? " · Local" : ""}`
+        )
       );
       const { used, limit } = usage.comments;
       const comments = el("div", "account-usage-label account-comments");
