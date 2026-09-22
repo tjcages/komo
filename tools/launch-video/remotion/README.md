@@ -45,3 +45,17 @@ Menu fidelity: rendered rows are direct children of the native panel so first/la
 The additional post-reaction hold brings this revision to 20.6 seconds. Both composer and sent bubble keep the same 1420px width, 38px padding, 1px border allocation, and explicit heading line-height; only position and opacity change after sending. The opening pins sample the exact same slow scale curve as the title.
 
 Opening title, pins, and cursor now share one parent camera transform, so both positions and sizes zoom together. The conversation Resolve click precedes its exit. The resolved thread is excluded from the subsequent open list and exported prompt; the drawer count is eleven. Page pins enter at frames 3, 6 and 9 in left-to-right spatial order, then the sidebar opens at frame 15.
+
+## September 22 polish
+
+Conversation messages reserve their final height, enter with an 8px translation, and never recenter the card or Resolve target while typing. Resolve presses at frame 78 and holds its accent feedback before exit at frame 84. Paste and Send now share the same mirrored press/release motion as the other interactions. Duration, search sequence, drawer spring, fixed prompt typography, and logo motion remain 618 frames / 20.6 seconds.
+
+To stage a preview after rendering:
+
+```sh
+pnpm build
+node tools/launch-video/remotion/preview.mjs
+pnpm exec wrangler pages deploy packages/komo-site/dist --project-name komo --branch film-polish
+```
+
+The preview script accepts `--review-url=https://github.com/tjcages/komo/pull/NUMBER` to link the current review. Publish only to a preview branch; a normal site build does not include the film.
