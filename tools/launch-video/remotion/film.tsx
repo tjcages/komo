@@ -176,7 +176,7 @@ function Context() {
               letterSpacing: -6,
             }}
           >
-            {["Sticky", "notes", "for", "any", "website."].map((w, i) => (
+            {["Figma", "comments", "for", "any", "site"].map((w, i) => (
               <span
                 key={w}
                 style={{
@@ -833,7 +833,7 @@ export const SCENES: Scene[] = defs.map(
     motion: { from: 0, to: length + 20, tag: "push-in" },
   }),
 );
-validateReadingHold("context", "Sticky notes for any website.", 77);
+validateReadingHold("context", "Figma comments for any site", 77);
 export function Film() {
   let offset = 0;
   return (

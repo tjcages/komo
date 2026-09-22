@@ -7,7 +7,7 @@ Proof: pins become a conversation, comments collect in the sidebar, and the draw
 
 | Seconds | Shot |
 | --- | --- |
-| 0–2.57 | “Sticky notes for any website.” and pins share one camera; pin clicks |
+| 0–2.57 | “Figma comments for any site” and pins share one camera; pin clicks |
 | 2.57–5.57 | Conversation and reactions, Resolve feedback, exit |
 | 5.57–6.97 | Page pins appear; sidebar opens |
 | 6.97–10.77 | Incoming comments, search for “lavender”, result hold |
@@ -63,4 +63,4 @@ The preview script accepts `--review-url=https://github.com/tjcages/komo/pull/NU
 
 ## Current opening
 
-The owner’s final wording is “Sticky notes for any website.” The five-word title holds 77 frames to pass its reading-time gate. The other seven shots retain their existing timing and choreography, resulting in 626 frames / 20.8667 seconds (displayed as 20.9s). It remains a single 96px line with the same fade stagger and shared camera. 
+The owner’s final wording is “Figma comments for any site”. The five-word title holds 77 frames to pass its reading-time gate. The other seven shots retain their existing timing and choreography, resulting in 626 frames / 20.8667 seconds (displayed as 20.9s). It remains a single 96px line with the same fade stagger and shared camera.

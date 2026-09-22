@@ -26,3 +26,7 @@ No agent edits or execution results are implied. The resolved thread remains exc
 ## Final owner wording
 
 “Sticky notes for any website.” replaces the previous opening. Its 77-frame reading hold adds eight frames, yielding a 626-frame (20.87-second) film without shortening any other interaction or logo hold.
+
+## Current approved positioning
+
+“Figma comments for any site” is the exact opening wording. It uses the same five-word, 77-frame reading hold, so the film remains 626 frames with every subsequent scene unchanged.
