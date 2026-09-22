@@ -23,6 +23,7 @@ import {
   HttpError,
   localOrigin,
   originAllowed,
+  previewPattern,
   pagePath,
   string,
 } from "./validation";
@@ -237,7 +238,11 @@ async function completeSetup(
       .run();
     throw error;
   }
-  const httpsSites = sites.filter((site) => site.startsWith("https://"));
+  // The site setup ran on proves the deploy host, so its previews come too.
+  const preview = origin && previewPattern(origin);
+  const httpsSites = [
+    ...new Set([...sites, ...(preview ? [preview] : [])]),
+  ].filter((site) => site.startsWith("https://"));
   if (httpsSites.length) {
     await env.DB.batch(
       httpsSites.map((site) =>

@@ -106,6 +106,15 @@ export function localOrigin(origin: string): boolean {
   return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 }
 
+/**
+ * Every deploy of the same Cloudflare Pages project, derived from one of its
+ * origins. Only that project's owner can publish under *.<project>.pages.dev.
+ */
+export function previewPattern(origin: string): string | undefined {
+  const pages = /^https:\/\/(?:[a-z0-9-]+\.)?([a-z0-9-]+\.pages\.dev)$/.exec(origin);
+  return pages ? `https://*.${pages[1]}` : undefined;
+}
+
 export function originAllowed(origin: string, patterns: string[]): boolean {
   let url: URL;
   try {
