@@ -2378,18 +2378,32 @@ textarea {
 .approved-sites:empty { display: none; }
 /* Grid tracks default to min-content, so long hosts would widen the dialog. */
 .account-usage, .approved-sites-editor, .approved-site-list { min-width: 0; grid-template-columns: minmax(0, 1fr); }
-.approved-sites-editor { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid #ffffff0d; }
-.approved-site-list { display: grid; margin: 0; padding: 0; list-style: none; }
-.approved-site { min-width: 0; min-height: 32px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ddd; }
+.approved-sites-editor { display: grid; padding-top: 4px; border-top: 1px solid #ffffff0d; }
+.approved-sites-toggle { min-width: 0; min-height: 36px; margin: 0 -8px; padding: 0 8px; display: flex; align-items: center; gap: 8px; border-radius: 8px; background: transparent; font-size: 12px; color: #ddd; text-align: left; cursor: pointer; }
+.approved-sites-toggle:hover { background: #ffffff08; }
+.approved-sites-toggle:focus-visible { outline: 2px solid #bda6ef; outline-offset: -2px; }
+.approved-sites-toggle > span:first-child { flex: 1; }
+.approved-sites-count { color: #aaa; font-variant-numeric: tabular-nums; }
+.approved-sites-toggle svg { width: 14px; height: 14px; color: #888; transition: transform 250ms cubic-bezier(.22,1,.36,1); }
+.approved-sites-editor[data-open="true"] .approved-sites-toggle svg { transform: rotate(180deg); }
+.approved-sites-reveal { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 250ms cubic-bezier(.22,1,.36,1); }
+.approved-sites-editor[data-open="true"] .approved-sites-reveal { grid-template-rows: 1fr; }
+.approved-sites-body { min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.approved-sites-editor[data-open="true"] .approved-sites-body { padding-top: 4px; }
+.approved-site-list { display: grid; margin: 0 -8px; padding: 0; list-style: none; }
+.approved-site { min-width: 0; min-height: 32px; padding: 0 2px 0 8px; display: flex; align-items: center; gap: 8px; border-radius: 8px; font-size: 12px; color: #ddd; }
+.approved-site:hover, .approved-site:focus-within { background: #ffffff08; }
 .approved-site > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.approved-site[title] > span { color: #909090; }
-.approved-site > button { width: 28px; height: 28px; flex-shrink: 0; margin-right: -6px; display: grid; place-items: center; border-radius: 8px; color: #888; }
+.approved-site > button { width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; border-radius: 6px; color: #888; opacity: 0; transition: opacity 120ms; }
+.approved-site:hover > button, .approved-site > button:focus-visible { opacity: 1; }
 .approved-site > button:hover { color: #eee; background: #ffffff0d; }
 .approved-site > button svg { width: 14px; height: 14px; }
+@media (hover: none) { .approved-site > button { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .approved-sites-reveal, .approved-sites-toggle svg { transition: none; } }
 .approved-site-add { min-width: 0; display: flex; gap: 8px; }
 .account .approved-site-add input { width: 0; min-width: 0; flex: 1; font-size: 13px; padding: 8px 10px; }
 .approved-site-add > button { flex-shrink: 0; padding: 0 12px; }
-.approved-sites-editor > .account-usage-status:empty { display: none; }
+.approved-sites-body > .account-usage-status:empty { display: none; }
 .account-usage { min-height: 144px; box-sizing: border-box; align-content: start; display: grid; gap: 14px; padding: 16px; border-radius: 14px; background: #ffffff05; box-shadow: inset 0 0 0 1px #ffffff09; }
 .account-usage h3 { line-height: 18px; margin: 0; font-size: 12px; font-weight: 500; color: #aaa; }
 .usage-skeleton { display: block; height: 10px; border-radius: 4px; background: #ffffff0b; }

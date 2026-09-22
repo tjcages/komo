@@ -94,7 +94,11 @@ beforeAll(async () => {
     cli: { repo: "owner/site", origins: [origin] },
     other: { repo: "owner/site", origins: [origin] },
     demo: { repo: "owner/site", origins: [origin], retainedCommentsPerUser: 3 },
-    owned: { repo: "owner/site", origins: [origin], requireOwner: true },
+    owned: {
+      repo: "owner/site",
+      origins: [origin, "https://docs.example.com"],
+      requireOwner: true,
+    },
     unclaimed: {
       repo: "owner/site",
       origins: [origin],
@@ -504,6 +508,57 @@ describe("shared comments against real workerd and SQLite", () => {
     ).json();
     expect(result.threads[0].anchor).toEqual(moved);
     expect(result.threads[0].resolved).toBe(false);
+  });
+  it("lets a configured project's owner add and remove any approved site", async () => {
+    const sites = async (data?: unknown) =>
+      (
+        await request(
+          "/project/sites",
+          data ? "PATCH" : "GET",
+          data,
+          "owned-token",
+          "shared",
+          "owner/site",
+          "owned"
+        )
+      ).json();
+    expect(await sites()).toEqual({
+      sites: ["https://docs.example.com", origin].sort(),
+      fixed: [],
+    });
+    const docs = async () =>
+      fetch(
+        `http://localhost:${port}/config?project=owned&repo=owner/site&branch=shared`,
+        { headers: { Origin: "https://docs.example.com" } }
+      );
+    expect((await docs()).status).toBe(200);
+    expect(
+      await sites({ sites: [origin, "https://*-preview.example.com"] })
+    ).toEqual({
+      sites: ["https://*-preview.example.com", origin].sort(),
+      fixed: [],
+    });
+    expect((await docs()).status).toBe(403);
+    const preview = await fetch(
+      `http://localhost:${port}/config?project=owned&repo=owner/site&branch=shared`,
+      { headers: { Origin: "https://pr-9-preview.example.com" } }
+    );
+    expect(preview.status).toBe(200);
+    const locked = await request(
+      "/project/sites",
+      "PATCH",
+      { sites: ["https://*-preview.example.com"] },
+      "owned-token",
+      "shared",
+      "owner/site",
+      "owned"
+    );
+    expect(locked.status).toBe(400);
+    expect((await locked.json()).error).toBe(
+      "You can’t remove the site you’re on."
+    );
+    await sites({ sites: [origin, "https://docs.example.com"] });
+    expect((await docs()).status).toBe(200);
   });
   it("offers Google sign-in when credentials are configured", async () => {
     const config = await (await request("/config")).json();

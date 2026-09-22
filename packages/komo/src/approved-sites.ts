@@ -26,22 +26,45 @@ export function siteInput(value: string): string {
 
 /**
  * Owner-only editor for the sites allowed to load this project's comments.
- * Resolves to null when the viewer cannot manage the project.
+ * Collapsed by default; resolves to null when the viewer cannot manage the
+ * project.
  */
 export async function approvedSites(
   api: CommentsApi,
   suffix = ""
 ): Promise<HTMLElement | null> {
-  let list: SiteList;
+  let sites: string[];
   try {
-    list = await api.request<SiteList>(`project/sites${suffix}`);
+    const result = await api.request<SiteList>(`project/sites${suffix}`);
+    // Older APIs list config sites separately.
+    sites = [...result.fixed, ...result.sites];
   } catch {
     return null;
   }
   const section = el("div", "approved-sites-editor");
-  const heading = el("div", "account-usage-label");
-  const count = el("span");
-  heading.append(el("span", "", "Sites with comments"), count);
+  section.dataset.open = "false";
+  const count = el("span", "approved-sites-count");
+  const toggle = button(
+    "Sites with comments",
+    () => {
+      const open = section.dataset.open !== "true";
+      section.dataset.open = String(open);
+      toggle.setAttribute("aria-expanded", String(open));
+      reveal.inert = !open;
+    },
+    "approved-sites-toggle"
+  );
+  toggle.replaceChildren(
+    el("span", "", "Sites with comments"),
+    count,
+    icon("chevron")
+  );
+  toggle.setAttribute("aria-expanded", "false");
+  const reveal = el("div", "approved-sites-reveal");
+  reveal.id = `approved-sites-${crypto.randomUUID()}`;
+  reveal.inert = true;
+  toggle.setAttribute("aria-controls", reveal.id);
+  const body = el("div", "approved-sites-body");
   const rows = el("ul", "approved-site-list");
   const status = el("p", "account-usage-status");
   status.setAttribute("role", "status");
@@ -63,18 +86,21 @@ export async function approvedSites(
     )
   );
   const save = async (next: string[]) => {
-    const previous = list.sites;
-    list = { ...list, sites: next };
+    const previous = sites;
+    sites = next;
     render();
     status.textContent = "";
     try {
-      list = await api.request<SiteList>(`project/sites${suffix}`, "PATCH", {
-        sites: next,
-      });
+      const result = await api.request<SiteList>(
+        `project/sites${suffix}`,
+        "PATCH",
+        { sites: next }
+      );
+      sites = [...result.fixed, ...result.sites];
       render();
       return true;
     } catch (error) {
-      list = { ...list, sites: previous };
+      sites = previous;
       render();
       status.textContent =
         error instanceof Error ? error.message : "Try again.";
@@ -91,7 +117,7 @@ export async function approvedSites(
         status.textContent = (error as Error).message;
         return;
       }
-      if (list.fixed.includes(site) || list.sites.includes(site)) {
+      if (sites.includes(site)) {
         input.value = "";
         status.textContent = "Already on the list.";
         return;
@@ -99,7 +125,7 @@ export async function approvedSites(
       const typed = input.value;
       input.value = "";
       add.disabled = true;
-      if (!(await save([...list.sites, site]))) input.value ||= typed;
+      if (!(await save([...sites, site]))) input.value ||= typed;
       add.disabled = false;
       input.focus();
     },
@@ -112,31 +138,28 @@ export async function approvedSites(
     }
   });
   form.append(input, add);
-  const row = (site: string, removable: boolean) => {
+  const row = (site: string) => {
     const item = el("li", "approved-site");
     const label = el("span", "", site.replace(/^https:\/\//, ""));
     label.title = site;
-    item.append(label);
-    if (removable)
-      item.append(
-        button(
-          `Remove ${site}`,
-          () => void save(list.sites.filter((value) => value !== site)),
-          "icon",
-          "close"
-        )
-      );
-    else item.title = "Set in your komo config";
+    item.append(
+      label,
+      button(
+        `Remove ${site}`,
+        () => void save(sites.filter((value) => value !== site)),
+        "icon",
+        "close"
+      )
+    );
     return item;
   };
   const render = () => {
-    count.textContent = String(list.fixed.length + list.sites.length);
-    rows.replaceChildren(
-      ...list.fixed.map((site) => row(site, false)),
-      ...list.sites.map((site) => row(site, true))
-    );
+    count.textContent = String(sites.length);
+    rows.replaceChildren(...sites.map(row));
   };
   render();
-  section.append(heading, rows, form, note, status);
+  body.append(rows, form, note, status);
+  reveal.append(body);
+  section.append(toggle, reveal);
   return section;
 }
