@@ -835,13 +835,15 @@ ${morphingMenuStyles}
   height: 26px;
 }
 .dialog-head .icon,
-.draft-close {
+.draft-close,
+.approved-site > .icon {
   width: 25px;
   height: 25px;
   color: #949494;
 }
 .dialog-head svg,
-.draft-close svg {
+.draft-close svg,
+.approved-site > .icon svg {
   width: 15px;
   height: 15px;
 }
@@ -2390,14 +2392,13 @@ textarea {
 .approved-sites-editor[data-open="true"] .approved-sites-reveal { grid-template-rows: 1fr; }
 .approved-sites-body { min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .approved-sites-editor[data-open="true"] .approved-sites-body { padding-top: 4px; }
-.approved-site-list { display: grid; margin: 0 -8px; padding: 0; list-style: none; }
-.approved-site { min-width: 0; min-height: 32px; padding: 0 2px 0 8px; display: flex; align-items: center; gap: 8px; border-radius: 8px; font-size: 12px; color: #ddd; }
-.approved-site:hover, .approved-site:focus-within { background: #ffffff08; }
+.approved-site-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.approved-site { min-width: 0; min-height: 32px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ddd; }
 .approved-site > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.approved-site > button { width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; border-radius: 6px; color: #888; opacity: 0; transition: opacity 120ms; }
+/* Same close button as the dialog head; undo the account form's 12px radius. */
+.approved-site > button { flex-shrink: 0; opacity: 0; transition: opacity 120ms; }
+.account-layer .account .approved-site > .icon { border-radius: 7px; }
 .approved-site:hover > button, .approved-site > button:focus-visible { opacity: 1; }
-.approved-site > button:hover { color: #eee; background: #ffffff0d; }
-.approved-site > button svg { width: 14px; height: 14px; }
 @media (hover: none) { .approved-site > button { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .approved-sites-reveal, .approved-sites-toggle svg { transition: none; } }
 .approved-site-add { min-width: 0; display: flex; gap: 8px; }
