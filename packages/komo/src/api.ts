@@ -54,16 +54,8 @@ export class CommentsApi {
       // Browsers hide why a request failed; offline is the one case we can tell.
       if (error instanceof TypeError)
         throw navigator.onLine === false
-          ? new ApiError(
-              0,
-              "You're offline. Comments will load when you reconnect.",
-              "offline"
-            )
-          : new ApiError(
-              0,
-              `Couldn't reach komo at ${url.host}. Check your connection and try again. If this keeps happening, ask the project owner to approve ${location.host || "this site"} under Account → Approved sites.`,
-              "unreachable"
-            );
+          ? new ApiError(0, "You’re offline.", "offline")
+          : new ApiError(0, "Can’t connect to comments.", "unreachable");
       throw error;
     });
     const result = await response.json().catch(() => ({}));
@@ -72,7 +64,7 @@ export class CommentsApi {
       if (result.code === "site_not_approved")
         throw new ApiError(
           response.status,
-          `${location.host || "This site"} isn't approved for this komo project yet. Ask the project owner to add it under Account → Approved sites.`,
+          "Comments aren’t turned on for this site yet.",
           result.code
         );
       throw new ApiError(

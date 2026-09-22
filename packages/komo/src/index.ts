@@ -1223,7 +1223,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (connection === "Offline")
       items.push({
         id: "retry",
-        label: `${issue?.title ?? "Offline"} · Try again`,
+        label: `${issue?.title ?? "Offline"} · Retry`,
         icon: glyph("branch"),
         showInBar: false,
         onSelect: retryConnection,
@@ -1912,11 +1912,11 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (issue.kind === "site")
           actions.append(
             button(
-              "Copy site address",
+              "Copy link",
               () =>
                 void navigator.clipboard
                   .writeText(location.origin)
-                  .then(() => notify("Site address copied"))
+                  .then(() => notify("Link copied"))
                   .catch(() => notify(location.origin)),
               "secondary"
             )

@@ -3,26 +3,23 @@ import { ApiError } from "../src/api";
 import { connectionIssue } from "../src/connection-issue";
 
 describe("connection issues", () => {
-  it("tells an unapproved site how to get approved", () => {
+  it("tells visitors on an unapproved site who can turn comments on", () => {
     const issue = connectionIssue(
-      new ApiError(403, "not approved", "site_not_approved"),
-      "preview.example.com"
+      new ApiError(403, "not approved", "site_not_approved")
     );
-    expect(issue.kind).toBe("site");
-    expect(issue.title).toBe("This site isn’t approved");
-    expect(issue.detail).toContain("preview.example.com");
-    expect(issue.detail).toContain("Account → Approved sites");
+    expect(issue).toMatchObject({
+      kind: "site",
+      title: "Comments aren’t on for this site",
+    });
+    expect(issue.detail).toContain("project owner");
   });
   it("separates offline from an unreachable server", () => {
-    expect(connectionIssue(new ApiError(0, "", "offline")).kind).toBe(
-      "offline"
+    expect(connectionIssue(new ApiError(0, "", "offline")).title).toBe(
+      "You’re offline"
     );
-    const unreachable = connectionIssue(
-      new ApiError(0, "", "unreachable"),
-      "site.example"
+    expect(connectionIssue(new ApiError(0, "", "unreachable")).title).toBe(
+      "Can’t connect"
     );
-    expect(unreachable.title).toBe("Can’t reach komo");
-    expect(unreachable.detail).toContain("site.example");
   });
   it("passes server messages through", () => {
     const issue = connectionIssue(new ApiError(500, "Comments are down."));

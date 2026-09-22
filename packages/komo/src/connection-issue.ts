@@ -6,29 +6,27 @@ export type ConnectionIssue = {
   detail: string;
 };
 
-/** Describe why comments failed to load, with a next step for the viewer. */
-export function connectionIssue(
-  reason: unknown,
-  host = globalThis.location?.host || "this site"
-): ConnectionIssue {
+/** Say why comments didn't load, in words a visitor can act on. */
+export function connectionIssue(reason: unknown): ConnectionIssue {
   const code = reason instanceof ApiError ? reason.code : undefined;
   if (code === "site_not_approved")
     return {
       kind: "site",
-      title: "This site isn’t approved",
-      detail: `${host} can’t load comments for this project. Ask the project owner to add it under Account → Approved sites. A wildcard like https://*-preview.your-site.com covers preview URLs.`,
+      title: "Comments aren’t on for this site",
+      detail: "Send this link to the project owner so they can turn them on.",
     };
   if (code === "offline")
     return {
       kind: "offline",
       title: "You’re offline",
-      detail: "Comments will load again when your connection is back.",
+      detail: "Comments will come back when you do.",
     };
   if (code === "unreachable")
     return {
       kind: "unreachable",
-      title: "Can’t reach komo",
-      detail: `Check your connection and try again. If this keeps happening, ${host} may not be approved yet. The project owner can add it under Account → Approved sites.`,
+      title: "Can’t connect",
+      detail:
+        "You might be offline, or this site isn’t set up for comments yet.",
     };
   return {
     kind: "server",

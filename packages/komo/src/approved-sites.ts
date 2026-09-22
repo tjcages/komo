@@ -19,7 +19,7 @@ export function siteInput(value: string): string {
     (first.includes("*") && rest.length < 2)
   )
     throw new Error(
-      "Use a site like https://your-site.com, or a wildcard like https://*-preview.your-site.com."
+      "That doesn’t look like a site. Try your-site.com or *-preview.your-site.com."
     );
   return `https://${match[1]}`;
 }
@@ -41,7 +41,7 @@ export async function approvedSites(
   const section = el("div", "approved-sites-editor");
   const heading = el("div", "account-usage-label");
   const count = el("span");
-  heading.append(el("span", "", "Approved sites"), count);
+  heading.append(el("span", "", "Sites with comments"), count);
   const rows = el("ul", "approved-site-list");
   const status = el("p", "account-usage-status");
   status.setAttribute("role", "status");
@@ -50,7 +50,7 @@ export async function approvedSites(
   input.type = "text";
   input.inputMode = "url";
   input.spellcheck = false;
-  input.placeholder = "https://*-preview.your-site.com";
+  input.placeholder = "your-site.com";
   input.setAttribute("aria-label", "Site to approve");
   input.setAttribute("autocomplete", "off");
   const note = el("div", "account-usage-note account-sites-note");
@@ -59,7 +59,7 @@ export async function approvedSites(
     el(
       "span",
       "",
-      "Approved sites can show and share comments. Use * in the first part of the address to match preview URLs."
+      "Only these sites can show comments. Add * to cover preview links."
     )
   );
   const save = async (next: string[]) => {
@@ -93,7 +93,7 @@ export async function approvedSites(
       }
       if (list.fixed.includes(site) || list.sites.includes(site)) {
         input.value = "";
-        status.textContent = "That site is already approved.";
+        status.textContent = "Already on the list.";
         return;
       }
       const typed = input.value;
@@ -126,7 +126,7 @@ export async function approvedSites(
           "close"
         )
       );
-    else item.title = "Set in the project config";
+    else item.title = "Set in your komo config";
     return item;
   };
   const render = () => {
