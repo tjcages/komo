@@ -2183,8 +2183,9 @@ textarea {
 }
 :host(.review-open) .panel .list {
   min-height: 0;
+  /* Outdent by the card's 12px inset so comment text lines up with the header. */
   margin-inline: -12px;
-  padding: 0 12px 112px;
+  padding: 0 0 112px;
   overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
@@ -2706,8 +2707,9 @@ textarea {
   scrollbar-color: transparent transparent;
   scrollbar-gutter: stable;
   box-sizing: border-box;
-  margin-inline: 0;
-  padding: 0 12px 24px;
+  /* Outdent by the card's 12px inset so comment text lines up with the header. */
+  margin-inline: -12px;
+  padding: 0 0 24px;
   -webkit-mask-image: none;
   mask-image: none;
 }

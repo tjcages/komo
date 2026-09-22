@@ -632,7 +632,9 @@ export function initComments(options: CommentsOptions): CommentsController {
     host.dataset.sidebar = edgeSidebar ? "edge" : "background";
     sidebar.classList.toggle("edge-sidebar", edgeSidebar);
     sidebar.style.transition = "none";
-    sidebar.style.translate = "0px 0px";
+    // Clear, don't zero: any translate makes the sidebar the containing block
+    // for the fixed Frame panel and collapses it to zero height.
+    sidebar.style.translate = "";
     sidebar.style.opacity = "";
     stopEdgeMotion(true);
     if (edgeSidebar) {
