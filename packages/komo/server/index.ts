@@ -637,8 +637,9 @@ async function route(
   const origin =
     request.headers.get("Origin") ??
     (request.headers.get("Sec-Fetch-Site") === "same-origin" ? url.origin : "");
-  check(
-    originAllowed(origin, config.origins) ||
+  if (
+    !(
+      originAllowed(origin, config.origins) ||
       (origin === url.origin &&
         [
           "/auth/google/start",
@@ -653,10 +654,14 @@ async function route(
           "/config",
           "/me",
           "/usage",
-        ].includes(url.pathname)),
-    403,
-    "This site is not enabled for comments."
-  );
+        ].includes(url.pathname))
+    )
+  )
+    throw new HttpError(
+      403,
+      "This site is not approved for this komo project.",
+      "site_not_approved"
+    );
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   check(
     project !== "_komo" ||
@@ -1326,11 +1331,24 @@ export default {
   },
   async fetch(request, env, ctx) {
     let response: Response;
+    // An unapproved site may read why /config refused it, and nothing else.
+    let refusedSite = false;
     try {
       response = await route(request, env, ctx);
     } catch (error) {
-      if (error instanceof HttpError)
-        response = json({ error: error.message }, error.status);
+      refusedSite =
+        error instanceof HttpError &&
+        error.code === "site_not_approved" &&
+        new URL(request.url).pathname === "/config";
+      if (refusedSite && request.method === "OPTIONS")
+        response = new Response(null, { status: 204 });
+      else if (error instanceof HttpError)
+        response = json(
+          error.code
+            ? { error: error.message, code: error.code }
+            : { error: error.message },
+          error.status
+        );
       else if (
         error instanceof Error &&
         error.message.includes("komo_quota_exceeded")
@@ -1360,7 +1378,11 @@ export default {
         : await projectConfig(env, project)
       : undefined;
     const origin = request.headers.get("Origin") ?? "";
-    if (config && originAllowed(origin, config.origins)) {
+    if (
+      config &&
+      (originAllowed(origin, config.origins) ||
+        (refusedSite && originAllowed(origin, [origin])))
+    ) {
       headers.set("Access-Control-Allow-Origin", origin);
       headers.set(
         "Access-Control-Allow-Methods",

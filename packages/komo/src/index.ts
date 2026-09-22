@@ -31,6 +31,7 @@ import { createToolbar } from "./lazy-toolbar.js";
 import type { MenuItem } from "./MorphingMenu.js";
 import { canonicalPage } from "./page.js";
 import { ApiError, CommentsApi } from "./api.js";
+import { connectionIssue, type ConnectionIssue } from "./connection-issue.js";
 import { captureAnchor, locateAnchor as measureAnchor } from "./anchors.js";
 import {
   age,
@@ -245,6 +246,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     return control;
   }
   let accessError = "";
+  let issue: ConnectionIssue | null = null;
+  let projectLoaded = false;
   let connectingProject = false;
   let setupSiteDraft =
     options.onboarding?.sites
@@ -715,6 +718,10 @@ export function initComments(options: CommentsOptions): CommentsController {
   function run(action: () => Promise<void>) {
     void action().catch(fail);
   }
+  // Retry from the start if the project config never loaded.
+  function retryConnection() {
+    run(projectLoaded ? refresh : loadProject);
+  }
   async function mutate(action: () => Promise<void>) {
     if (pending) return;
     pending = true;
@@ -762,6 +769,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       const changed = JSON.stringify(next) !== JSON.stringify(threads);
       const recovered = connection !== "Live";
       accessError = "";
+      issue = null;
       connection = "Live";
       if (selected && !next.some((thread) => thread.id === selected))
         selected = null;
@@ -773,13 +781,15 @@ export function initComments(options: CommentsOptions): CommentsController {
     } catch (reason) {
       if (
         reason instanceof ApiError &&
-        (reason.status === 401 || reason.status === 403)
+        (reason.status === 401 || reason.status === 403) &&
+        reason.code !== "site_not_approved"
       ) {
         accessError = reason.message;
         selected = null;
         lastRefresh = undefined;
         optimistic.replace([], revision);
       }
+      issue = accessError ? null : connectionIssue(reason);
       connection = "Offline";
       renderList();
       renderToolbar();
@@ -1213,10 +1223,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (connection === "Offline")
       items.push({
         id: "retry",
-        label: "Offline · Retry connection",
+        label: `${issue?.title ?? "Offline"} · Try again`,
         icon: glyph("branch"),
         showInBar: false,
-        onSelect: () => run(refresh),
+        onSelect: retryConnection,
       });
     toolbarRoot.render({
       items: options.onboarding
@@ -1883,8 +1893,8 @@ export function initComments(options: CommentsOptions): CommentsController {
           "",
           accessError
             ? "Private project"
-            : connection === "Offline"
-              ? "Connection interrupted"
+            : connection === "Offline" && issue
+              ? issue.title
               : search
                 ? "No matching comments"
                 : filter === "resolved"
@@ -1896,9 +1906,24 @@ export function initComments(options: CommentsOptions): CommentsController {
         empty.append(el("p", "", accessError));
         if (!api.user?.verified)
           empty.append(button("Sign in", openAccount, "secondary"));
-      } else if (connection === "Offline")
-        empty.append(button("Retry", () => run(refresh), "secondary"));
-      else if (!search && filter !== "resolved")
+      } else if (connection === "Offline" && issue) {
+        empty.append(el("p", "", issue.detail));
+        const actions = el("div", "empty-actions");
+        if (issue.kind === "site")
+          actions.append(
+            button(
+              "Copy site address",
+              () =>
+                void navigator.clipboard
+                  .writeText(location.origin)
+                  .then(() => notify("Site address copied"))
+                  .catch(() => notify(location.origin)),
+              "secondary"
+            )
+          );
+        actions.append(button("Try again", retryConnection, "secondary"));
+        empty.append(actions);
+      } else if (!search && filter !== "resolved")
         empty.append(
           button(
             "Add a comment",
@@ -3750,9 +3775,18 @@ export function initComments(options: CommentsOptions): CommentsController {
         draft = null;
         render();
       }
-      void refresh().catch(() => {});
+      void (
+        projectLoaded || options.onboarding ? refresh() : loadProject()
+      ).catch(() => {});
     },
     Math.max(2000, options.pollInterval ?? 4000)
+  );
+  window.addEventListener(
+    "online",
+    () => {
+      if (connection === "Offline" && !options.onboarding) retryConnection();
+    },
+    { signal: abort.signal }
   );
   document.addEventListener(
     "visibilitychange",
@@ -3853,12 +3887,23 @@ export function initComments(options: CommentsOptions): CommentsController {
   scalePage();
   render();
   async function loadProject() {
-    const config = await api.request<{
+    let config: {
       github: boolean;
       google?: boolean;
       guests: boolean;
       guestResolve: boolean;
-    }>("config");
+    };
+    try {
+      config = await api.request("config");
+    } catch (reason) {
+      const next = connectionIssue(reason);
+      const changed = issue?.detail !== next.detail;
+      issue = next;
+      connection = "Offline";
+      if (changed) render();
+      throw reason;
+    }
+    projectLoaded = true;
     google = !!config.google;
     github = config.github;
     guests = config.guests;

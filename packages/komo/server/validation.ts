@@ -4,7 +4,8 @@ import type { Anchor } from "../src/types.js";
 export class HttpError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public code?: string
   ) {
     super(message);
   }

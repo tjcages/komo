@@ -332,6 +332,12 @@ small {
   max-width: 250px;
   line-height: 1.6;
 }
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
 .panel-foot {
   position: absolute;
   bottom: 0;
