@@ -18,3 +18,7 @@ Preserve the eight-scene, 618-frame cut and approved opening, drawer spring, sea
 The sidebar and feed share one continuous camera. The drawer/copy boundary is also a deliberate match cut. The conversation/sidebar and agent/logo boundaries meet on the canvas color to preserve the existing fade bridges. These are the three expected near-identical-boundary warnings in the still QC; the reviewed middle frames carry the subjects.
 
 No agent edits or execution results are implied. The resolved thread remains excluded from the eleven open threads in the drawer and prompt. The webpage film has been removed; the Remotion source is the single maintained film.
+
+## Opening copy revision
+
+“Anyone can comment. Anywhere.” conveys both participation and placement. It remains one line with generous side clearance, at 96px. The title lasts 69 frames; Copy lasts 57 frames, preserving its 15-frame confirmation. Total duration and the logo hold are unchanged.

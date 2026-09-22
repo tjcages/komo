@@ -55,7 +55,9 @@ To stage a preview after rendering:
 ```sh
 pnpm build
 node tools/launch-video/remotion/preview.mjs
-pnpm exec wrangler pages deploy packages/komo-site/dist --project-name komo --branch film-polish
+pnpm exec wrangler versions upload --config packages/komo-site/wrangler.jsonc --preview-alias film-polish
 ```
 
-The preview script accepts `--review-url=https://github.com/tjcages/komo/pull/NUMBER` to link the current review. Publish only to a preview branch; a normal site build does not include the film.
+The preview script accepts `--review-url=https://github.com/tjcages/komo/pull/NUMBER` to link the current review. Upload only a Worker preview version; a normal site build does not include the film. Do not use Pages or deploy production.
+
+Opening copy: “Anyone can comment. Anywhere.” The single line uses 96px type with the same stagger and shared pin camera. The title gets 69 frames for the reading-time gate; Copy gives three frames to it while retaining a half-second confirmation. Total remains 618 frames, and the logo keeps its full settled hold.
