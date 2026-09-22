@@ -2,9 +2,9 @@
 
 Current review: the 20.6-second Remotion promo. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
 
-- **[Remotion promo](https://08394749.komo-wb5.pages.dev/promo/)** · [MP4](https://08394749.komo-wb5.pages.dev/promo/komo-promo.mp4) · [Source](../../tools/launch-video/remotion/README.md)
+- **[Remotion promo](https://ecb27a70.komo-wb5.pages.dev/promo/)** · [MP4](https://ecb27a70.komo-wb5.pages.dev/promo/komo-promo.mp4) · [Source](../../tools/launch-video/remotion/README.md)
 - [Previous rendered asset gallery](https://4adc4b37.komo-wb5.pages.dev/launch-assets/)
-- [Draft PR #10](https://github.com/tjcages/komo/pull/10)
+- [Draft PR #28](https://github.com/tjcages/komo/pull/28)
 
 ## Previous film pass (historical assets)
 

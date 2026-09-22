@@ -1,3 +1,18 @@
+# Render evidence — 2026-09-22 polish
+
+[Preview](https://ecb27a70.komo-wb5.pages.dev/promo/) · [PR #28](https://github.com/tjcages/komo/pull/28) · [OFF-680](https://linear.app/off-brand-studio/issue/OFF-680)
+
+- Render source: `616c551`. H.264, 1920×1080, 30 fps, 618 frames, exactly 20.6 seconds, silent. 2,952,408 bytes; SHA-256 `0b999abccb7666b0fd2222de184f6a6fdaea42bea2236be38b29a5bbbf7d5e78`.
+- Conversation has fixed message slots, so the card no longer changes its bounds as replies type. Resolve clicks at frame 78, rebounds, holds accent feedback, and exits at frame 84. The final-video frame at 4.9 seconds shows the pointer on the resolved control with unclipped copy.
+- Paste and Send now use frame-driven press/release curves instead of one-frame flashes. The eight-scene story, existing drawer and logo choreography, search, and eleven-open-thread continuity remain unchanged.
+- Viewed one middle still for all eight scenes, boundary QC stills, and the extracted final-video resolve still. The three QC warnings are intentional same-picture boundaries: conversation/sidebar and agent/logo meet on the background color; drawer/copy shares the settled menu camera. No other automated frame warnings.
+- Wall-clock scan has one inert finding: `animation:none!important` in the native reset stylesheet. Remotion TypeScript passes.
+- Local `pnpm build`, `pnpm typecheck`, `pnpm test` (146 tests / 24 files), and `pnpm size` pass. The all-feature gzip bundle is 194,779 bytes. No recording dependencies enter the package workspace.
+- Preview returns HTTP 200. Chrome playback verified the deployed movie advancing from conversation to incoming sidebar feedback, with the source link pointing to PR #28. Preview is on the `film-polish` branch; production was not deployed.
+- The retired webpage film was removed. Licensed helpers and generated video remain outside Git. Prior rendered assets were preserved.
+
+## Previous render evidence (historical)
+
 # Render evidence — 2026-09-17, camera and resolution pass
 
 [Review preview](https://efa70964.komo-wb5.pages.dev/promo/) · [PR #10](https://github.com/tjcages/komo/pull/10) · [OFF-672](https://linear.app/off-brand-studio/issue/OFF-672)
