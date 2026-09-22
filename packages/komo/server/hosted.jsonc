@@ -1,6 +1,9 @@
 {
   "name": "komo-api",
   "main": "index.ts",
+  // Clients reach the API through komo.offbr.co (the komo-site Worker's
+  // KOMO_API binding); the original workers.dev address is retired.
+  "workers_dev": false,
   "compatibility_date": "2026-07-02",
   "compatibility_flags": [
     "nodejs_compat"
