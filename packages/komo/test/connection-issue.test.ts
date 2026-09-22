@@ -11,7 +11,7 @@ describe("connection issues", () => {
       kind: "site",
       title: "Comments aren’t on for this site",
     });
-    expect(issue.detail).toContain("project owner");
+    expect(issue.detail).toContain("Turn comments on");
   });
   it("separates offline from an unreachable server", () => {
     expect(connectionIssue(new ApiError(0, "", "offline")).title).toBe(

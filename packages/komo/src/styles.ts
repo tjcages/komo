@@ -679,6 +679,11 @@ ${morphingMenuStyles}
   background: #292929;
   color: #ccc;
 }
+:host(.review-open) .panel .empty .primary {
+  background: var(--accent, #bda6ef);
+  color: #211b2d;
+  font-weight: 500;
+}
 :host(.review-open) .panel .empty strong {
   color: #aaa;
   font-weight: 400;

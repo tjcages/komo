@@ -111,6 +111,19 @@ export function initComments(options: CommentsOptions): CommentsController {
     return options.sidebar === "background" ? "background" : "edge";
   })();
   let edgeSidebar = sidebarMode === "edge";
+  // Localhost starts in a private "local" channel so a new install works
+  // before any site is shared; Shared reads the same comments as deploys.
+  const localSite = ["localhost", "127.0.0.1"].includes(location.hostname);
+  const sharedBranch = options.branch;
+  const channelKey = `branch-comments:channel:${options.project}:${options.repo}`;
+  let channel: "local" | "shared" = "local";
+  try {
+    if (localStorage.getItem(channelKey) === "shared") channel = "shared";
+  } catch {
+    /* Default to the local channel when storage is blocked. */
+  }
+  if (localSite && channel === "local")
+    options = { ...options, branch: "local" };
   let api = new CommentsApi(options);
   const abort = new AbortController();
   let destroyed = false,
@@ -672,27 +685,72 @@ export function initComments(options: CommentsOptions): CommentsController {
       sidebar.style.transition = "";
     }
   }
-  function sidebarSetting() {
+  function selectSetting<T extends string>(
+    name: string,
+    labelText: string,
+    choices: Array<[T, string]>,
+    value: T,
+    onChange: (value: T) => void,
+  ) {
     const field = el("label", "account-setting");
-    const label = el("span", "account-setting-label", "Sidebar");
+    const label = el("span", "account-setting-label", labelText);
     const select = el("select");
-    select.name = "sidebar";
-    select.setAttribute("aria-label", "Sidebar");
-    const choices: Array<["edge" | "background", string]> = [
-      ["edge", "Floating"],
-      ["background", "Frame"],
-    ];
-    for (const [value, text] of choices) {
+    select.name = name;
+    select.setAttribute("aria-label", labelText);
+    for (const [choice, text] of choices) {
       const option = el("option", "", text);
-      option.value = value;
+      option.value = choice;
       select.append(option);
     }
-    select.value = sidebarMode;
-    select.addEventListener("change", () => {
-      setSidebarMode(select.value === "background" ? "background" : "edge");
-    });
+    select.value = value;
+    select.addEventListener("change", () => onChange(select.value as T));
     field.append(label, select);
     return field;
+  }
+  function sidebarSetting() {
+    return selectSetting(
+      "sidebar",
+      "Sidebar",
+      [
+        ["edge", "Floating"],
+        ["background", "Frame"],
+      ],
+      sidebarMode,
+      setSidebarMode,
+    );
+  }
+  function channelSetting() {
+    return selectSetting(
+      "channel",
+      "Comments",
+      [
+        ["local", "Local only"],
+        ["shared", "Shared with deploys"],
+      ],
+      channel,
+      setChannel,
+    );
+  }
+  function setChannel(value: "local" | "shared") {
+    if (value === channel || destroyed) return;
+    channel = value;
+    try {
+      localStorage.setItem(channelKey, value);
+    } catch {
+      /* Keep the choice in memory when storage is blocked. */
+    }
+    const user = api.user;
+    options = {
+      ...options,
+      branch: value === "local" ? "local" : sharedBranch,
+    };
+    api = new CommentsApi(options);
+    api.user = user;
+    selected = null;
+    draft = null;
+    parkedDraft = null;
+    render();
+    retryConnection();
   }
   const grip = el("div", "edge-sidebar-grip");
   grip.setAttribute("aria-hidden", "true");
@@ -1063,7 +1121,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     return later(
       el("section", "account-usage"),
       import("./onboarding.js").then(({ accountUsage }) =>
-        accountUsage(api, path)
+        accountUsage(api, path, true, localSite && channel === "local")
       )
     );
   }
@@ -2697,6 +2755,18 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (issue.kind === "site")
           actions.append(
             button(
+              "Turn on comments",
+              () => {
+                // The owner approves this site on the komo service, where
+                // sign-in isn't blocked; returning to this tab retries.
+                const setup = new URL("/setup", options.endpoint);
+                setup.searchParams.set("workspace", options.project);
+                setup.searchParams.set("site", location.origin);
+                window.open(setup, "_blank", "noopener");
+              },
+              "primary"
+            ),
+            button(
               "Copy link",
               () =>
                 void navigator.clipboard
@@ -2706,7 +2776,9 @@ export function initComments(options: CommentsOptions): CommentsController {
               "secondary"
             )
           );
-        actions.append(button("Try again", retryConnection, "secondary"));
+        // Returning focus retries a site approval; other issues need a button.
+        if (issue.kind !== "site")
+          actions.append(button("Try again", retryConnection, "secondary"));
         empty.append(actions);
       } else if (!search && filter !== "resolved")
         empty.append(
@@ -3504,6 +3576,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           );
         } else {
           content.append(sidebarSetting());
+          if (localSite) content.append(channelSetting());
           content.append(usagePanel());
         }
         if (
@@ -4546,6 +4619,43 @@ export function initComments(options: CommentsOptions): CommentsController {
   ).navigation?.addEventListener("navigatesuccess", onNavigate, {
     signal: abort.signal,
   });
+  window.addEventListener(
+    "focus",
+    () => {
+      if (issue?.kind === "site") retryConnection();
+    },
+    { signal: abort.signal },
+  );
+  // Frame mode: a click on the framed site closes the sidebar, like a scrim.
+  // Armed on pointerdown so a press that only dismisses a draft or selection
+  // keeps the sidebar open; click (not pointerdown) so scrolling never closes.
+  let frameCloseArmed = false;
+  surface.addEventListener(
+    "pointerdown",
+    (event) => {
+      frameCloseArmed =
+        event.button === 0 &&
+        expanded &&
+        framed &&
+        !edgeSidebar &&
+        !mode &&
+        !account &&
+        !selected &&
+        !draft;
+    },
+    { capture: true, signal: abort.signal },
+  );
+  surface.addEventListener(
+    "click",
+    (event) => {
+      if (!frameCloseArmed || !expanded || edgeSidebar) return;
+      frameCloseArmed = false;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleExpanded(false);
+    },
+    { capture: true, signal: abort.signal },
+  );
   const interval = window.setInterval(
     () => {
       if (document.hidden || destroyed) return;

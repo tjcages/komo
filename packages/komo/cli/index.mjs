@@ -195,9 +195,6 @@ async function init() {
         ]
           .filter(Boolean)
           .map((site) => new URL(site).origin),
-        "http://localhost:3000",
-        "http://localhost:4321",
-        "http://localhost:5173",
       ]),
     ];
     const scope = args.includes("--branch-scope")

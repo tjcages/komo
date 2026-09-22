@@ -63,12 +63,10 @@ export async function projectConfig(
   )
     .bind(project)
     .all<{ origin: string }>();
-  const local = (JSON.parse(row.origins) as string[]).filter((origin) =>
-    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
-  );
+  // Localhost is allowed for every project at the router.
   return {
     repo: row.repo,
-    origins: [...local, ...verified.results.map((item) => item.origin)],
+    origins: verified.results.map((item) => item.origin),
     requireOwner: true,
     suspended: !!row.suspended,
     writesPerDay: 500,
