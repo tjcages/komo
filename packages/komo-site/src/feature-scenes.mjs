@@ -16,7 +16,7 @@ export const commentExample = `<div class="feature-example comment-queue" data-e
  <div class="example-footer"><span data-example-status>New comments arrive</span><span class="queue-count">2 open</span></div>
 </div>`;
 const trafficLights = `<span class="window-lights" aria-hidden="true"><i></i><i></i><i></i></span>`;
-export const promptExample = `<div class="feature-example prompt-example" data-example="prompt" data-step="0" aria-label="Animated notes passed to a coding agent">
+export const promptExample = `<div class="feature-example prompt-example" data-example="prompt" data-step="0" aria-label="Animated comments passed to a coding agent">
  <div class="example-header">${controls("prompt example")}</div>
  <div class="desktop-stage">
   <section class="desktop-window website-window" aria-label="Website window">
