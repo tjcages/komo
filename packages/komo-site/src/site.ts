@@ -7,19 +7,19 @@ const check =
 document
   .querySelectorAll<HTMLButtonElement>("[data-copy]")
   .forEach((button) => {
-    const original = button.innerHTML;
+    // Text buttons swap only their icon, matching the code copy buttons.
+    const icon = button.querySelector<HTMLElement>(".glyph") ?? button;
+    const original = icon.innerHTML;
     let timer: number;
     button.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(button.dataset.copy!);
         clearTimeout(timer);
-        button.innerHTML = button.dataset.copyDone
-          ? `${button.dataset.copyDone} ${check}`
-          : check;
+        icon.innerHTML = check;
         button.classList.add("copied");
         document.querySelector("#copy-status")!.textContent = "Copied";
         timer = window.setTimeout(() => {
-          button.innerHTML = original;
+          icon.innerHTML = original;
           button.classList.remove("copied");
         }, 1800);
       } catch {

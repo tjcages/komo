@@ -20,7 +20,7 @@
   .home .tool-card .install-wrap, .mini-thread, .prompt-preview,
   .self-host-icon { background: var(--surface); }
   .copy-btn:hover { background: #ffffff0c; }
-  .copy-btn.copied { color: #9ad5ad; }
+  .copy-btn.copied, .copy-link.copied .glyph { color: #9ad5ad; }
   .pill, .home .pill { background: var(--accent); color: #352a50; box-shadow: inset 0 1px 0 #ffffff24, 0 2px 4px #0002; }
   .pill:hover, .home .pill:hover { background: #dfcdfa; color: #352a50; }
   .tool-card, .try-section, .closing, footer { box-shadow: 0 -1px var(--theme-border); }

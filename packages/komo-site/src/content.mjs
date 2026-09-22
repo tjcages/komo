@@ -31,7 +31,7 @@ export const pages = [
       "Point at your website, leave feedback, and bring your team or coding agent into the conversation.",
     body: `
  <div class="home-intro" id="hero"><div class="hero-copy"><h1>A little context.<br>A better website.</h1></div><div class="hero-aside"><p>Leave comments right on your site.<br>Turn feedback into fixes with your team<br class="desktop-break"> and your agents.</p>
- <div class="home-actions"><button class="pill" data-try-komo="#hero">Try it here <span data-icon="comment"></span></button><button class="text-link copy-link" data-copy="${escape(agentPrompt)}" data-copy-done="Copied">Copy agent prompt <span data-icon="copy"></span></button></div>
+ <div class="home-actions"><button class="pill" data-try-komo="#hero"><span data-icon="comment"></span> Try it here</button><button class="text-link copy-link" data-copy="${escape(agentPrompt)}"><span data-icon="copy"></span> Copy agent prompt</button></div>
  <div class="hero-cta-space" aria-hidden="true"></div></div></div>
  ${scene}
  <div class="home-install">${code("npm install @tjcages/komo", "Copy install command")}<span>Any website. Any framework.</span></div>
