@@ -19,6 +19,16 @@ const frameworkTabs = `<div class="framework-tabs" data-framework-tabs>
  <div class="framework-panel" id="framework-panel-react" role="tabpanel" aria-labelledby="framework-tab-react">${code("'use client';\nimport { useKomo } from '@tjcages/komo/react';\n\nexport function Komo() {\n  useKomo({ project: 'YOUR_PROJECT_KEY' });\n  return null;\n}")}<p>Render <code>&lt;Komo /&gt;</code> once in your app or layout. The hook handles cleanup and Strict Mode. Inline options work; memoize callback options with <code>useCallback</code>. Set <code>enabled: false</code> to remove the tool.</p></div>
  <div class="framework-panel" id="framework-panel-astro" role="tabpanel" aria-labelledby="framework-tab-astro" hidden>${code("<script>\n  import { initKomo } from '@tjcages/komo';\n  initKomo({ project: 'YOUR_PROJECT_KEY' });\n</script>")}<p>With Astro’s client router, remount after page navigation.</p></div>
 </div>`;
+const agentPrompt = `Add komo (https://komo.offbr.co) to this website so my team can leave comments on it.
+
+1. Install @tjcages/komo with this project's package manager. It needs Node.js 22 or newer. Do not use the unrelated unscoped "komo" package.
+2. Start the dev server. From the project root, run \`npx @tjcages/komo init --origin <dev server URL>\` in a background terminal and keep it running. It generates ./komo.config.js and adds the comment workflow to AGENTS.md.
+3. Mount komo once, on the client, near the app root: import { initKomo } from the generated ./komo.config.js and call initKomo() after the page mounts. In React, call it in an effect and call destroy() on the returned controller during cleanup. With Astro's client router, remount after navigation.
+4. Only enable komo in development and preview builds, using the framework's public environment flag.
+5. Ask me to open the site and choose "Connect komo" in the komo sidebar to sign in with Google. After I connect, confirm the init command finished and .komo/project.json exists, then commit the changes.
+
+Docs: https://komo.offbr.co/install/`;
+const agentInstall = `<section class="agent-install" aria-labelledby="agent-install-heading"><div class="agent-install-head"><span class="agent-install-icon"><span data-icon="code"></span></span><div><h2 id="agent-install-heading">Install with your agent</h2><p>Paste this prompt into Claude Code, Codex, Cursor, or another agent with access to your repository. You only need to sign in.</p></div></div><div class="agent-install-prompt" tabindex="0" aria-label="Agent install prompt"><pre><code>${escape(agentPrompt)}</code></pre></div><div class="agent-install-actions"><button class="pill" data-copy="${escape(agentPrompt)}" data-copy-done="Copied prompt">Copy prompt <span data-icon="copy"></span></button><a class="text-link" href="#manual">Install manually <span data-icon="arrow"></span></a></div></section>`;
 export const pages = [
   {
     path: "/",
@@ -47,7 +57,9 @@ export const pages = [
     title: "Install komo.",
     description:
       "Install komo in your website with a package, a setup command, and two lines of code.",
-    body: `<h1>Install komo.</h1><p class="lede">Requires Node.js 22 or newer. Works with React, Astro, Vue, and plain JavaScript.</p>
+    body: `<h1>Install komo.</h1><p class="lede">Let your coding agent set it up, or follow the steps yourself. Works with React, Astro, Vue, and plain JavaScript.</p>
+ ${agentInstall}
+ <section class="doc-section manual-install" id="manual"><h2>Or install manually</h2><p>Requires Node.js 22 or newer.</p></section>
  ${section("01 · Install the package", code("npm install @tjcages/komo"))}
  ${section("02 · Create your project", `${code("npx @tjcages/komo init")}<p>Keep this terminal open while you start your app in another terminal.</p>`)}
  ${section("03 · Mount on the client", `${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY' });")}<p>For first-time setup, import <code>initKomo</code> from the generated <code>./komo.config.js</code> and call <code>initKomo()</code> after your page mounts. In React, mount that helper in an effect and destroy its controller on cleanup. The examples below use the final public project key printed after connection.</p>${frameworkTabs}`)}

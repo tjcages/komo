@@ -13,7 +13,9 @@ document
       try {
         await navigator.clipboard.writeText(button.dataset.copy!);
         clearTimeout(timer);
-        button.innerHTML = check;
+        button.innerHTML = button.dataset.copyDone
+          ? `${button.dataset.copyDone} ${check}`
+          : check;
         button.classList.add("copied");
         document.querySelector("#copy-status")!.textContent = "Copied";
         timer = window.setTimeout(() => {
