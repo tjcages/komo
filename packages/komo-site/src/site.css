@@ -236,7 +236,7 @@ code {
   transform: scale(0.92);
 }
 .copy-btn.copied {
-  color: #21804c;
+  color: var(--accent);
 }
 .copy-btn.copied svg {
   animation: pop 0.3s cubic-bezier(0.22, 1.6, 0.36, 1);
@@ -1530,7 +1530,7 @@ p, .lede, .home .hero-aside>p, .home .tool-card p { font-size:14px; line-height:
 .manual-note { margin:12px 0 0; font-size:13px; }
 .home .copy-link { gap:6px; }
 .copy-link { margin-top:0; border:0; background:none; padding:0 0 2px; color:inherit; font:inherit; cursor:pointer; }
-.copy-link.copied .glyph { color:#21804c; }
+.copy-link.copied .glyph { color:var(--accent); }
 .copy-link.copied svg { animation:pop .3s cubic-bezier(.22,1.6,.36,1); }
 .copy-btn.uncopying svg, .copy-link.uncopying svg { animation:unpop .18s ease-in forwards; }
 .copy-btn.restored svg, .copy-link.restored svg { animation:pop .3s cubic-bezier(.22,1.6,.36,1); }
