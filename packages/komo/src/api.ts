@@ -8,6 +8,14 @@ export class ApiError extends Error {
     super(message);
   }
 }
+/**
+ * Cloudflare preview hosts under one owner: `alias-worker.ACCOUNT.workers.dev`
+ * and `hash.PROJECT.pages.dev`. Sharing the session cookie on that parent
+ * signs a reviewer in once for every preview of the same account/project.
+ */
+export function previewSessionDomain(hostname: string): string {
+  return hostname.match(/^[^.]+\.([^.]+\.(?:workers|pages)\.dev)$/)?.[1] ?? "";
+}
 export class CommentsApi {
   token: string | null = null;
   user: Identity | null = null;
@@ -23,7 +31,7 @@ export class CommentsApi {
       domain &&
       (location.hostname === domain || location.hostname.endsWith(`.${domain}`))
         ? domain
-        : "";
+        : previewSessionDomain(location.hostname);
     this.key = `branch-comments:${options.endpoint}:${options.project}`;
     try {
       this.token =
@@ -31,8 +39,26 @@ export class CommentsApi {
           .split("; ")
           .find((cookie) => cookie.startsWith(`${this.cookieName}=`))
           ?.slice(this.cookieName.length + 1) || localStorage.getItem(this.key);
+      // Last known account, shown at once; restore() confirms it with /me.
+      const known = JSON.parse(localStorage.getItem(this.userKey) ?? "null");
+      if (this.token && known?.token === this.token) this.user = known.user;
     } catch {
       /* Private browsers can disable storage. */
+    }
+  }
+  private get userKey() {
+    return `${this.key}:user`;
+  }
+  private rememberUser() {
+    try {
+      if (this.token && this.user)
+        localStorage.setItem(
+          this.userKey,
+          JSON.stringify({ token: this.token, user: this.user })
+        );
+      else localStorage.removeItem(this.userKey);
+    } catch {
+      /* The account reloads from the server next time. */
     }
   }
   async request<T>(path: string, method = "GET", data?: unknown): Promise<T> {
@@ -134,6 +160,7 @@ export class CommentsApi {
     if (data.token !== this.token) this.revision = undefined;
     this.token = data.token;
     this.user = data.user;
+    this.rememberUser();
     try {
       localStorage.setItem(this.key, data.token);
       // Browsers cap cookie Max-Age at 400 days; the service session lasts far
@@ -144,8 +171,12 @@ export class CommentsApi {
     }
   }
   private writeCookie(value: string, maxAge: number) {
+    const attributes = `Path=/; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
     try {
-      document.cookie = `${this.cookieName}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}${this.cookieDomain ? `; Domain=${this.cookieDomain}` : ""}`;
+      // A host-only cookie from before sharing would shadow the shared one.
+      if (this.cookieDomain)
+        document.cookie = `${this.cookieName}=; Max-Age=0; ${attributes}`;
+      document.cookie = `${this.cookieName}=${value}; Max-Age=${maxAge}; ${attributes}${this.cookieDomain ? `; Domain=${this.cookieDomain}` : ""}`;
     } catch {
       /* Storage may be unavailable in this browser. */
     }
@@ -160,6 +191,7 @@ export class CommentsApi {
     this.cachedThreads = [];
     this.token = null;
     this.user = null;
+    this.rememberUser();
     this.writeCookie("", 0);
     try {
       localStorage.removeItem(this.key);
@@ -169,8 +201,11 @@ export class CommentsApi {
   }
   async restore() {
     if (!this.token) return;
+    const token = this.token;
     const result = await this.request<{ user: Identity }>("me");
+    if (this.token !== token) return;
     this.user = result.user;
+    this.rememberUser();
   }
   async guest(name: string) {
     this.save(await this.request("auth/guest", "POST", { name }));

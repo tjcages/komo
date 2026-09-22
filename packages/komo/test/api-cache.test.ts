@@ -80,3 +80,39 @@ it("persists the last list so a new page load reuses it", async () => {
   reloaded.clear();
   expect(new CommentsApi(options).cached()).toBeNull();
 });
+
+it("shares sessions only across one Cloudflare account or Pages project", async () => {
+  const { previewSessionDomain } = await import("../src/api");
+  expect(previewSessionDomain("feat-komo-site.off-brand.workers.dev")).toBe(
+    "off-brand.workers.dev"
+  );
+  expect(previewSessionDomain("abc123.komo-wb5.pages.dev")).toBe(
+    "komo-wb5.pages.dev"
+  );
+  expect(previewSessionDomain("komo-wb5.pages.dev")).toBe("");
+  expect(previewSessionDomain("a.b.off-brand.workers.dev")).toBe("");
+  expect(previewSessionDomain("preview.example.com")).toBe("");
+  expect(previewSessionDomain("localhost")).toBe("");
+});
+
+it("remembers the signed-in account for the same token", () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("location", { hostname: "localhost", protocol: "http:" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+  });
+  const options = {
+    endpoint: "https://example.com/api/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  };
+  const user = { id: "u1", name: "Ty", verified: true };
+  new CommentsApi(options).save({ token: "t1", user } as never);
+  expect(new CommentsApi(options).user).toEqual(user);
+  new CommentsApi(options).clear();
+  expect(new CommentsApi(options).user).toBeNull();
+});
