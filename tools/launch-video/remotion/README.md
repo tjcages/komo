@@ -1,6 +1,6 @@
 # komo — 20.6-second Remotion promo
 
-A new component-vignette cut; the previous `/launch-demo/` remains available.
+A component-vignette cut.
 
 Claim: leave feedback anywhere on a website and carry its context to an agent.
 Proof: pins become a conversation, comments collect in the sidebar, and the drawer's copy action leads to a prompt.
