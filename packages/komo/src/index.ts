@@ -1081,6 +1081,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       render();
     }
   }
+  const visibleThreads = (items: Thread[]) =>
+    items
+      .map((thread) => ({
+        ...thread,
+        comments: thread.comments.filter(
+          (comment) => comment.body !== "[Comment deleted]",
+        ),
+      }))
+      .filter((thread) => thread.comments.length > 0);
   let lastRefresh: Thread[] | undefined;
   let lastRefreshRevision = -1;
   async function refresh() {
@@ -1100,14 +1109,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         return;
       lastRefresh = response;
       lastRefreshRevision = revision;
-      const next = response
-        .map((thread) => ({
-          ...thread,
-          comments: thread.comments.filter(
-            (comment) => comment.body !== "[Comment deleted]",
-          ),
-        }))
-        .filter((thread) => thread.comments.length > 0);
+      const next = visibleThreads(response);
       if (destroyed || optimistic.busy || revision !== optimistic.revision)
         return;
       const changed = JSON.stringify(next) !== JSON.stringify(threads);
@@ -2284,6 +2286,48 @@ export function initComments(options: CommentsOptions): CommentsController {
     prompt.style.top = `${Math.max(12, Math.min(rect.bottom + 8, innerHeight - prompt.offsetHeight - 12))}px`;
     actions.querySelector<HTMLButtonElement>("button")?.focus();
   }
+  const canResolve = () =>
+    !pending && (guestResolve || !!api.user?.verified);
+  function toggleResolved(
+    thread: Thread,
+    noticeAnchor?: ReturnType<typeof captureNoticePosition>,
+  ) {
+    if (!api.user && (!guests || !guestName.trim())) {
+      openAccount();
+      return;
+    }
+    // Sidebar toggles leave the open card alone; the card's own toggle closes it.
+    const wasSelected = selected === thread.id;
+    const updateResolved = (resolved: boolean) => {
+      const previous = selected;
+      if (wasSelected) selected = resolved ? null : thread.id;
+      return saveOptimistic(
+        changeThread(thread.id, (current) => ({
+          ...current,
+          resolved,
+          resolvedBy: resolved ? api.user : null,
+        })),
+        async (id) => {
+          if (!api.user) await api.guest(guestName);
+          await api.request(`threads/${id(thread.id)}`, "PATCH", {
+            resolved,
+          });
+        },
+        () => {
+          if (!selected) selected = previous;
+        },
+      );
+    };
+    run(() => updateResolved(!thread.resolved));
+    notify(
+      thread.resolved ? "Comment reopened" : "Comment resolved",
+      {
+        label: "Undo",
+        run: () => run(() => updateResolved(thread.resolved)),
+      },
+      noticeAnchor,
+    );
+  }
   function renderList() {
     if (options.onboarding) {
       sidebar.replaceChildren();
@@ -2579,8 +2623,17 @@ export function initComments(options: CommentsOptions): CommentsController {
               : "",
         ),
       );
-      card.dataset.thread = thread.id;
       card.append(el("p", "preview", first.body), header, meta);
+      const item = el("div", "thread-item");
+      item.dataset.thread = thread.id;
+      const quickResolve = button(
+        thread.resolved ? "Reopen comment" : "Resolve comment",
+        () => toggleResolved(thread),
+        "icon card-resolve",
+        "check",
+      );
+      quickResolve.disabled = !canResolve();
+      item.append(card, quickResolve);
       if (thread.comments.length > 1) {
         const replies = el("div", "sidebar-replies");
         for (const reply of thread.comments.slice(1)) {
@@ -2600,7 +2653,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         }
         card.append(replies);
       }
-      list.append(card);
+      list.append(item);
     }
     if (!list.childElementCount) {
       const empty = el("div", "empty");
@@ -3311,46 +3364,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       controls.append(more);
       const resolve = button(
         thread.resolved ? "Reopen comment" : "Resolve comment",
-        () => {
-          if (!api.user && (!guests || !guestName.trim())) {
-            openAccount();
-            return;
-          }
-          const noticeAnchor = captureNoticePosition(thread.anchor);
-          const updateResolved = (resolved: boolean) => {
-            const previous = selected;
-            selected = resolved ? null : thread.id;
-            return saveOptimistic(
-              changeThread(thread.id, (current) => ({
-                ...current,
-                resolved,
-                resolvedBy: resolved ? api.user : null,
-              })),
-              async (id) => {
-                if (!api.user) await api.guest(guestName);
-                await api.request(`threads/${id(thread.id)}`, "PATCH", {
-                  resolved,
-                });
-              },
-              () => {
-                if (!selected) selected = previous;
-              },
-            );
-          };
-          run(() => updateResolved(!thread.resolved));
-          notify(
-            thread.resolved ? "Comment reopened" : "Comment resolved",
-            {
-              label: "Undo",
-              run: () => run(() => updateResolved(thread.resolved)),
-            },
-            noticeAnchor,
-          );
-        },
+        () => toggleResolved(thread, captureNoticePosition(thread.anchor)),
         "icon",
         "check",
       );
-      resolve.disabled = pending || (!guestResolve && !api.user?.verified);
+      resolve.disabled = !canResolve();
       controls.append(resolve);
     }
     controls.append(
@@ -4496,16 +4514,28 @@ export function initComments(options: CommentsOptions): CommentsController {
   dialogs.addEventListener("pointerdown", (event) => {
     if (account && event.target === dialogs) dismiss();
   });
+  function checkPage() {
+    if (destroyed || page() === lastPage) return;
+    lastPage = page();
+    parkedDraft = null;
+    selected = null;
+    draft = null;
+    render();
+  }
+  // Client-side routers change the URL without reloading; repaint pins right
+  // away from the threads already in memory. The poll below still catches
+  // routers that update the URL after these events fire.
+  const onNavigate = () => setTimeout(checkPage);
+  window.addEventListener("popstate", onNavigate, { signal: abort.signal });
+  (
+    window as Window & { navigation?: EventTarget }
+  ).navigation?.addEventListener("navigatesuccess", onNavigate, {
+    signal: abort.signal,
+  });
   const interval = window.setInterval(
     () => {
       if (document.hidden || destroyed) return;
-      if (page() !== lastPage) {
-        lastPage = page();
-        parkedDraft = null;
-        selected = null;
-        draft = null;
-        render();
-      }
+      checkPage();
       void (
         projectLoaded || options.onboarding ? refresh() : loadProject()
       ).catch(() => {});
@@ -4617,6 +4647,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   };
   instances.set(document, controller);
   scalePage();
+  const cached = options.onboarding ? null : api.cached();
+  if (cached) optimistic.replace(visibleThreads(cached));
   render();
   if (edgeSidebar) {
     // Park without the 320ms transition so the collapsed state is applied in
@@ -4633,6 +4665,14 @@ export function initComments(options: CommentsOptions): CommentsController {
       guests: boolean;
       guestResolve: boolean;
     };
+    // Threads need the settled session, not the config: load both in parallel.
+    const listed = api
+      .restore()
+      .catch(() => {
+        /* An expired guest session can be renewed by entering a name. */
+      })
+      .then(refresh);
+    listed.catch(() => {});
     try {
       config = await api.request("config");
     } catch (reason) {
@@ -4648,12 +4688,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     github = config.github;
     guests = config.guests;
     guestResolve = config.guestResolve;
-    try {
-      await api.restore();
-    } catch {
-      /* An expired guest session can be renewed by entering a name. */
-    }
-    await refresh();
+    await listed;
     const deepLink = new URL(location.href).searchParams.get("comment");
     const thread = threads.find((t) => t.id === deepLink);
     if (thread) {

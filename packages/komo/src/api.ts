@@ -75,6 +75,38 @@ export class CommentsApi {
     }
     return result as T;
   }
+  // ponytail: last list lives in localStorage so the next page load paints at
+  // once and asks the server "notModified?" instead of refetching every page.
+  // Quota overflow just skips the cache; IndexedDB if projects outgrow ~5MB.
+  private get listKey() {
+    return `${this.key}:${this.options.repo}:${this.options.branch}:threads`;
+  }
+  cached(): Thread[] | null {
+    try {
+      const stored = JSON.parse(localStorage.getItem(this.listKey) ?? "null");
+      if (stored?.token !== (this.token ?? "") || !Array.isArray(stored.threads))
+        return null;
+      this.revision = stored.revision;
+      this.cachedThreads = stored.threads;
+      return stored.threads;
+    } catch {
+      return null;
+    }
+  }
+  private persist() {
+    try {
+      localStorage.setItem(
+        this.listKey,
+        JSON.stringify({
+          token: this.token ?? "",
+          revision: this.revision,
+          threads: this.cachedThreads,
+        })
+      );
+    } catch {
+      /* Storage full or blocked; the next load fetches normally. */
+    }
+  }
   async list(): Promise<Thread[]> {
     const threads: Thread[] = [];
     let offset: number | null = 0;
@@ -95,9 +127,11 @@ export class CommentsApi {
     }
     this.revision = revision;
     this.cachedThreads = threads;
+    this.persist();
     return threads;
   }
   save(data: { token: string; user: Identity }) {
+    if (data.token !== this.token) this.revision = undefined;
     this.token = data.token;
     this.user = data.user;
     try {
@@ -117,6 +151,13 @@ export class CommentsApi {
     }
   }
   clear() {
+    try {
+      localStorage.removeItem(this.listKey);
+    } catch {
+      /* Nothing cached. */
+    }
+    this.revision = undefined;
+    this.cachedThreads = [];
     this.token = null;
     this.user = null;
     this.writeCookie("", 0);

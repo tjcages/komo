@@ -287,6 +287,41 @@ small {
 .thread-card:hover {
   background: #f0eee8;
 }
+.thread-item {
+  position: relative;
+}
+.thread-item > .card-resolve {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  filter: blur(2px);
+  transition:
+    opacity 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.thread-item:hover > .card-resolve,
+.thread-item > .card-resolve:focus-visible {
+  opacity: 1;
+  filter: none;
+}
+.thread-item > .card-resolve:active {
+  transform: scale(0.98);
+}
+@media (hover: none) {
+  .thread-item > .card-resolve {
+    opacity: 1;
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thread-item > .card-resolve {
+    transition: none;
+  }
+}
 .thread-card.active {
   background: #ede9df;
 }
