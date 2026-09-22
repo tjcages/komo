@@ -29,22 +29,22 @@ export const pages = [
   {
     path: "/",
     label: "Overview",
-    title: "Comments, where they belong.",
+    title: "Sticky notes for any website.",
     description:
-      "Point at your website, leave feedback, and bring your team or coding agent into the conversation.",
+      "Pin notes to anything on your website, discuss them with your team, and give your coding agent the context to make changes.",
     body: `
- <div class="home-intro" id="hero"><div class="hero-copy"><h1>A little context.<br>A better website.</h1></div><div class="hero-aside"><p>Leave comments right on your site.<br>Turn feedback into fixes with your team<br class="desktop-break"> and your agents.</p>
- <div class="home-actions"><button class="pill" data-try-komo="#hero"><span data-icon="comment"></span> Leave a comment</button><button class="text-link copy-link" data-copy="${escape(agentPrompt)}"><span data-icon="copy"></span> Copy prompt</button></div>
+ <div class="home-intro" id="hero"><div class="hero-copy"><h1>Sticky notes for<br>any website.</h1></div><div class="hero-aside"><p>Pin a note to anything on your site.<br>Talk it through with your team.<br>Give your agent the context.</p>
+ <div class="home-actions"><button class="pill" data-try-komo="#hero"><span data-icon="comment"></span> Leave a note</button><button class="text-link copy-link" data-copy="${escape(agentPrompt)}"><span data-icon="copy"></span> Copy prompt</button></div>
  <div class="hero-cta-space" aria-hidden="true"></div></div></div>
  ${scene}
  <div class="home-install">${code("npm install @tjcages/komo", "Copy install command")}<span>Any website. Any framework.</span></div>
  <section class="tool-grid" aria-label="How komo works">
- <article class="tool-card"><div class="tool-card-bar"><span>01 / Feedback</span><span data-icon="pointer"></span></div><div class="tool-card-body"><h2>Comment in place.</h2><p>Point to a button, highlight a section, or reply in place. Everyone sees the same conversation.</p>${commentExample}</div></article>
- <article class="tool-card"><div class="tool-card-bar"><span>02 / Agents</span><span data-icon="code"></span></div><div class="tool-card-body"><h2>Work with your agent.</h2><p>Read feedback, reply, and resolve comments from the CLI. Or copy a prompt with the context already attached.</p>${promptExample}<a class="text-link" href="/agent-prompts/">Explore the agent CLI <span data-icon="arrow"></span></a></div></article>
- <article class="tool-card"><div class="tool-card-bar"><span>03 / Setup</span><span data-icon="terminal"></span></div><div class="tool-card-body"><h2>Add komo to your site.</h2><p>Run setup, mount komo, and connect from your site. Your teammates can sign in or just leave their name.</p>${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY' });")}<a class="text-link" href="/install/">Installation guide <span data-icon="arrow"></span></a></div></article>
- <article class="tool-card"><div class="tool-card-bar"><span>04 / Hosting</span><span data-icon="cloud"></span></div><div class="tool-card-body"><h2>A home for your feedback.</h2><p>Start with komo hosting. No database or hosting to configure.</p><div class="feature-example usage-example" data-usage-demo role="button" tabindex="0" aria-label="Pause usage animation" aria-pressed="false"><div class="product-preview product-account" aria-label="Example starter plan usage"><div class="product-account-heading"><span data-icon="cloud"></span><strong>Starter plan</strong><span>Hosted</span></div><div class="product-usage"><span>Project comments</span><span><span><span data-usage-comments>42</span> / 250</span> <i class="product-ring" aria-hidden="true"></i></span></div><div class="product-usage"><span>Projects</span><span><strong data-usage-projects>1</strong> of 3</span></div><div class="product-slots" aria-hidden="true"><span class="filled"></span><span></span><span></span></div></div></div><div class="self-host-option"><span class="self-host-icon"><span data-icon="code"></span></span><div><strong>Prefer to self-host?</strong><p>Unlimited projects and comments in your own Cloudflare account. Your infrastructure’s limits apply.</p><a class="text-link" href="/hosting/#self-host">Self-hosting setup <span data-icon="arrow"></span></a></div></div></div></article>
+ <article class="tool-card"><div class="tool-card-bar"><span>01 / Notes</span><span data-icon="pointer"></span></div><div class="tool-card-body"><h2>Leave a note. Right there.</h2><p>Pin a note to a button, image, or area. Discuss it with your team, then resolve it when the work is done.</p>${commentExample}</div></article>
+ <article class="tool-card"><div class="tool-card-bar"><span>02 / Agents</span><span data-icon="code"></span></div><div class="tool-card-body"><h2>Give your agent the context.</h2><p>Share your notes with the page, element, and replies attached. Your agent makes the changes; komo keeps the conversation in place.</p>${promptExample}<a class="text-link" href="/agent-prompts/">Explore the agent CLI <span data-icon="arrow"></span></a></div></article>
+ <article class="tool-card"><div class="tool-card-bar"><span>03 / Setup</span><span data-icon="terminal"></span></div><div class="tool-card-body"><h2>Your site. Now with notes.</h2><p>Add komo to your app and connect once. Your teammates can sign in or leave their name to join the conversation.</p>${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY' });")}<a class="text-link" href="/install/">Installation guide <span data-icon="arrow"></span></a></div></article>
+ <article class="tool-card"><div class="tool-card-bar"><span>04 / Hosting</span><span data-icon="cloud"></span></div><div class="tool-card-body"><h2>A home for your notes.</h2><p>Start with komo hosting. No database or hosting to configure.</p><div class="feature-example usage-example" data-usage-demo role="button" tabindex="0" aria-label="Pause usage animation" aria-pressed="false"><div class="product-preview product-account" aria-label="Example starter plan usage"><div class="product-account-heading"><span data-icon="cloud"></span><strong>Starter plan</strong><span>Hosted</span></div><div class="product-usage"><span>Project comments</span><span><span><span data-usage-comments>42</span> / 250</span> <i class="product-ring" aria-hidden="true"></i></span></div><div class="product-usage"><span>Projects</span><span><strong data-usage-projects>1</strong> of 3</span></div><div class="product-slots" aria-hidden="true"><span class="filled"></span><span></span><span></span></div></div></div><div class="self-host-option"><span class="self-host-icon"><span data-icon="code"></span></span><div><strong>Prefer to self-host?</strong><p>Unlimited projects and comments in your own Cloudflare account. Your infrastructure’s limits apply.</p><a class="text-link" href="/hosting/#self-host">Self-hosting setup <span data-icon="arrow"></span></a></div></div></div></article>
  </section>
- <section class="try-section" aria-labelledby="try-heading"><div class="try-heading-row"><h2 id="try-heading">You’re here. Leave a comment.</h2></div><button id="try-komo" class="try-block" data-try-komo aria-label="Say hi 👋 — add a comment"><span class="try-content"><span class="try-icon"><span data-icon="comment"></span></span><strong>Say hi 👋</strong><span class="try-caption">Click to leave a comment</span></span><span class="try-cursors" aria-hidden="true"><span class="try-cursor-track try-cursor-design"><span class="agent-cursor" data-agent="D"><span data-icon="multiplayer"></span></span></span><span class="try-cursor-track try-cursor-code"><span class="agent-cursor" data-agent="E"><span data-icon="multiplayer"></span></span></span><span class="try-cursor-track try-cursor-qa"><span class="agent-cursor" data-agent="P"><span data-icon="multiplayer"></span></span></span></span></button><p class="beta-badge">public beta</p></section>
+ <section class="try-section" aria-labelledby="try-heading"><div class="try-heading-row"><h2 id="try-heading">Try a sticky note. Right here.</h2></div><button id="try-komo" class="try-block" data-try-komo aria-label="Say hi 👋 — leave a note"><span class="try-content"><span class="try-icon"><span data-icon="comment"></span></span><strong>Say hi 👋</strong><span class="try-caption">Click to leave a note</span></span><span class="try-cursors" aria-hidden="true"><span class="try-cursor-track try-cursor-design"><span class="agent-cursor" data-agent="D"><span data-icon="multiplayer"></span></span></span><span class="try-cursor-track try-cursor-code"><span class="agent-cursor" data-agent="E"><span data-icon="multiplayer"></span></span></span><span class="try-cursor-track try-cursor-qa"><span class="agent-cursor" data-agent="P"><span data-icon="multiplayer"></span></span></span></span></button><p class="beta-badge">public beta</p></section>
 `,
   },
   {
@@ -52,7 +52,7 @@ export const pages = [
     label: "Install",
     title: "Install komo.",
     description:
-      "Install komo in your website with a package, a setup command, and two lines of code.",
+      "Add sticky notes to your website with komo. Install the package, mount it once, and connect from your site.",
     body: `<h1>Install komo.</h1><p class="lede">Paste this prompt into your coding agent, or follow the steps below. Works with React, Astro, Vue, and plain JavaScript.</p>
  ${promptCode}
  <p class="manual-note">Or install manually. Requires Node.js 22 or newer.</p>
@@ -116,10 +116,10 @@ export const pages = [
   {
     path: "/hosting/",
     label: "Hosting & limits",
-    title: "A home for your feedback.",
+    title: "A home for your notes.",
     description:
       "Start with hosted komo or run the comments API in your own Cloudflare account.",
-    body: `<h1>A home for your feedback.</h1><p class="lede">Comments live separately from your website. Choose who looks after them.</p>
+    body: `<h1>A home for your notes.</h1><p class="lede">Keep your notes and conversations together, separate from your site’s code. Choose where they live.</p>
  ${section("Hosted starter", `<div class="quota-demo"><div><strong>3</strong><span>projects per Google owner</span></div><div><strong>250</strong><span>comments per project</span></div></div><p>The hosted starter is currently free during beta. The account panel shows your usage. Replies, resolved comments, and deleted comments count toward the stored-comment limit.</p><p>Each workspace also has a 10 MiB logical storage budget and a 500-write daily limit. Rate limits protect the shared service. There is no automatic paid upgrade.</p><p>A Google-authenticated owner creates and manages the project. Guests can participate, but cannot own a workspace.</p>`)}
  ${section("Self-hosted", `${code("npx @tjcages/komo init --self-host \\\n  --google-client-id YOUR_GOOGLE_CLIENT_ID")}<p>The CLI signs into Cloudflare, creates a D1 database, runs migrations, and deploys a Worker. It prompts for your Google client secret through Wrangler.</p><p>Add the printed callback URL in Google Console, then open the owner-claim link and sign in. Keep the local owner key private.</p>${code("npx @tjcages/komo deploy")}<p>Update the npm package first, then use this to resume or redeploy an existing setup. The command copies new migrations and applies them before deploying. Your infrastructure follows your Cloudflare account’s limits and billing. komo does not impose the hosted starter quotas.</p>`, "self-host")}
  ${section("What a shared link means", `<p>Projects start with link access. Owners can switch to invited Google accounts in Account → Project settings. Invitation links are tied to an email address, expire after seven days, and work once. Approved sites control embedding; membership controls access to private feedback.</p><p>Site approval lets komo load; signing in identifies the reviewer. Previews in the same Cloudflare Workers account or Pages project share sign-in. Unrelated domains require their own sign-in unless you configure a trusted parent with <code>sessionDomain</code>.</p>`)}
@@ -129,16 +129,16 @@ export const pages = [
   {
     path: "/agent-prompts/",
     label: "For your agent",
-    title: "Give your agent the whole picture.",
+    title: "Give your agent the context.",
     description:
       "Read, reply to, and resolve website comments from your coding agent with the komo CLI.",
-    body: `<h1>Less guesswork<br>for your agent.</h1><p class="lede">Give your agent a direct line to your website’s feedback.</p>
- ${section("From feedback to a fix", `<p>Update komo, then sign in once from your project. Your setup settings carry over.</p>${code("npm install @tjcages/komo@latest\nnpx @tjcages/komo login\nnpx @tjcages/komo comments list\nnpx @tjcages/komo comments get THREAD_ID")}<p>Your agent gets the page, selector, source reference, and replies as JSON. After making and checking a change, it can close the loop.</p>${code('npx @tjcages/komo comments reply THREAD_ID --body "Fixed."\nnpx @tjcages/komo comments resolve THREAD_ID')}`, "cli")}
+    body: `<h1>Your notes.<br>Your agent’s next task.</h1><p class="lede">Turn a note on your site into a clear task, with the page, element, and conversation attached.</p>
+ ${section("From a note to a fix", `<p>Update komo, then sign in once from your project. Your setup settings carry over.</p>${code("npm install @tjcages/komo@latest\nnpx @tjcages/komo login\nnpx @tjcages/komo comments list\nnpx @tjcages/komo comments get THREAD_ID")}<p>Your agent gets the page, selector, source reference, and replies as JSON. After making and checking a change, it can close the loop.</p>${code('npx @tjcages/komo comments reply THREAD_ID --body "Fixed."\nnpx @tjcages/komo comments resolve THREAD_ID')}`, "cli")}
  ${section("Default comment workflow", `<p>New projects get comment instructions in <code>AGENTS.md</code>. Add them to an existing project with:</p>${code("npx @tjcages/komo agents setup")}<p>Agents read comments and replies before editing. Simple fixes can be resolved after verification at 90%+ confidence. Questions and changes that need review stay open with a reply.</p>`)}
  ${section("Built for agents", `<p>Run <code>komo schema</code> for a machine-readable command reference. Commands can create comments, edit your messages, react, move anchors, and reopen threads.</p><p>Use <code>--page /pricing</code> to focus on one page, or <code>--status resolved</code> to revisit completed feedback. Long replies can come from a file or standard input.</p>${code("npx @tjcages/komo comments reply THREAD_ID --body-file reply.md\nnpx @tjcages/komo comments prompt --page /pricing")}<p>Google sign-in saves a project session on your computer, outside the repository. Automated environments can use <code>KOMO_TOKEN</code>. The same comment permissions and limits apply.</p>`)}
- ${section("Copy the work", `<p>Choose <strong>Copy all comments</strong> from the expanded drawer for open feedback across the project. The sidebar’s copy button exports only the current page.</p><p>Paste it into Codex, Claude Code, Cursor, or another agent with access to your repository. Resolved threads stay out of the prompt.</p>`)}
+ ${section("Share your notes", `<p>Choose <strong>Copy all comments</strong> from the expanded drawer for open feedback across the project. The sidebar’s copy button exports only the current page.</p><p>Paste it into Codex, Claude Code, Cursor, or another agent with access to your repository. Resolved threads stay out of the prompt.</p>`)}
  ${section("The useful details", `<ul class="clean-list"><li>Your feedback and the replies that clarify it</li><li>Repository, scope, and page URL</li><li>The element’s selector and visible text</li><li>The comment position or selected area</li><li>Source file references, when supplied by your site</li></ul>`)}
- ${section("A review note becomes a task", `${code("Page: /pricing\nTarget: #annual-plan-button\nElement text: Choose plan\nSource: src/components/Pricing.tsx\n\nMaya: Make it clear this is billed annually.\nAlex: Keep the monthly equivalent visible too.")}<p>komo copies context for your agent; it does not run an agent, upload your repository, or make code changes itself.</p>`)} `,
+ ${section("A note becomes a task", `${code("Page: /pricing\nTarget: #annual-plan-button\nElement text: Choose plan\nSource: src/components/Pricing.tsx\n\nMaya: Make it clear this is billed annually.\nAlex: Keep the monthly equivalent visible too.")}<p>komo copies context for your agent; it does not run an agent, upload your repository, or make code changes itself.</p>`)} `,
   },
   {
     path: "/faq/",
@@ -147,6 +147,10 @@ export const pages = [
     description:
       "Answers about komo, guests, authentication, storage, privacy, and framework support.",
     body: `<h1>Questions.</h1>${[
+      [
+        "What is komo?",
+        "Sticky notes for any website. Add komo to your app, pin a note to an element or area, and discuss it with your team. Share the notes and their context with your coding agent when you’re ready to make changes.",
+      ],
       [
         "Is this tied to a framework?",
         "No. komo mounts in the browser and keeps its UI in an isolated ShadowRoot. Your site can use React, Astro, Vue, or plain JavaScript.",
