@@ -1,4 +1,5 @@
 import { importProject } from "./import-project";
+import { projectSites, saveProjectSites } from "./project-sites";
 import { check, string } from "./validation";
 import { googleOwner } from "./workspaces";
 import type { Identity } from "../src/types";
@@ -79,6 +80,22 @@ export async function manageProject(
     return Response.json({ ok: true });
   }
   await googleOwner(env, project, user);
+  // `fixed` stays empty for widgets released before every site was removable.
+  if (path === "/project/sites" && request.method === "GET")
+    return Response.json({
+      sites: await projectSites(env, project),
+      fixed: [],
+    });
+  if (path === "/project/sites" && request.method === "PATCH") {
+    const managed = url.searchParams.get("project") === "_komo";
+    const sites = await saveProjectSites(
+      env,
+      project,
+      (await readBody()).sites,
+      managed ? undefined : (request.headers.get("Origin") ?? undefined)
+    );
+    return Response.json({ sites, fixed: [] });
+  }
   if (path === "/project/import" && request.method === "POST")
     return importProject(env, project, await readBody());
   if (path === "/project" && request.method === "GET") {

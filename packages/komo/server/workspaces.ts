@@ -1,5 +1,6 @@
 import { check, string, originAllowed } from "./validation";
 import type { Identity } from "../src/types";
+import { editedOrigins, siteEdits } from "./project-sites";
 export type Project = {
   repo: string;
   origins: string[];
@@ -43,7 +44,14 @@ export async function projectConfig(
   const staticConfig = (JSON.parse(env.PROJECTS) as Record<string, Project>)[
     project
   ];
-  if (staticConfig) return staticConfig;
+  if (staticConfig)
+    return {
+      ...staticConfig,
+      origins: editedOrigins(
+        staticConfig.origins,
+        await siteEdits(env, project)
+      ),
+    };
   const row = await env.DB.prepare(
     "SELECT repo,origins,suspended FROM workspaces WHERE id=?"
   )

@@ -19,6 +19,9 @@ const frameworkTabs = `<div class="framework-tabs" data-framework-tabs>
  <div class="framework-panel" id="framework-panel-react" role="tabpanel" aria-labelledby="framework-tab-react">${code("'use client';\nimport { useKomo } from '@tjcages/komo/react';\n\nexport function Komo() {\n  useKomo({ project: 'YOUR_PROJECT_KEY' });\n  return null;\n}")}<p>Render <code>&lt;Komo /&gt;</code> once in your app or layout. The hook handles cleanup and Strict Mode. Inline options work; memoize callback options with <code>useCallback</code>. Set <code>enabled: false</code> to remove the tool.</p></div>
  <div class="framework-panel" id="framework-panel-astro" role="tabpanel" aria-labelledby="framework-tab-astro" hidden>${code("<script>\n  import { initKomo } from '@tjcages/komo';\n  initKomo({ project: 'YOUR_PROJECT_KEY' });\n</script>")}<p>With Astro’s client router, remount after page navigation.</p></div>
 </div>`;
+const agentPrompt =
+  "Add komo to this website. Install @tjcages/komo, run `npx @tjcages/komo init --origin <dev server URL>` in the background, and mount initKomo() from ./komo.config.js on the client for dev and preview builds. Then ask me to choose Connect komo to sign in. Docs: https://komo.offbr.co/install/";
+const promptCode = `<div class="install-wrap prompt-wrap"><pre><code>${escape(agentPrompt)}</code></pre><button class="copy-btn" data-copy="${escape(agentPrompt)}" aria-label="Copy agent prompt"><span data-icon="copy"></span></button></div>`;
 export const pages = [
   {
     path: "/",
@@ -28,7 +31,7 @@ export const pages = [
       "Point at your website, leave feedback, and bring your team or coding agent into the conversation.",
     body: `
  <div class="home-intro" id="hero"><div class="hero-copy"><h1>A little context.<br>A better website.</h1></div><div class="hero-aside"><p>Leave comments right on your site.<br>Turn feedback into fixes with your team<br class="desktop-break"> and your agents.</p>
- <div class="home-actions"><button class="pill" data-try-komo="#hero">Try it here <span data-icon="comment"></span></button><a class="text-link" href="/install/">Add to your site <span data-icon="arrow"></span></a></div>
+ <div class="home-actions"><button class="pill" data-try-komo="#hero"><span data-icon="comment"></span> Leave a comment</button><button class="text-link copy-link" data-copy="${escape(agentPrompt)}"><span data-icon="copy"></span> Copy prompt</button></div>
  <div class="hero-cta-space" aria-hidden="true"></div></div></div>
  ${scene}
  <div class="home-install">${code("npm install @tjcages/komo", "Copy install command")}<span>Any website. Any framework.</span></div>
@@ -47,7 +50,9 @@ export const pages = [
     title: "Install komo.",
     description:
       "Install komo in your website with a package, a setup command, and two lines of code.",
-    body: `<h1>Install komo.</h1><p class="lede">Requires Node.js 22 or newer. Works with React, Astro, Vue, and plain JavaScript.</p>
+    body: `<h1>Install komo.</h1><p class="lede">Paste this prompt into your coding agent, or follow the steps below. Works with React, Astro, Vue, and plain JavaScript.</p>
+ ${promptCode}
+ <p class="manual-note">Or install manually. Requires Node.js 22 or newer.</p>
  ${section("01 · Install the package", code("npm install @tjcages/komo"))}
  ${section("02 · Create your project", `${code("npx @tjcages/komo init")}<p>Keep this terminal open while you start your app in another terminal.</p>`)}
  ${section("03 · Mount on the client", `${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY' });")}<p>For first-time setup, import <code>initKomo</code> from the generated <code>./komo.config.js</code> and call <code>initKomo()</code> after your page mounts. In React, mount that helper in an effect and destroy its controller on cleanup. The examples below use the final public project key printed after connection.</p>${frameworkTabs}`)}

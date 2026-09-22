@@ -2,7 +2,8 @@ import type { CommentsOptions, Identity, Thread } from "./types.js";
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public code?: string
   ) {
     super(message);
   }
@@ -50,18 +51,26 @@ export class CommentsApi {
       credentials: "omit",
       signal: AbortSignal.timeout(15000),
     }).catch((error: unknown) => {
+      // Browsers hide why a request failed; offline is the one case we can tell.
       if (error instanceof TypeError)
-        throw new Error(
-          "Could not reach komo. Check your connection and this site's approval in komo."
-        );
+        throw navigator.onLine === false
+          ? new ApiError(0, "You’re offline.", "offline")
+          : new ApiError(0, "Can’t connect to comments.", "unreachable");
       throw error;
     });
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (response.status === 401 && this.token === token) this.clear();
+      if (result.code === "site_not_approved")
+        throw new ApiError(
+          response.status,
+          "Comments aren’t turned on for this site yet.",
+          result.code
+        );
       throw new ApiError(
         response.status,
-        result.error ?? "Could not load comments."
+        result.error ?? "Could not load comments.",
+        result.code
       );
     }
     return result as T;

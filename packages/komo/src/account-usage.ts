@@ -2,7 +2,7 @@ import type { AccountUsage } from "./types.js";
 import type { CommentsApi } from "./api.js";
 import { el, button } from "./dom.js";
 
-export function accountUsage(api: CommentsApi, path = "usage") {
+export function accountUsage(api: CommentsApi, path = "usage", sites = true) {
   const usagePanel = el("section", "account-usage");
   usagePanel.setAttribute("aria-label", "Account usage");
   const skeleton = (className = "") => {
@@ -36,11 +36,20 @@ export function accountUsage(api: CommentsApi, path = "usage") {
     usagePanel.replaceChildren(heading, comments, projects, announcement);
   };
   const usageUser = api.user?.id;
+  // Owners get the approved-sites editor below their usage.
+  const showSites = async () => {
+    const query = path.includes("?") ? path.slice(path.indexOf("?")) : "";
+    const { approvedSites } = await import("./approved-sites.js");
+    const editor = await approvedSites(api, query);
+    if (editor && usagePanel.isConnected && api.user?.id === usageUser)
+      usagePanel.append(editor);
+  };
   const loadUsage = async () => {
     showSkeleton();
     try {
       const usage = await api.request<AccountUsage>(path);
       if (!usagePanel.isConnected || api.user?.id !== usageUser) return;
+      if (sites && api.user?.verified) void showSites().catch(() => {});
       usagePanel.setAttribute("aria-busy", "false");
       usagePanel.replaceChildren(
         el("h3", "", usage.hosted ? "Starter plan" : "Self-hosted")

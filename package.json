@@ -7,7 +7,7 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "build": "pnpm --filter @tjcages/komo build && pnpm --filter komo-site build",
+    "build": "pnpm --filter komo-site build",
     "test": "pnpm --filter @tjcages/komo test",
     "typecheck": "pnpm -r typecheck",
     "size": "pnpm --filter @tjcages/komo size",
