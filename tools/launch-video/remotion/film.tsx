@@ -176,13 +176,13 @@ function Context() {
               letterSpacing: -6,
             }}
           >
-            {["Anyone", "can", "comment.", "Anywhere."].map((w, i) => (
+            {["Sticky", "notes", "for", "any", "website."].map((w, i) => (
               <span
                 key={w}
                 style={{
                   opacity: ramp(f, [i * 3, i * 3 + 9], "arrive"),
                   display: "inline-block",
-                  marginRight: i === 3 ? 0 : 24,
+                  marginRight: i === 4 ? 0 : 24,
                 }}
               >
                 {w}
@@ -803,7 +803,7 @@ export const PARTS = [
   "logo",
 ];
 const defs = [
-  ["context", Context, 69, "context", "PUSH", "pins", "entrance"],
+  ["context", Context, 77, "context", "PUSH", "pins", "entrance"],
   [
     "conversation",
     Conversation,
@@ -833,7 +833,7 @@ export const SCENES: Scene[] = defs.map(
     motion: { from: 0, to: length + 20, tag: "push-in" },
   }),
 );
-validateReadingHold("context", "Anyone can comment. Anywhere.", 69);
+validateReadingHold("context", "Sticky notes for any website.", 77);
 export function Film() {
   let offset = 0;
   return (

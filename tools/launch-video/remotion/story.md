@@ -22,3 +22,7 @@ No agent edits or execution results are implied. The resolved thread remains exc
 ## Opening copy revision
 
 “Anyone can comment. Anywhere.” conveys both participation and placement. It remains one line with generous side clearance, at 96px. The title lasts 69 frames; Copy lasts 57 frames, preserving its 15-frame confirmation. Total duration and the logo hold are unchanged.
+
+## Final owner wording
+
+“Sticky notes for any website.” replaces the previous opening. Its 77-frame reading hold adds eight frames, yielding a 626-frame (20.87-second) film without shortening any other interaction or logo hold.

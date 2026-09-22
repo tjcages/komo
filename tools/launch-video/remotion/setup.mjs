@@ -42,7 +42,7 @@ for (const name of ["package.json", "package-lock.json"])
   cpSync(resolve(source, name), resolve(target, name));
 console.log(`Prepared ${target}. Run npm ci there, then node build.mjs.`);
 
-// The added post-reaction hold requires a 20.6-second film; retain a 21s validation cap.
+// The five-word opening and interaction holds need 626 frames; retain a 21s cap.
 const sceneHelper = resolve(target, "src/scenes.ts");
 writeFileSync(
   sceneHelper,

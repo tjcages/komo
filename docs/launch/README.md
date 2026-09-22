@@ -1,6 +1,6 @@
 # komo public beta review
 
-Current review: the 20.6-second Remotion promo. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
+Current review: the 20.9-second Remotion promo. Linear is connected and organized; Google branding review remains pending. No merge or social post is approved by this document.
 
 - **[Remotion promo](https://80047cc4-komo-site.off-brand.workers.dev/promo/)** · [MP4](https://80047cc4-komo-site.off-brand.workers.dev/promo/komo-promo.mp4) · [Source](../../tools/launch-video/remotion/README.md)
 - [Previous rendered asset gallery](https://4adc4b37.komo-wb5.pages.dev/launch-assets/)
