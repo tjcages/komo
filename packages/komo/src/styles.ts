@@ -238,6 +238,10 @@ small {
 .thread-item {
   position: relative;
 }
+.list[data-long] > .thread-item {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 160px;
+}
 .thread-item > .card-resolve {
   position: absolute;
   top: 8px;

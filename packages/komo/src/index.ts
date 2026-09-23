@@ -2885,12 +2885,20 @@ export function initComments(options: CommentsOptions): CommentsController {
         ),
       );
     }
-    const previous = new Map(
-      [...panel.querySelectorAll<HTMLElement>(".list > [data-thread]")].map(
-        (card) => [card.dataset.thread, card.getBoundingClientRect().top],
-      ),
-    );
+    const animateRows =
+      !restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const previous = new Map<string | undefined, number>();
+    if (animateRows && existingList) {
+      const bounds = existingList.getBoundingClientRect();
+      for (const card of existingList.querySelectorAll<HTMLElement>("[data-thread]")) {
+        const box = card.getBoundingClientRect();
+        if (box.bottom >= bounds.top && box.top <= bounds.bottom)
+          previous.set(card.dataset.thread, box.top);
+      }
+    }
     const list = el("div", "list");
+    const rows = filtered();
+    if (rows.length > 40) list.dataset.long = "";
     const loading = !knownThreads && connection === "Connecting";
     list.setAttribute("aria-busy", String(loading));
     clearTimeout(listScrollTimer);
@@ -2905,7 +2913,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       },
       { passive: true },
     );
-    for (const thread of filtered()) {
+    for (const thread of rows) {
       const first = thread.comments[0];
       if (!first) continue;
       const cached = listItems.get(thread);
@@ -3064,12 +3072,14 @@ export function initComments(options: CommentsOptions): CommentsController {
     syncTips(!!list.querySelector(".empty [aria-label='Add a comment']"));
     requestAnimationFrame(pointTips);
     list.scrollTop = scroll;
-    if (!restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (animateRows) {
       let entered = 0;
+      const bounds = list.getBoundingClientRect();
       for (const card of list.querySelectorAll<HTMLElement>("[data-thread]")) {
+        const box = card.getBoundingClientRect();
+        if (box.bottom < bounds.top || box.top > bounds.bottom) continue;
         const oldTop = previous.get(card.dataset.thread);
-        const delta =
-          oldTop === undefined ? 8 : oldTop - card.getBoundingClientRect().top;
+        const delta = oldTop === undefined ? 8 : oldTop - box.top;
         if (Math.abs(delta) > 0.5)
           card.animate(
             [
