@@ -241,9 +241,25 @@ export function MorphingMenu({
     const crossingBar =
       (old.kind === "collapsed") !== (view.kind === "collapsed");
     const snap = reducedMotion || !changed;
+    const touch = matchMedia("(any-pointer: coarse)").matches;
 
-    if (snap) setSize();
-    else if (crossingBar && !expanded) {
+    if (snap) {
+      shell.style.transform = "";
+      setSize();
+    } else if (crossingBar && touch) {
+      const before = shell.getBoundingClientRect();
+      setSize();
+      shell.style.transform = "none";
+      shell.style.transformOrigin = "bottom center";
+      const after = shell.getBoundingClientRect();
+      const from = `translate(${before.left + before.width / 2 - after.left - after.width / 2}px, ${before.bottom - after.bottom}px) scale(${before.width / after.width}, ${before.height / after.height})`;
+      track(
+        animate(shell, { transform: [from, "none"] }, {
+          duration: 0.24,
+          ease: [0.22, 1, 0.36, 1],
+        }),
+      );
+    } else if (crossingBar && !expanded) {
       track(animate(shell, targetSize(), drawerCollapse));
     } else if (crossingBar) {
       const width = Math.min(
@@ -313,10 +329,10 @@ export function MorphingMenu({
             },
             {
               ...spring,
-              duration: snap ? 0 : visible ? (crossingBar ? 0.4 : 0.25) : 0.12,
+              duration: snap ? 0 : visible ? (crossingBar ? (touch ? 0.22 : 0.4) : 0.25) : 0.12,
               bounce: crossingBar ? 0.3 : 0,
               delay:
-                !snap && visible ? (crossingBar ? 0.2 : 0) + index * 0.02 : 0,
+                !snap && visible ? (crossingBar ? (touch ? 0.06 : 0.2) : 0) + index * 0.02 : 0,
             },
           ),
         );

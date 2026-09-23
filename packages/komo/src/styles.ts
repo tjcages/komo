@@ -2264,6 +2264,9 @@ textarea {
   pointer-events: auto;
 }
 :host([data-sidebar="edge"]) .edge-sidebar-sensor[hidden] { display: none; }
+:host([data-sidebar="edge"]) .toolbar:not([data-edge-tabs="true"]) {
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
 /* Expanded edge sidebar keeps the drawer as a tab bar along the bottom. */
 :host([data-sidebar="edge"]) .toolbar[data-edge-tabs="true"] {
   position: relative;
