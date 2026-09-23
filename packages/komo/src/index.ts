@@ -6,6 +6,7 @@ import {
 } from "./connect-project.js";
 import { resolveConfig, type KomoConfig } from "./config.js";
 export type { KomoConfig } from "./config.js";
+import { adaptivePolling } from "./polling.js";
 import { pinDirection } from "./pin-direction.js";
 import { pinStacks } from "./pin-stacks.js";
 import { OptimisticQueue } from "./optimistic.js";
@@ -54,6 +55,7 @@ import { ApiError, CommentsApi } from "./api.js";
 import { connectionIssue, type ConnectionIssue } from "./connection-issue.js";
 import {
   captureAnchor,
+  anchorPass,
   resolveAnchor,
   locateAnchor as measureAnchor,
 } from "./anchors.js";
@@ -812,6 +814,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       ...options,
       branch: value === "local" ? "local" : sharedBranch,
     };
+    api.cancelReads();
     api = new CommentsApi(options);
     refreshing = projectLoaded = false;
     lastRefresh = undefined;
@@ -1185,7 +1188,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         : "Something went wrong. Try again.";
     notify(error);
   }
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<unknown>) {
     void action().catch(fail);
   }
   // Account panels load with the dialog, keeping them out of the first bundle.
@@ -1233,6 +1236,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         ),
       }))
       .filter((thread) => thread.comments.length > 0);
+  let polling: ReturnType<typeof adaptivePolling> | undefined;
   let lastRefresh: Thread[] | undefined;
   let lastRefreshRevision = -1;
   async function refresh() {
@@ -1259,7 +1263,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         revision === lastRefreshRevision &&
         connection === "Live"
       )
-        return;
+        return false;
       lastRefresh = response;
       lastRefreshRevision = revision;
       knownThreads = true;
@@ -1276,8 +1280,15 @@ export function initComments(options: CommentsOptions): CommentsController {
         renderList();
         renderToolbar();
       }
+      return changed;
     } catch (reason) {
-      if (destroyed || client !== api || session !== sessionRevision) return;
+      if (
+        destroyed ||
+        client !== api ||
+        session !== sessionRevision ||
+        (reason instanceof DOMException && reason.name === "AbortError")
+      )
+        return;
       if (token !== client.token) hydrateThreads();
       if (
         reason instanceof ApiError &&
@@ -1314,6 +1325,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       return;
     }
     mode = value;
+    polling?.wake(false);
     hidden = false;
     account = false;
     if (value) {
@@ -1853,7 +1865,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function toggleExpanded(value: boolean) {
     stopLayoutMotion();
+    const opening = value && !expanded;
     expanded = value;
+    if (!restoring) polling?.wake(opening);
     delete sidebar.dataset.tipsReady;
     sidebar.toggleAttribute("data-tips-restored", restoring);
     if (!options.onboarding)
@@ -2175,12 +2189,15 @@ export function initComments(options: CommentsOptions): CommentsController {
     const visible = threads.filter(
       (t) => t.page === currentPage && !t.resolved,
     );
-    const stacks = pinStacks(visible, (thread) => anchorElement(thread.anchor));
+    const anchors = anchorPass();
+    const stacks = pinStacks(visible, (thread) =>
+      anchors.resolve(thread.anchor),
+    );
     const positions = visible.map((thread) => {
-      const rect = locateAnchor(thread.anchor);
+      const rect = anchors.locate(thread.anchor);
       if (rect.y < -rect.height - 40 || rect.y > window.innerHeight + 40)
         return { thread, rect, blocked: false };
-      const target = anchorElement(thread.anchor);
+      const target = anchors.resolve(thread.anchor);
       const hit = siteElementAt(rect.x + 8, rect.y - 10);
       const blocked = !!(
         target &&
@@ -2192,7 +2209,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     });
     const snapshot = JSON.stringify([
       selected,
-      draft && locateAnchor(draft),
+      draft && anchors.locate(draft),
       positions.map(({ thread, rect, blocked }) => [
         thread.id,
         rect,
@@ -2585,6 +2602,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       noticeAnchor,
     );
   }
+  const listItems = new WeakMap<Thread, HTMLElement>();
   function renderList() {
     if (options.onboarding) {
       disposeHeaderTip?.();
@@ -2610,6 +2628,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       }
       return;
     }
+    // Keep outgoing rows intact for the collapse animation; refresh them on open.
+    if (!expanded && edgeSidebar) return;
     const existingList = sidebar.querySelector(".list");
     const scroll = existingList?.scrollTop ?? 0;
     const focusedSearch =
@@ -2903,6 +2923,19 @@ export function initComments(options: CommentsOptions): CommentsController {
     for (const thread of filtered()) {
       const first = thread.comments[0];
       if (!first) continue;
+      const cached = listItems.get(thread);
+      if (cached) {
+        cached
+          .querySelector(".thread-card")!
+          .classList.toggle("active", selected === thread.id);
+        cached.querySelector<HTMLButtonElement>(".card-resolve")!.disabled =
+          !canResolve();
+        cached.querySelector("small")!.textContent = age(first.createdAt);
+        cached.querySelector(".page")!.textContent =
+          thread.page === page() ? "" : thread.page;
+        list.append(cached);
+        continue;
+      }
       const card = button(
         `Open comment by ${first.author.name}`,
         () => selectThread(thread),
@@ -2958,6 +2991,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         }
         card.append(replies);
       }
+      listItems.set(thread, item);
       list.append(item);
     }
     if (!list.childElementCount) {
@@ -4856,13 +4890,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   ).navigation?.addEventListener("navigatesuccess", onNavigate, {
     signal: abort.signal,
   });
-  window.addEventListener(
-    "focus",
-    () => {
-      if (issue?.kind === "site") retryConnection();
-    },
-    { signal: abort.signal },
-  );
+  window.addEventListener("focus", () => polling?.wake(), {
+    signal: abort.signal,
+  });
   // Frame mode: a click on the framed site closes the sidebar, like a scrim.
   // Armed on pointerdown so a press that only dismisses a draft or selection
   // keeps the sidebar open; click (not pointerdown) so scrolling never closes.
@@ -4893,23 +4923,29 @@ export function initComments(options: CommentsOptions): CommentsController {
     },
     { capture: true, signal: abort.signal },
   );
-  const interval = window.setInterval(
-    () => {
-      if (document.hidden || destroyed) return;
+  polling = adaptivePolling({
+    interval: Math.max(2000, options.pollInterval ?? 4000),
+    enabled: () =>
+      !destroyed &&
+      !document.hidden &&
+      navigator.onLine !== false &&
+      !options.onboarding,
+    active: () => expanded || account || mode || !!draft || !!selected,
+    read: async () => {
       checkPage();
-      void (
-        projectLoaded || options.onboarding ? refresh() : loadProject()
-      ).catch(() => {});
+      return projectLoaded ? refresh() : loadProject();
     },
-    Math.max(2000, options.pollInterval ?? 4000),
-  );
-  window.addEventListener(
-    "online",
-    () => {
-      if (connection === "Offline" && !options.onboarding) retryConnection();
-    },
-    { signal: abort.signal },
-  );
+  });
+  for (const event of ["online", "offline"])
+    window.addEventListener(event, () => polling?.wake(), {
+      signal: abort.signal,
+    });
+  host.addEventListener("click", () => polling?.wake(false), {
+    signal: abort.signal,
+  });
+  host.addEventListener("keydown", () => polling?.wake(false), {
+    signal: abort.signal,
+  });
   document.addEventListener(
     "visibilitychange",
     () => {
@@ -4924,13 +4960,15 @@ export function initComments(options: CommentsOptions): CommentsController {
           characterData: true,
         });
         geometry();
-        void refresh().catch(() => {});
       }
+      polling?.wake();
     },
     { signal: abort.signal },
   );
   const controller: CommentsController = {
     destroy() {
+      polling?.stop();
+      api.cancelReads();
       stopLayoutMotion();
       disposeHeaderTip?.();
       clearTimeout(mutationTimer);
@@ -4953,7 +4991,6 @@ export function initComments(options: CommentsOptions): CommentsController {
       dockMotion?.stop();
       stopEdgeMotion(true);
       abort.abort();
-      clearInterval(interval);
       clearTimeout(toastTimer);
       clearTimeout(listScrollTimer);
       clearTimeout(githubTimer);
@@ -5006,7 +5043,9 @@ export function initComments(options: CommentsOptions): CommentsController {
       dismiss();
       toggleExpanded(false);
     },
-    refresh,
+    async refresh() {
+      await refresh();
+    },
   };
   instances.set(document, controller);
   try {
@@ -5067,7 +5106,12 @@ export function initComments(options: CommentsOptions): CommentsController {
     try {
       config = await client.request("config");
     } catch (reason) {
-      if (destroyed || client !== api) return;
+      if (
+        destroyed ||
+        client !== api ||
+        (reason instanceof DOMException && reason.name === "AbortError")
+      )
+        return;
       const next = connectionIssue(reason);
       const changed = issue?.detail !== next.detail;
       issue = next;
@@ -5081,7 +5125,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     github = config.github;
     guests = config.guests;
     guestResolve = config.guestResolve;
-    await listed;
+    const changed = await listed;
     if (destroyed || client !== api) return;
     const deepLink = new URL(location.href).searchParams.get("comment");
     const thread = threads.find((t) => t.id === deepLink);
@@ -5090,7 +5134,9 @@ export function initComments(options: CommentsOptions): CommentsController {
       selectThread(thread);
     }
     render();
+    return changed;
   }
-  if (!options.onboarding?.inProject) run(loadProject);
+  if (!options.onboarding?.inProject)
+    run(() => loadProject().finally(() => polling?.wake(false)));
   return controller;
 }

@@ -188,9 +188,21 @@ export function captureAnchor(
       undefined,
   };
 }
+type Search = (
+  scope: Element,
+  anchor: Anchor,
+  scoped: boolean,
+) => Element | null;
+const search: Search = (scope, anchor, scoped) => {
+  const candidates = [
+    ...(scoped ? scope.querySelectorAll(anchor.context!.tag!) : scope.children),
+  ].filter((candidate) => matches(candidate, anchor));
+  return candidates.length === 1 ? candidates[0] : null;
+};
 export function resolveAnchor(
   anchor: Anchor,
   target?: Element | null,
+  find: Search = search,
 ): Element | null {
   let element: Element | null = null;
   try {
@@ -204,13 +216,10 @@ export function resolveAnchor(
       (element || context.scope) &&
       (anchor.text || context.label || context.nearby)
     ) {
-      const scope = context.scope ? unique(context.scope) : null;
-      const candidates = [
-        ...(context.scope
-          ? scope?.querySelectorAll(context.tag) || []
-          : element?.parentElement?.children || []),
-      ].filter((candidate) => matches(candidate, anchor));
-      element = candidates.length === 1 ? candidates[0] : null;
+      const scope = context.scope
+        ? unique(context.scope)
+        : element?.parentElement;
+      element = scope ? find(scope, anchor, !!context.scope) : null;
     }
   } catch {
     // Invalid legacy selectors or ambiguous/missing targets retain their fallback position.
@@ -229,7 +238,9 @@ export function locateAnchor(
   attached: boolean;
   component?: { left: number; top: number; right: number; bottom: number };
 } {
-  const element = resolveAnchor(anchor, target);
+  return measure(anchor, resolveAnchor(anchor, target));
+}
+function measure(anchor: Anchor, element: Element | null) {
   if (element) {
     const rect = element.getBoundingClientRect();
     if (rect.width && rect.height)
@@ -255,5 +266,61 @@ export function locateAnchor(
     width: 0,
     height: 0,
     attached: false,
+  };
+}
+
+/** Synchronous geometry-pass cache: discard before the DOM can change. */
+export function anchorPass() {
+  const resolved = new Map<Anchor, Element | null>();
+  const measured = new Map<Anchor, ReturnType<typeof measure>>();
+  const scopes = new WeakMap<
+    Element,
+    Map<string, Map<string, Element | null>>
+  >();
+  const identities = new WeakMap<Element, string[]>();
+  const find: Search = (scope, anchor, scoped) => {
+    const c = anchor.context!;
+    const expected = [trim(anchor.text), c.tag, c.role, c.label, c.nearby];
+    const key = JSON.stringify([scoped, c.tag, expected.map(Boolean)]);
+    let indexes = scopes.get(scope);
+    if (!indexes) scopes.set(scope, (indexes = new Map()));
+    let index = indexes.get(key);
+    const signature = (values: (string | undefined)[]) =>
+      JSON.stringify(values.map((value, i) => (expected[i] ? value : null)));
+    if (!index) {
+      indexes.set(key, (index = new Map()));
+      for (const element of scoped
+        ? scope.querySelectorAll(c.tag!)
+        : scope.children) {
+        let identity = identities.get(element);
+        if (!identity)
+          identities.set(
+            element,
+            (identity = [
+              textFor(element),
+              element.tagName.toLowerCase(),
+              element.getAttribute("role") || "",
+              labelFor(element),
+              nearbyFor(element),
+            ]),
+          );
+        const value = signature(identity);
+        index.set(value, index.has(value) ? null : element);
+      }
+    }
+    return index.get(signature(expected)) ?? null;
+  };
+  const resolve = (anchor: Anchor) => {
+    if (!resolved.has(anchor))
+      resolved.set(anchor, resolveAnchor(anchor, undefined, find));
+    return resolved.get(anchor) ?? null;
+  };
+  return {
+    resolve,
+    locate(anchor: Anchor) {
+      if (!measured.has(anchor))
+        measured.set(anchor, measure(anchor, resolve(anchor)));
+      return measured.get(anchor)!;
+    },
   };
 }

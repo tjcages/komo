@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { captureAnchor, resolveAnchor } from "../src/anchors.js";
+import { anchorPass, captureAnchor, resolveAnchor } from "../src/anchors.js";
 
 const point = { x: 20, y: 20 };
 const capture = (element: Element) => captureAnchor(element, point, point);
@@ -147,4 +147,28 @@ describe("precise anchors", () => {
     expect(source).toHaveBeenCalledWith(document.querySelector("section"));
     expect(anchor.source).toBe("area.tsx");
   });
+});
+
+it("indexes shared target scopes once per pass and revalidates after DOM changes", () => {
+  document.body.innerHTML =
+    '<section id="cards">' +
+    Array.from(
+      { length: 40 },
+      (_, i) => `<article><h2>Item ${i}</h2><button>Edit</button></article>`,
+    ).join("") +
+    "</section>";
+  const buttons = [...document.querySelectorAll("button")];
+  const anchors = buttons.map(capture);
+  const walks = vi.spyOn(document, "createTreeWalker");
+  const pass = anchorPass();
+  for (const [i, anchor] of anchors.entries()) {
+    expect(pass.resolve(anchor)).toBe(buttons[i]);
+    expect(pass.locate(anchor).attached).toBe(true);
+    expect(pass.resolve(anchor)).toBe(buttons[i]);
+  }
+  expect(walks.mock.calls.length).toBeLessThan(300);
+  const target = buttons[0];
+  target.parentElement!.remove();
+  expect(anchorPass().resolve(anchors[0])).toBeNull();
+  expect(anchorPass().resolve(anchors[1])).toBe(buttons[1]);
 });
