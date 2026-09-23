@@ -449,16 +449,19 @@ describe("shared comments against real workerd and SQLite", () => {
       await request("/auth/guest", "POST", { name: "Other" })
     ).json();
     const branch = "feature/moving";
+    const captured = { ...anchor, context: { tag: "button", label: "Save", scope: "main > form", styles: "display: flex" } };
     const { id } = await (
       await request(
         "/threads",
         "POST",
-        { page: "/", anchor, body: "Move me" },
+        { page: "/", anchor: captured, body: "Move me" },
         owner.token,
         branch
       )
     ).json();
-    const moved = { ...anchor, x: 0.6, y: 0.2, unstacked: true };
+    const initial = await (await request("/threads", "GET", undefined, undefined, branch)).json();
+    expect(initial.threads[0].anchor).toEqual(captured);
+    const moved = { ...captured, x: 0.6, y: 0.2, unstacked: true };
     expect(
       (
         await request(

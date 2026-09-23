@@ -264,6 +264,8 @@ Stable attributes make annotations resilient to layout changes:
 </section>
 ```
 
+Anchors may include bounded `context` strings for element tag, role, accessible label, nearby and selected text, CSS classes, styles, and DOM scope. Browser and CLI prompts quote these capture-time hints; agents must verify them against the current implementation. Older anchors remain supported.
+
 If an element disappears, the original page position remains available. komo cannot inspect closed shadow roots, canvas internals, or cross-origin iframe content. It does not invent source line numbers.
 
 Choose **Copy all comments for agent** to copy open feedback across the configured scope; the sidebar copy button includes open comments on its current page. Resolved threads and deleted messages are excluded. Copying does not send anything to an agent.
