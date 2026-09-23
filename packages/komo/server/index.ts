@@ -1372,13 +1372,19 @@ export default {
         );
       }
     }
-    const headers = new Headers(response.headers);
     const project = new URL(request.url).searchParams.get("project");
-    const config = project
-      ? project === "_komo" && env.KOMO_HOSTED === "true"
-        ? { origins: [new URL(request.url).origin] }
-        : await projectConfig(env, project)
-      : undefined;
+    let config: { origins: string[] } | undefined;
+    try {
+      config = project
+        ? project === "_komo" && env.KOMO_HOSTED === "true"
+          ? { origins: [new URL(request.url).origin] }
+          : await projectConfig(env, project)
+        : undefined;
+    } catch {
+      // Do not leak a successful body or allow CORS without a known site policy.
+      response = json({ error: "Comments are temporarily unavailable. Try again." }, 500);
+    }
+    const headers = new Headers(response.headers);
     const origin = request.headers.get("Origin") ?? "";
     if (
       config &&

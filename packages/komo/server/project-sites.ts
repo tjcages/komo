@@ -9,12 +9,23 @@ type SiteRow = { origin: string; removed?: number };
 export async function siteEdits(env: Env, project: string) {
   const query = (sql: string) =>
     env.DB.prepare(sql).bind(project).all<SiteRow>();
-  // Fall back while migrations 0013 or 0014 are still pending.
+  // Only missing migration schema permits fallback. Operational errors must
+  // never restore configured origins that the owner has revoked.
+  const missing = (error: unknown, pattern: RegExp) =>
+    error instanceof Error && pattern.test(error.message);
+  const emptyIfMissing = (error: unknown) => {
+    if (missing(error, /no such table: (?:main\.)?project_sites\b/i))
+      return { results: [] as SiteRow[] };
+    throw error;
+  };
   const rows = await query(
     "SELECT origin,removed FROM project_sites WHERE project=?"
   )
-    .catch(() => query("SELECT origin FROM project_sites WHERE project=?"))
-    .catch(() => ({ results: [] as SiteRow[] }));
+    .catch((error: unknown) => {
+      if (missing(error, /no such column: (?:project_sites\.)?removed\b/i))
+        return query("SELECT origin FROM project_sites WHERE project=?").catch(emptyIfMissing);
+      return emptyIfMissing(error);
+    });
   return {
     added: rows.results.filter((row) => !row.removed).map((row) => row.origin),
     removed: rows.results.filter((row) => row.removed).map((row) => row.origin),
