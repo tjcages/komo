@@ -6,7 +6,7 @@
       "id": "pin",
       "scene": "context",
       "frame": 54,
-      "sound": "click",
+      "sound": "press",
       "volume": 0.55,
       "label": "Pin click"
     },
@@ -14,7 +14,7 @@
       "id": "reaction",
       "scene": "conversation",
       "frame": 39,
-      "sound": "pop",
+      "sound": "droplet",
       "volume": 0.25,
       "label": "Reaction appears"
     },
@@ -22,7 +22,7 @@
       "id": "resolve",
       "scene": "conversation",
       "frame": 78,
-      "sound": "click",
+      "sound": "press",
       "volume": 0.5,
       "label": "Resolve click"
     },
@@ -30,7 +30,7 @@
       "id": "sidebar",
       "scene": "sidebar",
       "frame": 15,
-      "sound": "whoosh",
+      "sound": "page",
       "volume": 0.25,
       "label": "Sidebar opens"
     },
@@ -38,7 +38,7 @@
       "id": "drawer",
       "scene": "drawer",
       "frame": 53,
-      "sound": "click",
+      "sound": "press",
       "volume": 0.5,
       "label": "Drawer click"
     },
@@ -46,7 +46,7 @@
       "id": "copy",
       "scene": "copy",
       "frame": 42,
-      "sound": "click",
+      "sound": "press",
       "volume": 0.55,
       "label": "Copy prompt"
     },
@@ -54,7 +54,7 @@
       "id": "paste",
       "scene": "agent",
       "frame": 22,
-      "sound": "pop",
+      "sound": "droplet",
       "volume": 0.3,
       "label": "Prompt pasted"
     },
@@ -62,7 +62,7 @@
       "id": "send",
       "scene": "agent",
       "frame": 53,
-      "sound": "click",
+      "sound": "press",
       "volume": 0.6,
       "label": "Send click"
     },
@@ -70,7 +70,7 @@
       "id": "logo",
       "scene": "logo",
       "frame": 7,
-      "sound": "chime",
+      "sound": "arrival",
       "volume": 0.25,
       "label": "Logo arrival"
     }

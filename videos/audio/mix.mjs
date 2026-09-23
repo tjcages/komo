@@ -1,3 +1,5 @@
+import { loadCuelume } from "./cuelume-bank.mjs";
+await loadCuelume();
 import { execFileSync } from "node:child_process";
 import {
   readFileSync,

@@ -1,3 +1,8 @@
+import { loadBrowserSounds } from "./effects.mjs";
+await loadBrowserSounds().catch((error) => {
+  document.getElementById("status").textContent = error.message;
+  throw error;
+});
 import {
   analyzeSamples,
   cutTimeline,

@@ -1,3 +1,5 @@
+import { ensureCuelume } from "./cuelume-bank.mjs";
+import { cpSync } from "node:fs";
 // Stage only in an already-built site's output. Never included in normal site builds.
 import { copyFileSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -38,6 +40,7 @@ if (!Number.isFinite(actual) || Math.abs(actual - timeline.duration) > 0.08)
   throw Error("Preview film and cut map do not match.");
 const out = resolve(repo, "packages/komo-site/dist/audio");
 mkdirSync(out, { recursive: true });
+cpSync(await ensureCuelume(), resolve(out, "cuelume"), { recursive: true });
 for (const name of [
   "index.html",
   "style.css",

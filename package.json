@@ -21,7 +21,9 @@
     "audio:test": "node --test videos/audio/*.test.mjs"
   },
   "devDependencies": {
-    "wrangler": "4.136.3",
-    "prettier": "3.8.1"
+    "cuelume": "0.2.2",
+    "node-web-audio-api": "2.2.0",
+    "prettier": "3.8.1",
+    "wrangler": "4.136.3"
   }
 }

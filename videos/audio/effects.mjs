@@ -1,11 +1,30 @@
 import { gainAt } from "./timing.mjs";
-export const SOUNDS = Object.freeze({
-  click: 0.055,
-  pop: 0.16,
-  whoosh: 0.32,
-  chime: 0.5,
-});
+export const SOUNDS = Object.freeze(
+  Object.fromEntries(
+    "chime sparkle droplet bloom whisper tick press release toggle success error page loading ready pulse scan arrival"
+      .split(" ")
+      .map((name) => [name, true]),
+  ),
+);
 export const SAMPLE_RATE = 48000;
+const aliases = { click: "press", pop: "droplet", whoosh: "page" };
+export const canonicalSound = (sound) =>
+  Object.hasOwn(aliases, sound) ? aliases[sound] : sound;
+let soundBank;
+export function installSoundBank(bank) {
+  soundBank = bank;
+}
+export async function loadBrowserSounds() {
+  const bank = {};
+  await Promise.all(
+    Object.keys(SOUNDS).map(async (name) => {
+      const response = await fetch(`cuelume/${name}.wav`);
+      if (!response.ok) throw Error(`Cuelume sound unavailable: ${name}`);
+      bank[name] = new Float32Array((await response.arrayBuffer()).slice(44));
+    }),
+  );
+  installSoundBank(bank);
+}
 
 // Scene-local frames survive preceding trim changes. Cues removed by a trim
 // are omitted; unknown/ambiguous scene names fail rather than drift silently.
@@ -29,7 +48,7 @@ export function resolveCues(edit, sheet) {
       {
         id: cue.id,
         label: cue.label,
-        sound: cue.sound,
+        sound: canonicalSound(cue.sound),
         volume: cue.volume,
         frame: cut.offset + cue.frame - cut.in,
       },
@@ -59,7 +78,7 @@ export function validateEffects(mix) {
     if (
       typeof cue.label !== "string" ||
       cue.label.length > 120 ||
-      !Object.hasOwn(SOUNDS, cue.sound)
+      !Object.hasOwn(SOUNDS, canonicalSound(cue.sound))
     )
       throw Error("Invalid cue label or sound.");
     if (
@@ -73,42 +92,23 @@ export function validateEffects(mix) {
   }
 }
 
-// Seeded noise: replay, seeking, and native export produce identical samples.
+// Both audition and export consume the same rendered Cuelume samples.
 export function synthesize(sound, rate = SAMPLE_RATE) {
-  if (!Object.hasOwn(SOUNDS, sound)) throw Error("Unknown sound.");
-  const data = new Float32Array(Math.round(SOUNDS[sound] * rate));
-  let seed = 127;
-  for (let i = 0; i < data.length; i++) {
-    const t = i / rate,
-      p = i / data.length;
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    const noise = seed / 2147483648 - 1;
-    const edge = Math.min(
-      1,
-      i / (rate * 0.001),
-      (data.length - 1 - i) / (rate * 0.008),
-    );
-    if (sound === "click")
-      data[i] =
-        (noise * 0.4 + Math.sin(2 * Math.PI * 1800 * t) * 0.6) *
-        Math.exp(-t * 100) *
-        edge;
-    if (sound === "pop")
-      data[i] =
-        Math.sin(2 * Math.PI * (420 * t - 650 * t * t)) *
-        Math.exp(-t * 28) *
-        edge;
-    if (sound === "whoosh")
-      data[i] = noise * Math.sin(Math.PI * p) ** 3 * 0.35 * edge;
-    if (sound === "chime")
-      data[i] =
-        (Math.sin(2 * Math.PI * 1046.5 * t) +
-          0.4 * Math.sin(2 * Math.PI * 1568 * t)) *
-        0.5 *
-        Math.exp(-t * 8) *
-        edge;
+  const source = soundBank?.[canonicalSound(sound)];
+  if (!source)
+    throw Error("Cuelume sounds are unavailable. Reload the studio.");
+  if (rate === SAMPLE_RATE) return source;
+  const result = new Float32Array(
+    Math.round((source.length * rate) / SAMPLE_RATE),
+  );
+  for (let i = 0; i < result.length; i++) {
+    const position = (i * SAMPLE_RATE) / rate,
+      index = Math.floor(position),
+      fraction = position - index;
+    result[i] =
+      source[index] * (1 - fraction) + (source[index + 1] ?? 0) * fraction;
   }
-  return data;
+  return result;
 }
 
 /** Music channels must be decoded/resampled to rate. Both paths share fades,

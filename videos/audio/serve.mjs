@@ -1,3 +1,6 @@
+import { ensureCuelume } from "./cuelume-bank.mjs";
+import { SOUNDS } from "./effects.mjs";
+const bankDirectory = await ensureCuelume();
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
@@ -37,6 +40,11 @@ const files = new Map(
     "effects-ui.mjs",
   ].map((name) => [`/${name}`, resolve(here, name)]),
 );
+for (const name of [
+  ...Object.keys(SOUNDS).map((name) => `${name}.wav`),
+  "LICENSE.txt",
+])
+  files.set(`/cuelume/${name}`, fileURLToPath(new URL(name, bankDirectory)));
 files.set("/", resolve(here, "index.html"));
 files.set("/film.mp4", video);
 files.set("/edit.json", edit);
@@ -47,6 +55,8 @@ const types = {
   ".mjs": "text/javascript",
   ".json": "application/json",
   ".mp4": "video/mp4",
+  ".wav": "audio/wav",
+  ".txt": "text/plain",
 };
 const port = Number(options.port || 4341);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)

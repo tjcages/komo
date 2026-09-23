@@ -1,7 +1,10 @@
+import { loadCuelume } from "./cuelume-bank.mjs";
+await loadCuelume();
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  SOUNDS,
   resolveCues,
   validateEffects,
   renderSoundtrack,
@@ -109,7 +112,7 @@ test("overlap preserves headroom and effect mute produces silence", () => {
       (v) => v === 0,
     ),
   );
-  assert.equal(Math.abs(synthesize("click")[0]), 0);
+  assert.ok(synthesize("press").some((value) => value !== 0));
   assert.equal(
     new DataView(encodeWav(result.channels).buffer).getUint16(20, true),
     3,
@@ -129,4 +132,20 @@ test("rejects bad cue frames, duplicate IDs, unknown sounds and unbounded alloca
     );
   assert.throws(() => validateEffects({ ...base, effects: [cue, cue] }));
   assert.throws(() => validateEffects({ ...base, duration: Infinity }));
+});
+
+test("all 17 Cuelume samples are finite, audible and shared with legacy cue names", () => {
+  assert.equal(Object.keys(SOUNDS).length, 17);
+  for (const name of Object.keys(SOUNDS)) {
+    const pcm = synthesize(name);
+    assert.ok(pcm.every(Number.isFinite), name);
+    assert.ok(
+      pcm.some((value) => Math.abs(value) > 0.00001),
+      name,
+    );
+    assert.ok(pcm.length < 48000 * 4, `${name} tail fits the render window`);
+  }
+  assert.equal(synthesize("click"), synthesize("press"));
+  assert.equal(synthesize("pop"), synthesize("droplet"));
+  assert.equal(synthesize("whoosh"), synthesize("page"));
 });

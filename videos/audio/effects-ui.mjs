@@ -137,7 +137,7 @@ export function createEffectsEditor({
     cues.push({
       id: crypto.randomUUID(),
       label: "Click",
-      sound: "click",
+      sound: "press",
       frame: Math.min(
         Math.ceil(getDuration() * 30) - 1,
         Math.round(video.currentTime * 30),

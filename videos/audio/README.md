@@ -90,11 +90,11 @@ The model authors `videos/audio/cues.json` from the animation source, using a **
 }
 ```
 
-Supported original synthesized sounds: `click`, `pop`, `whoosh`, `chime`. No third-party sound files or licenses are needed. Keep the cue sheet's `version: 1`, `fps: 30`, and `cues` array. The local server accepts `--cues /path/cues.json`; **Import cue sheet** replaces the browser's cues. Replacing the film in the browser clears old scene cues to prevent accidental reuse.
+Effects use all 17 sounds from [Cuelume](https://cuelume-site.pages.dev/) v0.2.2, MIT licensed, copyright Daniel Belyi. The pinned upstream engine is rendered through offline Web Audio into cached 48 kHz WAVs; its license ships with the bank. Generated samples stay outside Git and are prepared automatically by the local server, mixer, tests and preview staging. Legacy `click`, `pop`, and `whoosh` recipes map to `press`, `droplet`, and `page`. Keep the cue sheet's `version: 1`, `fps: 30`, and `cues` array. The local server accepts `--cues /path/cues.json`; **Import cue sheet** replaces the browser's cues. Replacing the film in the browser clears old scene cues to prevent accidental reuse.
 
 In the editor, each cue has an absolute film **Frame**, sound, and volume. Click a timeline marker to seek, **Hear** to audition, or **Add at playhead** to add a cue. You can remove cues, restore the loaded scene sheet, and mute or adjust the entire effects layer. These edits are included in the saved version-2 mix JSON. Cue timing stays attached to the video when the song excerpt moves. Version-1 music-only mixes remain exportable.
 
-Preview and export use the same deterministic 48 kHz synthesis, stereo music summation, fades and peak headroom calculation. Overlapping effects are summed; the combined track is only attenuated if needed to keep its sample peak at or below 0.95. The final MP4 uses AAC, so encoded samples differ from the uncompressed preview. The original video soundtrack is replaced by this complete mix.
+Preview and export use the same cached Cuelume 48 kHz samples, stereo music summation, fades and peak headroom calculation. Overlapping effects are summed; the combined track is only attenuated if needed to keep its sample peak at or below 0.95. The final MP4 uses AAC, so encoded samples differ from the uncompressed preview. The original video soundtrack is replaced by this complete mix.
 
 ### Export everything
 
