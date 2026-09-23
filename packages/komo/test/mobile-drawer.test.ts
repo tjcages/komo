@@ -80,6 +80,8 @@ it("dismisses a downward pull at list start without stealing a scrolled list", (
   list.append(card);
   content.append(list);
   const sheet = shadow.querySelector(".mobile-drawer") as HTMLElement;
+  drawer!.position(-40);
+  expect(sheet.style.translate).toBe("0 -40px");
   let heightReads = 0;
   Object.defineProperty(sheet, "offsetHeight", { get() { heightReads++; return 600; } });
   const touch = (type: string, y: number) => {

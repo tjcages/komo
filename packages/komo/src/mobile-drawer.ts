@@ -169,6 +169,9 @@ export function mobileDrawer(
   sheet.hidden = backdrop.hidden = true;
   sheet.inert = true;
   return {
+    position(bottom: number) {
+      sheet.style.translate = `0 ${bottom}px`;
+    },
     update(value: boolean, restored = false, lock = value) {
       if (disposed) return;
       if (lock && !locked) {

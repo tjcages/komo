@@ -1418,6 +1418,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         const mount = el("div", "mobile-drawer-mount");
         shadow.append(mount);
         mobileSheet = mobileDrawer(mount, sidebar, () => toggleExpanded(false));
+        mobileSheet.position(mobileViewportBottom());
         mobileSheet.update(expanded && !account, mobileRestore, expanded);
         mobileRestore = false;
       })
@@ -1439,6 +1440,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     clearEdgeRows();
     undockEdgeTabs();
     compactSidebar = next;
+    if (!next) toolbar.style.translate = "";
     edgeSidebar = !next && sidebarMode === "edge";
     sidebar.removeAttribute("style");
     syncEdgeMode();
@@ -1447,6 +1449,10 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   let appliedScale = 1;
   let appliedViewport = "";
+  const mobileViewportBottom = () =>
+    (window.visualViewport?.offsetTop ?? 0) +
+    Math.min(window.innerHeight, window.visualViewport?.height ?? window.innerHeight) -
+    window.innerHeight;
   function scalePage() {
     const zoom = htmlZoom();
     const viewportHeight = isCompactReview(
@@ -1482,10 +1488,13 @@ export function initComments(options: CommentsOptions): CommentsController {
         window.scrollTo({ top: scroll, behavior: "instant" });
       host.style.zoom = String(1 / zoom);
       host.style.width = `${window.innerWidth}px`;
-      host.style.height = `${viewportHeight}px`;
-      host.style.top = compactSidebar
-        ? `${window.visualViewport?.offsetTop ?? 0}px`
-        : "";
+      host.style.height = `${compactSidebar ? window.innerHeight : viewportHeight}px`;
+      host.style.top = "";
+      if (compactSidebar) {
+        const bottom = mobileViewportBottom();
+        toolbar.style.translate = `0 ${bottom}px`;
+        mobileSheet?.position(bottom);
+      }
       host.classList.toggle("review-open", expanded);
       framed = false;
       pins.style.clipPath = "";
@@ -4817,13 +4826,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   window.visualViewport?.addEventListener(
     "scroll",
     () => {
-      if (
-        (account || draft || selected) &&
-        isCompactReview(window.innerWidth, window.innerHeight)
-      ) {
-        scalePage();
-        geometry();
-      }
+      if (!isCompactReview(window.innerWidth, window.innerHeight)) return;
+      scalePage();
+      if (account || draft || selected) geometry();
     },
     { signal: abort.signal },
   );
