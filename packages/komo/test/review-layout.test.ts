@@ -58,11 +58,11 @@ describe("mobile composer", () => {
     [420, 0],
     [420, 180],
   ])(
-    "docks above the visible bottom at height %i and offset %i",
+    "centers in the visible viewport at height %i and offset %i",
     (height, top) => {
       const position = mobileComposerPosition(390, height, top, 354, 120);
       expect(position.x).toBe(18);
-      expect(position.y + 120).toBe(top + height - 12);
+      expect(position.y + 60).toBe(top + height / 2);
       expect(position.y).toBeGreaterThanOrEqual(top + 12);
     },
   );

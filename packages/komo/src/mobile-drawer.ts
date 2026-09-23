@@ -43,6 +43,7 @@ export function mobileDrawer(
     if (value) sheet.hidden = false;
     sheet.inert = !value;
     backdrop.hidden = !value;
+    backdrop.style.opacity = "";
     if (!reduced.matches && !restored && !sheet.hidden) {
       const next = sheet.animate(
         [
@@ -61,38 +62,41 @@ export function mobileDrawer(
         .catch(() => {});
     } else sheet.hidden = !value;
   }
-  handle.addEventListener(
+  head.addEventListener(
     "pointerdown",
     (event) => {
-      if (!open || event.button !== 0) return;
+      if (!open || event.button !== 0 || (event.target as Element).closest("button")) return;
+      const transform = getComputedStyle(sheet).transform;
+      const offset = new DOMMatrix(transform).m42;
       motion?.cancel();
+      sheet.style.transform = transform;
       motion = undefined;
       drag = {
         id: event.pointerId,
-        y: event.clientY,
+        y: event.clientY - offset,
         start: performance.now(),
         distance: 0,
       };
-      handle.setPointerCapture(event.pointerId);
+      head.setPointerCapture(event.pointerId);
       event.preventDefault();
     },
     { signal: abort.signal },
   );
-  handle.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!drag || event.pointerId !== drag.id) return;
-      drag.distance = Math.max(0, event.clientY - drag.y);
-      sheet.style.transform = `translateY(${drag.distance}px)`;
-    },
-    { signal: abort.signal },
-  );
-  const end = (event: PointerEvent) => {
-    if (!drag || drag.id !== event.pointerId) return;
+  const move = (distance: number) => {
+    if (!drag) return;
+    drag.distance = Math.max(0, distance);
+    sheet.style.transform = `translateY(${drag.distance}px)`;
+    backdrop.style.opacity = String(1 - Math.min(1, drag.distance / sheet.offsetHeight));
+  };
+  head.addEventListener("pointermove", event => {
+    if (drag?.id === event.pointerId) move(event.clientY - drag.y);
+  }, { signal: abort.signal });
+  const end = (cancelled: boolean) => {
+    if (!drag) return;
     const { distance, start } = drag;
     drag = undefined;
     if (
-      event.type === "pointerup" &&
+      !cancelled &&
       (distance > sheet.offsetHeight * 0.28 ||
         (distance > 40 &&
           distance / Math.max(1, performance.now() - start) > 0.6))
@@ -101,9 +105,35 @@ export function mobileDrawer(
     else settle(open);
   };
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
-    handle.addEventListener(type, end as EventListener, {
+    head.addEventListener(type, event => {
+      if (drag?.id === (event as PointerEvent).pointerId) end(type !== "pointerup");
+    }, {
       signal: abort.signal,
     });
+  // Let the list scroll natively; a downward pull at its top dismisses.
+  let touchY: number | undefined;
+  slot.addEventListener("touchstart", (event) => {
+    const target = event.target as Element;
+    touchY = event.touches.length === 1 &&
+      !target.closest("button:not(.thread-card),input,textarea,select") &&
+      !(content.querySelector(".list")?.scrollTop)
+      ? event.touches[0].clientY : undefined;
+  }, { passive: true, signal: abort.signal });
+  slot.addEventListener("touchmove", (event) => {
+    if (touchY === undefined) return;
+    const distance = event.touches[0].clientY - touchY;
+    if (distance < 0 && !drag) { touchY = undefined; return; }
+    if (!event.cancelable) return;
+    event.preventDefault();
+    motion?.cancel();
+    drag ??= { id: -1, y: touchY, start: performance.now(), distance: 0 };
+    move(distance);
+  }, { passive: false, signal: abort.signal });
+  for (const type of ["touchend", "touchcancel"])
+    slot.addEventListener(type, () => {
+      touchY = undefined;
+      if (drag?.id === -1) end(type !== "touchend");
+    }, { signal: abort.signal });
   sheet.style.transform = "translateY(105%)";
   sheet.hidden = backdrop.hidden = true;
   sheet.inert = true;
@@ -115,10 +145,36 @@ export function mobileDrawer(
           html = document.documentElement;
         const overflow = body.style.overflow,
           htmlOverflow = html.style.overflow;
+        const background = html.style.backgroundColor;
+        const bodyBackground = body.style.backgroundColor;
+        const base = getComputedStyle(html).backgroundColor;
+        const channels = base.match(/[\d.]+/g);
+        const tint = channels?.length && channels[3] !== "0"
+          ? `rgb(${channels.slice(0, 3).map(n => +n * 2 / 3).join(",")})` : "#aaa";
+        const themes = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')];
+        const created = !themes.length;
+        if (created) {
+          const meta = document.createElement("meta");
+          meta.name = "theme-color";
+          document.head.append(meta);
+          themes.push(meta);
+        }
+        const colors = themes.map(meta => meta.getAttribute("content"));
+        themes.forEach(meta => meta.content = tint);
+        if (getComputedStyle(body).backgroundColor === "rgba(0, 0, 0, 0)")
+          body.style.backgroundColor = base;
+        html.style.backgroundColor = tint;
         body.style.overflow = html.style.overflow = "hidden";
         release = () => {
           body.style.overflow = overflow;
           html.style.overflow = htmlOverflow;
+          html.style.backgroundColor = background;
+          body.style.backgroundColor = bodyBackground;
+          themes.forEach((meta, i) => {
+            if (created) meta.remove();
+            else if (colors[i] === null) meta.removeAttribute("content");
+            else meta.content = colors[i]!;
+          });
         };
       } else if (!lock && locked) {
         release?.();

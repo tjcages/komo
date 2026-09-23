@@ -23,3 +23,17 @@ Worker version: `1467d00b-223a-43d6-85ad-f4f745d94e49`. This preview uses the ex
 Mobile scroll updates keep indicators visible instead of repeatedly hiding and bouncing them back in. Opening a mobile comment no longer scrolls the page. Removed both fixed mobile card top/bottom overrides so existing anchor placement can keep cards near indicators, with the toolbar boundary as their lowest position.
 
 Responsive fixture verification: tapping at scrollY 333 preserved scrollY 333; card and indicator tops aligned at 380.875px. Scrolling toward the lower viewport clamped the card bottom to 751.844px in an 844px viewport. Build, typecheck, 207 tests, and the unchanged 196 KB size budget pass.
+
+## Safari interaction refinement
+
+The Drawer supports dragging across its header and pulling down from the top of the comment list. Native list scrolling remains available when scrolled away from the top. Dragging fades the backdrop; cancelled drags return to the open position.
+
+While the mobile overlay is open, root background and existing theme-color metadata receive a matching tint. Closing or destroying the widget restores them. Viewport height changes no longer rebuild the toolbar or reset layout motion. Mobile pins hide during scrolling and fade back after 180ms of inactivity, replacing the previous always-visible behavior.
+
+Focused reply and new-comment textareas use an animated, centered card position within the visual viewport. Blurring returns to normal anchor placement. Removed draft-only page-scroll adjustments. The marketing site already uses the document scroller: deployed read-back confirms HTML scrolling, window scroll movement, and visible overflow on the body and site root.
+
+Validation: build/typecheck passed; the existing 207-test suite passed, followed by 15 focused tests including the new pull/cancel/list-scroll case. Initial gzip 96,788 bytes; all features exactly 196,000 bytes. Unused and superseded styles were removed to retain the budget. Browser checks verified centered reply placement, header dismissal, tint restoration, and native scrolling.
+
+Preview Worker version: `e7714b1c-7853-48f7-b0fe-eed3d755a96d`.
+
+Requested iPhone Simulator validation remains blocked: the installed iOS 27 runtime boots an iPhone 18 Pro, but `/Applications/Xcode.app` lacks `Contents/Developer/Applications/Simulator.app`. No Simulator UI was found in the other checked application/download locations. Actual Safari chrome collapse, software keyboard, and touch interaction have not been verified in the simulator.

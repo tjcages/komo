@@ -534,9 +534,6 @@ export function initComments(options: CommentsOptions): CommentsController {
     live,
   );
   document.body.append(host);
-  const draftScrollSpace = el("div");
-  draftScrollSpace.setAttribute("aria-hidden", "true");
-  draftScrollSpace.style.pointerEvents = "none";
   const savedStyle = {
     width: surface.style.width,
     boxSizing: surface.style.boxSizing,
@@ -1463,7 +1460,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       : window.innerHeight;
     const viewportKey = `${window.innerWidth}:${window.innerHeight}:${viewportHeight}:${zoom}:${expanded}:${account}:${sidebarMode}:${window.visualViewport?.offsetTop ?? 0}`;
     if (appliedViewport === viewportKey) return;
-    stopLayoutMotion();
+    if (!compactSidebar) stopLayoutMotion();
     appliedViewport = viewportKey;
     if (edgeSidebar || compactSidebar) {
       // The edge sidebar floats over the live page: never frame or zoom it.
@@ -1486,7 +1483,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       host.style.zoom = String(1 / zoom);
       host.style.width = `${window.innerWidth}px`;
       host.style.height = `${viewportHeight}px`;
-      host.style.top = isCompactReview(window.innerWidth, window.innerHeight)
+      host.style.top = compactSidebar
         ? `${window.visualViewport?.offsetTop ?? 0}px`
         : "";
       host.classList.toggle("review-open", expanded);
@@ -2269,10 +2266,6 @@ export function initComments(options: CommentsOptions): CommentsController {
   let pinSnapshot = "";
   let pinsScrolling = false;
   let pinScrollTimer = 0;
-  const scrollSamples = new WeakMap<
-    EventTarget,
-    { x: number; y: number; time: number }
-  >();
   function renderPins(force = false) {
     if (movingThread || (pinsScrolling && !force)) return;
     if (hidden) {
@@ -2397,7 +2390,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         pinPreview.hidden = false;
         const point = indicatorPoint(pin, rect);
         const right =
-          expanded && !isCompactReview(window.innerWidth, window.innerHeight)
+          expanded && !compactSidebar
             ? 396
             : 12;
         const left =
@@ -4348,7 +4341,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
     const dialog = dialogs.firstElementChild as HTMLElement | null;
     if (!dialog || account) return;
-    if (draft && isCompactReview(window.innerWidth, window.innerHeight)) {
+    if (compactSidebar && dialog.querySelector("textarea:focus")) {
       const viewport = window.visualViewport;
       const top = viewport?.offsetTop ?? 0;
       dialog.style.maxHeight = `${Math.max(0, availableHeight - 24)}px`;
@@ -4359,12 +4352,9 @@ export function initComments(options: CommentsOptions): CommentsController {
         dialog.offsetWidth,
         dialog.offsetHeight,
       );
-      cardFollow.place(dialogKey, dialog, position.x, position.y, false);
-      dialog.style.setProperty("top", `${position.y}px`, "important");
+      cardFollow.place(dialogKey, dialog, position.x, position.y, true);
       dialog.style.bottom = "auto";
       dialog.style.transformOrigin = "bottom center";
-      draftScrollSpace.style.height = `${Math.max(0, window.innerHeight - availableHeight) + dialog.offsetHeight + 24}px`;
-      if (!draftScrollSpace.isConnected) surface.append(draftScrollSpace);
       positionNotice();
       return;
     }
@@ -4412,7 +4402,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       y = pin.y - 28;
     }
     const right =
-      expanded && !isCompactReview(window.innerWidth, window.innerHeight)
+      expanded && !compactSidebar
         ? 396
         : 12;
     if (pin && x + dialog.offsetWidth > window.innerWidth - right)
@@ -4427,31 +4417,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     updateOrigin();
     positionNotice();
   }
-  function revealDraftTarget() {
-    if (
-      !draft ||
-      account ||
-      !isCompactReview(window.innerWidth, window.innerHeight)
-    )
-      return;
-    positionDialog();
-    const dialog = dialogs.firstElementChild as HTMLElement | null;
-    if (!dialog) return;
-    const top = (window.visualViewport?.offsetTop ?? 0) + 12;
-    const bottom = dialog.getBoundingClientRect().top - 16;
-    if (bottom <= top) return;
-    const point = locateAnchor(draft);
-    if (point.y < top || point.y > bottom)
-      window.scrollBy({
-        top: point.y - (top + bottom) / 2,
-        behavior: "instant",
-      });
-  }
   function openAccount() {
     clearTimeout(accountOpenTimer);
     profileDraft = null;
     mode = false;
-    const mobile = isCompactReview(window.innerWidth, window.innerHeight);
+    const mobile = compactSidebar;
     const revealPanel = mobile && !expanded;
     if (revealPanel) toggleExpanded(true);
     const show = () => {
@@ -4466,7 +4436,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   function focusAccount() {
     queueMicrotask(() => {
       if (!account) return;
-      const mobile = isCompactReview(window.innerWidth, window.innerHeight);
+      const mobile = compactSidebar;
       const target = mobile
         ? dialogs.querySelector<HTMLElement>(".account-dialog")
         : dialogs.querySelector<HTMLElement>("input,button");
@@ -4691,7 +4661,6 @@ export function initComments(options: CommentsOptions): CommentsController {
       !account &&
       isCompactReview(window.innerWidth, window.innerHeight);
     host.classList.toggle("mobile-composing", composingMobile);
-    if (!composingMobile) draftScrollSpace.remove();
     sidebar.inert = compactSidebar
       ? !expanded || account
       : edgeSidebar
@@ -4765,7 +4734,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     shadow
       .querySelector<HTMLTextAreaElement>('[data-focus-key="body"]')
       ?.focus({ preventScroll: true });
-    revealDraftTarget();
+    positionDialog();
   }
   catcher.addEventListener("pointerup", (event) => {
     if (!drag) return;
@@ -4821,19 +4790,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       if (target === host || !target) return;
       const scroller = target === document ? document.scrollingElement : target;
       if (!(scroller instanceof Element)) return;
-      const now = performance.now();
-      const previous = scrollSamples.get(target);
-      const x = scroller.scrollLeft,
-        y = scroller.scrollTop;
-      const distance = previous
-        ? Math.hypot(x - previous.x, y - previous.y)
-        : 2;
-      const speed = previous ? distance / Math.max(1, now - previous.time) : 1;
-      scrollSamples.set(target, { x, y, time: now });
-      if (!compactSidebar && !movingThread && (pinsScrolling || distance >= 2 || speed > 0.1)) {
-        if (!pinsScrolling)
-          for (const pin of pins.querySelectorAll<HTMLElement>(".pin"))
-            pin.getAnimations().forEach((animation) => animation.cancel());
+      if (!movingThread) {
         pinsScrolling = true;
         pins.dataset.scrolling = "true";
         clearTimeout(pinScrollTimer);
@@ -4843,16 +4800,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           renderPins(true);
           pinsScrolling = false;
           delete pins.dataset.scrolling;
-          if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
-            for (const pin of pins.querySelectorAll<HTMLElement>(".pin"))
-              pin.animate(
-                [
-                  { transform: "translate(var(--pin-x), -28px) scale(0)" },
-                  { transform: "translate(var(--pin-x), -28px) scale(1)" },
-                ],
-                { duration: 250, easing: "cubic-bezier(.22,1.25,.36,1)" },
-              );
-        }, 140);
+        }, 180);
       }
       geometry();
     },
@@ -4862,11 +4810,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       signal: abort.signal,
     },
   );
+  for (const type of ["focusin", "focusout"])
+    dialogs.addEventListener(type, () => requestAnimationFrame(positionDialog), {
+      signal: abort.signal,
+    });
   window.visualViewport?.addEventListener(
     "scroll",
     () => {
       if (
-        (account || draft) &&
+        (account || draft || selected) &&
         isCompactReview(window.innerWidth, window.innerHeight)
       ) {
         scalePage();
@@ -4880,8 +4832,6 @@ export function initComments(options: CommentsOptions): CommentsController {
     () => {
       if (!isCompactReview(window.innerWidth, window.innerHeight)) return;
       scalePage();
-      renderToolbar();
-      revealDraftTarget();
       geometry();
     },
     { signal: abort.signal },
@@ -4891,7 +4841,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     () => {
       syncResponsiveSidebar();
       scalePage();
-      renderToolbar();
+      if (!compactSidebar) renderToolbar();
       geometry();
     },
     { signal: abort.signal },
@@ -5188,7 +5138,6 @@ export function initComments(options: CommentsOptions): CommentsController {
       hidePreview();
       observer.disconnect();
       mutations.disconnect();
-      draftScrollSpace.remove();
       const scroll = framed
         ? surface.scrollTop * htmlZoom()
         : window.scrollY / appliedScale;

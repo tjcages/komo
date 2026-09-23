@@ -49,6 +49,6 @@ export function mobileComposerPosition(
 ) {
   return {
     x: Math.max(12, (width - cardWidth) / 2),
-    y: top + Math.max(12, height - cardHeight - 12),
+    y: top + Math.max(12, (height - cardHeight) / 2),
   };
 }
