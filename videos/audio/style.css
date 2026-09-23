@@ -134,6 +134,12 @@ a {
 .studio-sidebar .panel-panel-header-end {
   display: none;
 }
+.studio-sidebar .panel-section-header button {
+  background: transparent;
+}
+.studio-sidebar .panel-section-header button:hover {
+  background: transparent;
+}
 .canvas-workspace {
   min-width: 0;
   min-height: 0;
