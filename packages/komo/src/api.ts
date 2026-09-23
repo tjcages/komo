@@ -155,11 +155,14 @@ export class CommentsApi {
       /* Cookies may be blocked independently from local storage. */
     }
     try {
-      const local = localStorage.getItem(this.key);
+      // Account snapshots also contain an endpoint-scoped, previously validated session.
+      let known;
+      try { known = JSON.parse(localStorage.getItem(this.userKey) ?? "null"); } catch { /* Ignore corrupt account metadata. */ }
+      const local = localStorage.getItem(this.key) ??
+        (identity(known?.user) && typeof known.token === "string" ? known.token : null);
       if (!cookiePresent) this.token = local;
       else if (!this.token && local) this.clear();
       // Last known account, shown at once; restore() confirms it with /me.
-      const known = JSON.parse(localStorage.getItem(this.userKey) ?? "null");
       if (this.token && known?.token === this.token && identity(known.user))
         this.user = known.user;
     } catch {
@@ -476,9 +479,7 @@ export class CommentsApi {
     const result = await this.request<{ user: Identity }>("me");
     if (this.token !== token) return;
     if (!identity(result.user)) throw invalidResponse();
-    this.user = result.user;
-    this.rememberUser();
-    if (this.writeCookie(token, 400 * 86400)) this.transient = false;
+    this.save({ token, user: result.user });
   }
   async guest(name: string) {
     this.save(await this.request("auth/guest", "POST", { name }));

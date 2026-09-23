@@ -139,6 +139,8 @@ Sessions are isolated by API endpoint and project. HTTPS cookies are host-only b
 
 Legacy project-only cookies are retired rather than trusted across API installations. Existing endpoint-scoped local sessions can migrate after server validation; cookie-only users may need to sign in once. Browser storage can be disabled independently; sessions remain usable in memory when neither cookie nor local storage is available. Client credentials and cached feedback are accessible to scripts on the embedding site—install only on sites you trust.
 
+On localhost, the widget defaults to a separate `local` channel in the **configured API’s database**. It is not a browser-only database or a private workspace per developer. Project permissions still apply; use a separate project/API for isolated development data. Switching to Shared selects the configured shared branch. `pnpm dev:api` is different: it starts a local API with its own local database.
+
 Projects default to link access. Owners can restrict feedback to invited Google accounts in Account → Project settings. The public project key identifies a workspace; it is not a credential. Approved origins control embedding, and private-project membership controls feedback access. Your website and repository permissions remain separate.
 
 ## Hosted setup
@@ -328,6 +330,8 @@ npx @tjcages/komo project access --access private
 npx @tjcages/komo project invite --email teammate@example.com
 npx @tjcages/komo project export --out comments.json
 ```
+
+On localhost, the widget defaults to a separate `local` channel in the **configured API’s database**. It is not a browser-only database or a private workspace per developer. Project permissions still apply; use a separate project/API for isolated development data. Switching to Shared selects the configured shared branch. `pnpm dev:api` is different: it starts a local API with its own local database.
 
 Projects default to link access. Private projects require Google sign-in and owner-approved membership for reads and writes, including the CLI. Invitations match a verified email address, expire after seven days, and are single-use. Members can review; only owners manage access, export, import, or delete. Google accounts used before this release should sign out and back in to verify their email. Repository access is separate.
 

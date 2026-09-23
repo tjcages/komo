@@ -226,3 +226,17 @@ it("marks memory-only sessions so a focus check cannot mistake blocked persisten
   expect(api.token).toBe("memory-only");
   expect(new CommentsApi(options).token).toBeNull();
 });
+
+it("migrates a previously validated endpoint-scoped account snapshot without trusting legacy cookies", async () => {
+  const dom = page();
+  const key = `branch-comments:${options.endpoint}:${options.project}`;
+  dom.window.localStorage.setItem(`${key}:user`, JSON.stringify({ token: "known-session", user }));
+  const api = new CommentsApi(options);
+  expect(api.token).toBe("known-session");
+  expect(api.user).toEqual(user);
+  expect(new CommentsApi({ ...options, endpoint: "https://other.test" }).token).toBeNull();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ user })));
+  await api.restore();
+  expect(dom.window.localStorage.getItem(key)).toBe("known-session");
+  expect(dom.window.document.cookie).toContain("__Host-bc-session-");
+});

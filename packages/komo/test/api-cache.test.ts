@@ -133,6 +133,8 @@ it("remembers the signed-in account for the same token", () => {
     JSON.stringify({ token: "t1", user: { name: null } }),
   );
   expect(new CommentsApi(options).user).toBeNull();
+  store.set("branch-comments:https://example.com/api/:test:user", "{broken");
+  expect(new CommentsApi(options).token).toBe("t1");
   new CommentsApi(options).clear();
   expect(new CommentsApi(options).user).toBeNull();
 });

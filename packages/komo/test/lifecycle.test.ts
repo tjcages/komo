@@ -131,7 +131,7 @@ it("clears private cached feedback and identity immediately on another tab's log
     }),
   );
   expect(shadow.textContent).toContain("Private feedback");
-  localStorage.removeItem(api.sessionKey);
+  api.clear(); // The other tab removes both its session and account snapshot.
   window.dispatchEvent(
     new StorageEvent("storage", {
       key: api.sessionKey,
