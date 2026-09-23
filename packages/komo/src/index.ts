@@ -77,7 +77,10 @@ import type {
 } from "./types.js";
 export type * from "./types.js";
 
-const instances = new WeakMap<Document, CommentsController>();
+const instances = new WeakMap<
+  Document,
+  { scope: string; controller: CommentsController }
+>();
 
 /** Initialize from inline public project settings. */
 export function initKomo(config: KomoConfig): CommentsController {
@@ -102,7 +105,18 @@ export function initComments(options: CommentsOptions): CommentsController {
     !["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)
   )
     throw new Error("The comments endpoint must use HTTPS.");
-  if (instances.has(document)) return instances.get(document)!;
+  const scope = JSON.stringify([
+    endpoint.href,
+    options.project,
+    options.repo,
+    options.branch,
+  ]);
+  const current = instances.get(document);
+  if (current) {
+    if (current.scope !== scope)
+      throw new Error("Destroy the current komo instance before changing projects or branches.");
+    return current.controller;
+  }
   options = { ...resumeProject(options) };
   const sidebarModeKey = `branch-comments:sidebar-mode:${options.project}:${options.repo}`;
   let sidebarMode: "background" | "edge" = (() => {
@@ -4980,6 +4994,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
   const controller: CommentsController = {
     destroy() {
+      if (destroyed) return;
+      destroyed = true;
       polling?.stop();
       api.cancelReads();
       stopLayoutMotion();
@@ -4999,7 +5015,6 @@ export function initComments(options: CommentsOptions): CommentsController {
         dialog.remove();
       }
       exitingDialogs.clear();
-      destroyed = true;
       pageMotion?.stop();
       dockMotion?.stop();
       stopEdgeMotion(true);
@@ -5050,9 +5065,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       } else compose();
     },
     open() {
+      if (destroyed) return;
       toggleExpanded(true);
     },
     close() {
+      if (destroyed) return;
       dismiss();
       toggleExpanded(false);
     },
@@ -5060,7 +5077,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       await refresh();
     },
   };
-  instances.set(document, controller);
+  instances.set(document, { scope, controller });
   try {
     restoring = !options.onboarding && localStorage.getItem(openKey) === "1";
   } catch {
