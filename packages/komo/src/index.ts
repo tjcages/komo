@@ -724,7 +724,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     for (const motion of layoutMotions) motion.cancel();
     layoutMotions = [];
     pageTransitioning = false;
-    pins.style.opacity = "1";
+    pins.style.opacity = "";
   }
   function setSidebarMode(mode: "background" | "edge") {
     if (
@@ -796,7 +796,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (destroyed || motions !== layoutMotions) return;
         layoutMotions = [];
         pageTransitioning = false;
-        pins.style.opacity = "1";
+        pins.style.opacity = "";
         geometry();
       })
       .catch(() => {});
@@ -1466,7 +1466,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       // The edge sidebar floats over the live page: never frame or zoom it.
       pageMotion?.stop();
       pageTransitioning = false;
-      pins.style.opacity = "1";
+      pins.style.opacity = "";
       const scroll = framed ? surface.scrollTop * zoom : null;
       if (framed) {
         for (const [header, styles] of fixedHeaders)
@@ -1506,7 +1506,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       : { left: 0, top: 0, width: window.innerWidth };
     pageMotion?.stop();
     pageTransitioning = false;
-    pins.style.opacity = "1";
+    pins.style.opacity = "";
     const layout = reviewLayout(
       window.innerWidth,
       viewportHeight,
@@ -1617,7 +1617,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           document.body.style.background = savedBody.background;
           document.documentElement.style.background = savedHtmlBackground;
         }
-        pins.style.opacity = "1";
+        pins.style.opacity = "";
         geometry();
       });
     }

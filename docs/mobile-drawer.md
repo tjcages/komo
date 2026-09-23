@@ -37,3 +37,11 @@ Validation: build/typecheck passed; the existing 207-test suite passed, followed
 Preview Worker version: `e7714b1c-7853-48f7-b0fe-eed3d755a96d`.
 
 Requested iPhone Simulator validation remains blocked: the installed iOS 27 runtime boots an iPhone 18 Pro, but `/Applications/Xcode.app` lacks `Contents/Developer/Applications/Simulator.app`. No Simulator UI was found in the other checked application/download locations. Actual Safari chrome collapse, software keyboard, and touch interaction have not been verified in the simulator.
+
+## Device Hub follow-up
+
+The owner still reproduced the mobile problems, so desktop-browser evidence was insufficient. A confirmed defect was the layout code's inline `opacity: 1` overriding the pin layer's scroll-hiding CSS. Layout completion now clears that temporary inline override. Build, typecheck, all 208 tests, and size pass (96,784 bytes initial; 195,996 bytes all features).
+
+Candidate preview: https://5db3903e-komo-site.off-brand.workers.dev/ (also the mobile-drawer alias). Device validation is in progress.
+
+Device Hub recovery: its installed app is `Xcode.app/Contents/Applications/DeviceHub.app`. Normal app attachment and System Events can return an invalid process identity or empty window list. The device window was recovered through CoreGraphics' owner PID and direct Accessibility `AXMainWindow` access. The absence of the old standalone Simulator.app is not a blocker to using Device Hub.
