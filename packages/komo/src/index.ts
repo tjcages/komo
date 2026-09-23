@@ -2055,14 +2055,19 @@ export function initComments(options: CommentsOptions): CommentsController {
     editing = null;
     error = "";
     mode = false;
-    if (compactSidebar && expanded) toggleExpanded(false);
+    const fromMobileSidebar = compactSidebar && expanded;
+    if (fromMobileSidebar) toggleExpanded(false);
     const rect = locateAnchor(thread.anchor);
-    if (!openingPreview && !compactSidebar)
+    if (!openingPreview && (fromMobileSidebar || !compactSidebar))
       (framed ? surface : window).scrollBy({
         top:
-          (rect.y - window.innerHeight * 0.35) /
+          (rect.y - (fromMobileSidebar
+            ? Math.min(window.innerHeight, window.visualViewport?.height ?? window.innerHeight)
+            : window.innerHeight) * 0.35) /
           (framed ? appliedScale * htmlZoom() : 1),
-        behavior: "instant",
+        behavior: fromMobileSidebar && !matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "smooth"
+          : "instant",
       });
     render();
   }

@@ -2431,7 +2431,23 @@ textarea {
 :host([data-sidebar="mobile"]) .toolbar { position:absolute; z-index:10; }
 :host([data-sidebar="mobile"].review-open) .toolbar .morphing-menu { --mm-surface:#282828; }
 :host([data-sidebar="mobile"].review-open) .toolbar .morphing-menu__shell { backdrop-filter:none; }
-:host([data-sidebar="mobile"]) .account-layer { top:0; height:100%; z-index:11; }
+:host([data-sidebar="mobile"]) .account-layer {
+  position:fixed;
+  inset:auto 20px calc(var(--mobile-panel-bottom,0px) + 14px);
+  width:auto;
+  height:calc(var(--mobile-panel-height,90vh) - 16px);
+  padding:0;
+  background:none;
+  border-radius:0;
+  overflow:visible;
+  pointer-events:none;
+  z-index:11;
+}
+:host([data-sidebar="mobile"]) .account-layer .account-dialog {
+  max-width:100%;
+  max-height:100%;
+  pointer-events:auto;
+}
 @media (prefers-reduced-motion:reduce) {
   :host([data-sidebar="mobile"]) .panel { transition:none; }
 }
