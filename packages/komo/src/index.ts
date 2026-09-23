@@ -435,7 +435,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   const host = el("div");
   host.dataset.branchComments = "";
   host.dataset.sidebar = compactSidebar
-    ? "drawer"
+    ? "mobile"
     : edgeSidebar
       ? "edge"
       : "background";
@@ -696,7 +696,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function syncEdgeMode() {
     host.dataset.sidebar = compactSidebar
-      ? "drawer"
+      ? "mobile"
       : edgeSidebar
         ? "edge"
         : "background";
@@ -822,8 +822,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       return selectSetting(
         "sidebar",
         "Sidebar",
-        [["drawer", "Drawer"]],
-        "drawer",
+        [["mobile", "Floating sidebar"]],
+        "mobile",
         () => {},
       );
     if (!canFrame)
@@ -1397,43 +1397,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     render();
   }
-  let mobileSheet:
-    | ReturnType<typeof import("./mobile-drawer.js").mobileDrawer>
-    | undefined;
-  let mobileLoading = false;
-  let mobileRestore = false;
-  function syncMobileDrawer() {
-    if (!compactSidebar || destroyed) return;
-    mobileRestore ||= restoring && expanded;
-    if (mobileSheet) {
-      mobileSheet.update(expanded && !account, mobileRestore, expanded);
-      mobileRestore = false;
-      return;
-    }
-    if (mobileLoading) return;
-    mobileLoading = true;
-    void import("./mobile-drawer.js")
-      .then(({ mobileDrawer }) => {
-        if (destroyed || !compactSidebar) return;
-        const mount = el("div", "mobile-drawer-mount");
-        shadow.append(mount);
-        mobileSheet = mobileDrawer(mount, sidebar, () => toggleExpanded(false));
-        mobileSheet.position(mobileViewportBottom());
-        mobileSheet.update(expanded && !account, mobileRestore, expanded);
-        mobileRestore = false;
-      })
-      .catch(() => {
-        // Keep the responsive CSS sheet usable if a split chunk is unavailable.
-      })
-      .finally(() => {
-        mobileLoading = false;
-      });
-  }
+  let mobileEnterFrame = 0;
   function syncResponsiveSidebar() {
     const next = isCompactReview(window.innerWidth, window.innerHeight);
     if (next === compactSidebar) return;
-    mobileSheet?.destroy();
-    mobileSheet = undefined;
     shadow.append(sidebar);
     stopLayoutMotion();
     stopEdgeMotion(true);
@@ -1453,6 +1420,15 @@ export function initComments(options: CommentsOptions): CommentsController {
     (window.visualViewport?.offsetTop ?? 0) +
     Math.min(window.innerHeight, window.visualViewport?.height ?? window.innerHeight) -
     window.innerHeight;
+  function setMobilePanelOrigin() {
+    const panelHeight = Math.max(1, Math.min(window.innerHeight, window.visualViewport?.height ?? window.innerHeight) * 0.9);
+    const bottom = mobileViewportBottom();
+    const pill = drawerShell().getBoundingClientRect();
+    host.style.setProperty("--mobile-pill-x", `${pill.left + pill.width / 2 - window.innerWidth / 2}px`);
+    host.style.setProperty("--mobile-pill-y", `${pill.bottom - (window.innerHeight + bottom)}px`);
+    host.style.setProperty("--mobile-pill-scale-x", String(Math.max(0.01, pill.width / window.innerWidth)));
+    host.style.setProperty("--mobile-pill-scale-y", String(Math.max(0.01, pill.height / panelHeight)));
+  }
   function scalePage() {
     const zoom = htmlZoom();
     const viewportHeight = isCompactReview(
@@ -1493,7 +1469,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       if (compactSidebar) {
         const bottom = mobileViewportBottom();
         toolbar.style.translate = `0 ${bottom}px`;
-        mobileSheet?.position(bottom);
+        host.style.setProperty("--mobile-panel-height", `${Math.max(1, viewportHeight * 0.9)}px`);
+        host.style.setProperty("--mobile-panel-bottom", `${-bottom}px`);
       }
       host.classList.toggle("review-open", expanded);
       framed = false;
@@ -1979,11 +1956,20 @@ export function initComments(options: CommentsOptions): CommentsController {
       account = false;
     }
     if (compactSidebar) {
+      cancelAnimationFrame(mobileEnterFrame);
+      setMobilePanelOrigin();
+      if (opening && !restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches)
+        host.dataset.mobileEntering = "";
+      else delete host.dataset.mobileEntering;
       hidden = false;
       scalePage();
       render();
       presence.show();
       presence.update();
+      if (host.dataset.mobileEntering !== undefined)
+        mobileEnterFrame = requestAnimationFrame(() => {
+          delete host.dataset.mobileEntering;
+        });
       return;
     }
     if (edgeSidebar) {
@@ -4684,7 +4670,6 @@ export function initComments(options: CommentsOptions): CommentsController {
     renderList();
     renderDialog();
     placeEdgeAccount();
-    syncMobileDrawer();
   }
   let drag: {
     x: number;
@@ -4871,7 +4856,7 @@ export function initComments(options: CommentsOptions): CommentsController {
             !control.closest("[inert]") &&
             (account ||
               !compactSidebar ||
-              !!control.closest(".mobile-drawer,.toolbar")),
+              !!control.closest(".panel,.toolbar")),
         );
         const first = controls[0],
           last = controls.at(-1);
@@ -5113,8 +5098,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       api.cancelReads();
       stopLayoutMotion();
       disposeHeaderTip?.();
-      mobileSheet?.destroy();
-      mobileSheet = undefined;
+      cancelAnimationFrame(mobileEnterFrame);
       clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
       clearTimeout(accountOpenTimer);
