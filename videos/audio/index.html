@@ -53,8 +53,7 @@
           <p class="eyebrow">YOUR SOUNDTRACK</p>
           <h2>Add a little atmosphere.</h2>
           <p class="muted">
-            Use a song you own or have licensed. Your files stay in this
-            browser.
+            Use a song you own or have licensed. Your files stay on your device.
           </p>
           <label class="import file"
             >＋ Choose a song<input
@@ -164,14 +163,65 @@
           ><output id="range">Add a song to begin</output>
         </div>
       </section>
+      <section class="effects" aria-label="Sound effects">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">ON THE FRAME</p>
+            <h2>Give every action a sound.</h2>
+          </div>
+          <span id="cueCount"></span>
+        </div>
+        <p class="muted">
+          Model-authored animation cues. Move a cue by frame, change its sound,
+          or add one at the playhead. 30 frames = 1 second.
+        </p>
+        <div class="effect-tools">
+          <label
+            ><input id="effectsEnabled" type="checkbox" checked /> Sound effects
+            on</label
+          ><label
+            >Effects level
+            <input
+              id="effectsVolume"
+              type="range"
+              min="0"
+              max="1"
+              value="0.8"
+              step="0.01" /></label
+          ><button id="addCue" class="secondary">Add at playhead</button
+          ><button id="restoreCues" class="secondary">Restore scene cues</button
+          ><label class="quiet file"
+            >Import cue sheet<input
+              id="cueFile"
+              type="file"
+              accept=".json,application/json"
+          /></label>
+        </div>
+        <div id="cueTrack" aria-label="Effects timeline"></div>
+        <div class="cue-head">
+          <span>Action</span><span>Sound</span><span>Frame</span
+          ><span>Level</span><span>Listen</span><span></span>
+        </div>
+        <div id="cueList"></div>
+      </section>
       <footer>
         <div>
-          <p id="status" role="status">Load a song to preview your mix.</p>
+          <p id="status" role="status">
+            Play the animation cues, or add a song underneath.
+          </p>
           <p class="muted">
-            Save the mix settings, then export a full-quality MP4 locally.
+            Export video, music and sound effects together. Local export
+            requires FFmpeg.
           </p>
         </div>
-        <button id="save" disabled>Save mix settings ↗</button>
+        <div class="export-actions">
+          <!-- EXPORT_EXAMPLE -->
+          <button id="save" disabled>Save mix settings</button
+          ><button id="export" disabled>Export MP4 ↗</button>
+          <a id="exportDownload" hidden download="komo-with-sound.mp4"
+            >Download MP4</a
+          >
+        </div>
       </footer>
       <details>
         <summary>Export & music sources</summary>
@@ -180,9 +230,9 @@
 node videos/audio/mix.mjs --video /path/film.mp4 --song /path/song.mp3 --mix /path/komo-mix.json --out /path/film-with-music.mp4</pre
         >
         <p>
-          The exporter keeps the picture untouched and adds your chosen excerpt.
-          It requires FFmpeg and FFprobe. The demo button also downloads its
-          original WAV so you can test the complete export.
+          The exporter keeps the picture untouched and combines music with all
+          enabled sound cues. It requires FFmpeg and FFprobe. The demo button
+          also downloads its original WAV so you can test the complete export.
         </p>
         <p>
           Spotify’s API does not permit video synchronization. For a catalog,

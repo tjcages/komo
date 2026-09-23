@@ -125,12 +125,13 @@ export function snapStart(start, cut, bpm, firstBeat, maxStart) {
 
 export function validateMix(mix, videoDuration, songDuration) {
   if (
-    ![videoDuration, songDuration].every(
-      (value) => Number.isFinite(value) && value > 0,
-    )
+    ![
+      videoDuration,
+      ...(mix.musicEnabled === false ? [] : [songDuration]),
+    ].every((value) => Number.isFinite(value) && value > 0)
   )
     throw Error("Could not determine media duration.");
-  if (mix.version !== 1) throw Error("Unsupported mix version.");
+  if (![1, 2].includes(mix.version)) throw Error("Unsupported mix version.");
   for (const key of ["start", "duration", "volume", "fadeIn", "fadeOut"]) {
     if (!Number.isFinite(mix[key]) || mix[key] < 0)
       throw Error(`Invalid ${key}.`);
@@ -145,7 +146,10 @@ export function validateMix(mix, videoDuration, songDuration) {
     throw Error(
       "The video duration changed. Reopen the editor and save a new mix.",
     );
-  if (mix.start + mix.duration > songDuration + 0.025)
+  if (
+    mix.musicEnabled !== false &&
+    mix.start + mix.duration > songDuration + 0.025
+  )
     throw Error("The song is too short for this excerpt.");
   return mix;
 }

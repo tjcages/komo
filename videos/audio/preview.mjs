@@ -6,8 +6,11 @@ import { execFileSync } from "node:child_process";
 import { cutTimeline } from "./timing.mjs";
 const here = dirname(fileURLToPath(import.meta.url)),
   repo = resolve(here, "../..");
-const [video, edit = resolve(repo, "tools/launch-video/remotion/edit.json")] =
-  process.argv.slice(2);
+const [
+  video,
+  edit = resolve(repo, "tools/launch-video/remotion/edit.json"),
+  example,
+] = process.argv.slice(2);
 if (!video)
   throw Error(
     "Usage: node videos/audio/preview.mjs /path/film.mp4 [/path/edit.json]",
@@ -35,10 +38,33 @@ if (!Number.isFinite(actual) || Math.abs(actual - timeline.duration) > 0.08)
   throw Error("Preview film and cut map do not match.");
 const out = resolve(repo, "packages/komo-site/dist/audio");
 mkdirSync(out, { recursive: true });
-for (const name of ["index.html", "style.css", "studio.mjs", "timing.mjs"])
+for (const name of [
+  "index.html",
+  "style.css",
+  "studio.mjs",
+  "timing.mjs",
+  "effects.mjs",
+  "effects-ui.mjs",
+  "cues.json",
+])
   copyFileSync(resolve(here, name), resolve(out, name));
+writeFileSync(
+  resolve(out, "capabilities.json"),
+  JSON.stringify({ localExport: false }),
+);
 copyFileSync(resolve(video), resolve(out, "film.mp4"));
 copyFileSync(resolve(edit), resolve(out, "edit.json"));
+if (example) {
+  copyFileSync(resolve(example), resolve(out, "example.mp4"));
+  const page = resolve(out, "index.html");
+  writeFileSync(
+    page,
+    readFileSync(page, "utf8").replace(
+      "<!-- EXPORT_EXAMPLE -->",
+      '<a href="example.mp4" target="_blank" rel="noopener">Watch exported demo ↗</a>',
+    ),
+  );
+}
 const headerPath = resolve(out, "../_headers");
 const baseHeaders = readFileSync(headerPath, "utf8").replace(
   /\n\/audio\/\*\n(?:[ \t].*\n)*/g,

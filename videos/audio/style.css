@@ -352,3 +352,111 @@ a {
     margin-left: 8px;
   }
 }
+
+.effects {
+  margin-top: 32px;
+  border-top: 1px solid #3e3447;
+  padding-top: 24px;
+}
+.effect-tools {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.effect-tools .secondary {
+  width: auto;
+}
+.effect-tools input[type="range"] {
+  width: 110px;
+  margin: 0 0 0 8px;
+  vertical-align: middle;
+}
+.cue-row,
+.cue-head {
+  display: grid;
+  grid-template-columns:
+    minmax(120px, 2fr) minmax(80px, 1fr) 80px minmax(70px, 1fr)
+    60px 36px;
+  gap: 12px;
+  align-items: center;
+  margin: 8px 0;
+}
+.cue-head {
+  color: #b8a9c5;
+  font-size: 11px;
+  margin-top: 20px;
+}
+.cue-row input,
+.cue-row select {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+}
+.cue-row input:not([type="range"]),
+.cue-row select {
+  background: #242029;
+  color: #eee4f8;
+  border: 1px solid #493c55;
+  padding: 9px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+}
+.cue-row button {
+  padding: 9px 6px;
+  font-size: 11px;
+  background: #342c3d;
+  color: #dbc8ee;
+}
+#cueCount {
+  font-size: 12px;
+  color: #bfa9d0;
+}
+#cueTrack {
+  height: 38px;
+  background: #29222f;
+  border-radius: 8px;
+  position: relative;
+  margin: 16px 0;
+}
+.cue-marker {
+  position: absolute;
+  top: 10px;
+  width: 12px;
+  height: 18px;
+  padding: 0;
+  border-radius: 3px;
+  background: #d3bbf2;
+}
+.export-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+@media (max-width: 650px) {
+  .cue-row,
+  .cue-head {
+    grid-template-columns: minmax(90px, 1.4fr) 72px 58px 55px 40px 28px;
+    gap: 5px;
+  }
+  .cue-row input:not([type="range"]),
+  .cue-row select {
+    padding: 7px 3px;
+    font-size: 11px;
+  }
+  .effect-tools {
+    gap: 12px;
+  }
+}
+
+#exportDownload:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid #cbb4ee;
+  border-radius: 10px;
+  font-size: 13px;
+  text-decoration: none;
+}

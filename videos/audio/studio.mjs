@@ -4,8 +4,9 @@ import {
   suggestTempo,
   snapStart,
   validateMix,
-  gainAt,
 } from "./timing.mjs";
+import { renderSoundtrack, validateEffects, SAMPLE_RATE } from "./effects.mjs";
+import { createEffectsEditor } from "./effects-ui.mjs";
 const $ = (id) => document.getElementById(id);
 const video = $("video");
 let timeline,
@@ -13,12 +14,27 @@ let timeline,
   selectedCut = 0,
   song,
   context,
-  source,
-  gain,
-  songURL,
+  decodedSong,
+  songFile,
+  videoFile,
+  previewBuffer,
+  soundSource,
+  soundClock = 0,
+  soundOffset = 0,
+  localExport = false,
   videoURL,
   generation = 0;
-const audio = new Audio();
+const getContext = () =>
+  (context ||= new AudioContext({ sampleRate: SAMPLE_RATE }));
+const effects = createEffectsEditor({
+  video,
+  getDuration: () => duration,
+  getContext,
+  changed: () => {
+    stop();
+    invalidatePreview();
+  },
+});
 const time = (value) =>
   `${Math.floor(value / 60)}:${(value % 60).toFixed(2).padStart(5, "0")}`;
 const status = (text) => {
@@ -26,7 +42,9 @@ const status = (text) => {
 };
 const number = (id) => Number($(id).value);
 const settings = () => ({
-  version: 1,
+  version: 2,
+  musicEnabled: !!song,
+  ...effects.fields(),
   song: song?.name,
   start: number("start"),
   duration,
@@ -42,19 +60,60 @@ function download(data, name, type) {
   a.href = url;
   a.download = name;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+function invalidatePreview() {
+  previewBuffer = null;
+  $("exportDownload").hidden = true;
+}
+function stopSound() {
+  if (soundSource) {
+    soundSource.stop();
+    soundSource.disconnect();
+    soundSource = null;
+  }
 }
 function stop() {
   video.pause();
-  audio.pause();
+  stopSound();
   $("play").textContent = "Play preview";
 }
-function sync() {
-  if (!song) return;
+function prepareSound() {
   const mix = settings();
-  const target = mix.start + video.currentTime;
-  if (Math.abs(audio.currentTime - target) > 0.06) audio.currentTime = target;
-  if (gain) gain.gain.value = gainAt(video.currentTime, mix);
+  validateMix(mix, duration, song?.duration);
+  validateEffects(mix);
+  const ctx = getContext();
+  if (!previewBuffer) {
+    const music = decodedSong
+      ? Array.from(
+          { length: Math.min(2, decodedSong.numberOfChannels) },
+          (_, i) => decodedSong.getChannelData(i),
+        )
+      : [];
+    const { channels } = renderSoundtrack(mix, music, ctx.sampleRate);
+    previewBuffer = ctx.createBuffer(2, channels[0].length, ctx.sampleRate);
+    channels.forEach((channel, i) => previewBuffer.copyToChannel(channel, i));
+  }
+}
+function startSound() {
+  stopSound();
+  if (!previewBuffer || video.paused || video.currentTime >= duration) return;
+  soundSource = context.createBufferSource();
+  soundSource.buffer = previewBuffer;
+  soundSource.connect(context.destination);
+  soundOffset = video.currentTime;
+  soundClock = context.currentTime;
+  soundSource.start(0, soundOffset);
+}
+function sync() {
+  if (
+    soundSource &&
+    !video.paused &&
+    Math.abs(
+      video.currentTime - (soundOffset + context.currentTime - soundClock),
+    ) > 0.08
+  )
+    startSound();
 }
 function update() {
   $("clock").textContent =
@@ -71,12 +130,8 @@ async function play() {
   }
   if (video.currentTime >= duration - 0.03) video.currentTime = 0;
   try {
-    if (song) {
-      validateMix(settings(), duration, song.duration);
-      await context.resume();
-      sync();
-      await audio.play();
-    }
+    prepareSound();
+    await context.resume();
     await video.play();
     $("play").textContent = "Pause";
     update();
@@ -141,13 +196,15 @@ function setStart(value) {
   );
   $("start").value = start;
   $("startNumber").value = start.toFixed(3);
+  invalidatePreview();
   sync();
   draw();
 }
 function refresh() {
   const fits = !!song && song.duration + 0.025 >= duration && duration > 0;
   $("controls").disabled = !fits;
-  $("save").disabled = !fits;
+  $("save").disabled = !duration || (!!song && !fits);
+  $("export").disabled = $("save").disabled;
   $("start").disabled = !fits;
   $("startNumber").disabled = !fits;
   $("start").max = $("startNumber").max = song
@@ -185,6 +242,7 @@ video.onloadedmetadata = () => {
   $("play").disabled = false;
   if (timeline && Math.abs(duration - timeline.duration) > 0.08) {
     timeline = null;
+    effects.setEdit(null);
     showCuts();
     status(
       "Video length differs from the edit. Cut snapping is disabled; song timing still works.",
@@ -193,6 +251,7 @@ video.onloadedmetadata = () => {
   $("filmInfo").textContent =
     `${duration.toFixed(2)} seconds${timeline ? ` · ${timeline.cuts.length} scenes` : ""}`;
   refresh();
+  effects.draw();
   update();
 };
 video.onerror = () => {
@@ -206,20 +265,16 @@ video.onerror = () => {
 };
 video.onended = stop;
 video.onpause = () => {
-  audio.pause();
+  stopSound();
   $("play").textContent = "Play preview";
 };
-video.onwaiting = () => audio.pause();
-video.onplaying = () => {
-  if (song) {
-    sync();
-    audio.play().catch((e) => {
-      stop();
-      status(e.message);
-    });
-  }
+video.onwaiting = stopSound;
+video.onplaying = startSound;
+video.onseeking = stopSound;
+video.onseeked = () => {
+  update();
+  if (!video.paused) startSound();
 };
-video.onseeking = sync;
 $("play").onclick = play;
 $("scrub").oninput = () => {
   stop();
@@ -235,7 +290,9 @@ $("videoFile").onchange = (e) => {
   $("play").disabled = true;
   refresh();
   timeline = null;
+  effects.setEdit(null);
   showCuts();
+  videoFile = file;
   videoURL = URL.createObjectURL(file);
   video.src = videoURL;
   status(
@@ -247,12 +304,13 @@ async function loadSong(file) {
   stop();
   status("Analyzing the waveform and tempo…");
   $("save").disabled = true;
+  $("export").disabled = true;
   $("controls").disabled = true;
   $("play").disabled = true;
   try {
     if (file.size > 100 * 1024 * 1024)
       throw Error("Choose an audio file smaller than 100 MB.");
-    context ||= new AudioContext();
+    getContext();
     const decoded = await context.decodeAudioData(await file.arrayBuffer());
     if (token !== generation) return;
     if (decoded.duration > 15 * 60)
@@ -265,15 +323,10 @@ async function loadSong(file) {
         mono[i] += data[i] / decoded.numberOfChannels;
     }
     const result = analyzeSamples(mono, decoded.sampleRate);
-    if (songURL) URL.revokeObjectURL(songURL);
-    songURL = URL.createObjectURL(file);
-    audio.src = songURL;
-    if (!source) {
-      source = context.createMediaElementSource(audio);
-      gain = context.createGain();
-      source.connect(gain);
-      gain.connect(context.destination);
-    }
+    if (decoded.numberOfChannels > 2) throw Error("Use a mono or stereo song.");
+    decodedSong = decoded;
+    songFile = file;
+    invalidatePreview();
     song = { ...result, name: file.name, duration: decoded.duration };
     $("songName").textContent = file.name;
     $("bpm").value = result.bpm || 120;
@@ -303,11 +356,13 @@ $("start").oninput = () => setStart(number("start"));
 $("startNumber").onchange = () => setStart(number("startNumber"));
 $("volume").oninput = () => {
   $("volumeText").textContent = `${Math.round(number("volume") * 100)}%`;
-  sync();
+  stop();
+  invalidatePreview();
 };
 for (const id of ["bpm", "firstBeat", "fadeIn", "fadeOut"])
   $(id).onchange = () => {
     stop();
+    invalidatePreview();
     draw();
     sync();
   };
@@ -334,7 +389,8 @@ $("snap").onclick = () => {
 };
 $("save").onclick = () => {
   try {
-    const mix = validateMix(settings(), duration, song.duration);
+    const mix = validateMix(settings(), duration, song?.duration);
+    validateEffects(mix);
     download(JSON.stringify(mix, null, 2), "komo-mix.json", "application/json");
     status(
       "Mix settings saved. Use the export command below to create your MP4.",
@@ -409,7 +465,15 @@ $("demo").onclick = async () => {
 try {
   const response = await fetch("edit.json");
   if (!response.ok) throw Error("Cut map unavailable");
-  timeline = cutTimeline(await response.json());
+  const edit = await response.json();
+  timeline = cutTimeline(edit);
+  effects.setEdit(edit);
+  try {
+    const cueResponse = await fetch("cues.json");
+    if (cueResponse.ok) effects.loadSheet(await cueResponse.json());
+  } catch (error) {
+    status(`Animation cues unavailable: ${error.message}`);
+  }
   if (duration && Math.abs(duration - timeline.duration) > 0.08)
     timeline = null;
   showCuts();
@@ -430,6 +494,7 @@ try {
   if (!response.ok) throw Error("Film unavailable");
   const blob = await response.blob();
   if (!videoURL) {
+    videoFile = blob;
     videoURL = URL.createObjectURL(blob);
     video.src = videoURL;
   }
@@ -439,3 +504,47 @@ try {
       "Choose a video to begin. No rendered film was found on this server.",
     );
 }
+
+try {
+  const response = await fetch("capabilities.json");
+  if (response.ok) localExport = (await response.json()).localExport === true;
+} catch {
+  /* Static preview uses the documented local command. */
+}
+if (!localExport) $("export").textContent = "Export MP4 locally ↗";
+$("export").onclick = async () => {
+  try {
+    const mix = validateMix(settings(), duration, song?.duration);
+    validateEffects(mix);
+    if (!localExport) {
+      $("save").click();
+      status(
+        "Mix saved with all sound cues. Run the export command below, or open the local studio for one-click MP4 download.",
+      );
+      return;
+    }
+    stop();
+    $("export").disabled = true;
+    status("Exporting picture, music and sound effects together…");
+    const body = new FormData();
+    body.append("mix", JSON.stringify(mix));
+    body.append("video", videoFile, "film.mp4");
+    if (songFile) body.append("song", songFile, "song.audio");
+    const response = await fetch("export", { method: "POST", body });
+    if (!response.ok) throw Error(await response.text());
+    const result = await response.json();
+    if (!/^\/exports\/[a-f0-9-]+\.mp4$/.test(result.download))
+      throw Error("Invalid download response.");
+    $("exportDownload").href = result.download;
+    $("exportDownload").hidden = false;
+    status(
+      JSON.stringify(settings()) === JSON.stringify(mix)
+        ? "MP4 ready with music and all enabled sound effects. Download within 10 minutes."
+        : "The earlier mix is ready to download. Settings changed during export; export again to include them.",
+    );
+  } catch (error) {
+    status(`Export failed: ${error.message}`);
+  } finally {
+    $("export").disabled = !duration;
+  }
+};

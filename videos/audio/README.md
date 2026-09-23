@@ -1,6 +1,6 @@
 # Sound studio
 
-A local-first music editor for the komo launch film. Import a song, inspect its waveform, choose an excerpt, align a beat to a scene cut, preview volume/fades, and save a repeatable mix. No accounts, uploads, catalog keys, or new runtime dependencies.
+A local-first music editor for the komo launch film. Import a song, inspect its waveform, choose an excerpt, align a beat to a scene cut, preview volume/fades, and save a repeatable mix. No accounts, cloud uploads, catalog keys, or new runtime dependencies.
 
 ## Run
 
@@ -38,7 +38,7 @@ node videos/audio/mix.mjs \
 
 Run this after the normal Remotion build/assembly; there is no reason to re-render the pictures to audition another song. The exporter copies the video stream and adds a 192 kbps AAC track. **Music replaces any original audio.** It refuses to overwrite an existing output, rejects stale duration / short excerpts / invalid fades, and never shells user values into commands. Outputs should stay outside Git, alongside your existing rendered film.
 
-The browser saves the mix recipe rather than encoding an MP4. Keep the original song and video alongside it; the JSON stores timing, not embedded media. Changing or reordering an edit requires reviewing and saving its mix again even if the total duration stays the same.
+The hosted browser preview saves the mix recipe; the local studio also provides a direct MP4 download through FFmpeg. Keep the original song and video alongside it; the JSON stores timing, not embedded media. Changing or reordering an edit requires reviewing and saving its mix again even if the total duration stays the same.
 
 ## Tempo, not RPM
 
@@ -46,7 +46,7 @@ The song analyzer estimates BPM from its onset envelope and autocorrelation. It 
 
 A silent film has no intrinsic musical BPM. **Suggested cut rhythm** finds the 70–180 BPM grid that best fits scene lengths; it is an editing suggestion, not a measurement of all visual motion. Matching the song BPM to it is optional. Alignment moves the song excerpt so one beat falls on the selected cut; it does not retime scenes or promise every cut hits a beat.
 
-The browser decodes supported formats locally (up to 100 MB / 15 minutes). Playback uses the video as its clock, corrects audio drift, pauses audio on video buffering, and applies the same linear fades as export. Encoded export is authoritative for frame-accurate review.
+The browser decodes supported formats locally (up to 100 MB / 15 minutes). Playback uses the video as its clock, corrects audio drift, and pauses the complete soundtrack on buffering or seeking. Encoded export is authoritative for frame-accurate review.
 
 ## Catalogs
 
@@ -72,3 +72,38 @@ node --test videos/audio/timing.test.mjs
 ```
 
 The tests cover pulse estimation, trimmed cut timing, beat alignment at excerpt boundaries, and export validation. The helpers in the existing untracked `videos/` Remotion scaffold are private skill assets; this directory contains only the new independently authored audio tools.
+
+## Animation sound effects
+
+The model authors `videos/audio/cues.json` from the animation source, using a **scene name and scene-local frame**. The supplied nine cues match pin / Resolve / drawer / Copy / Send clicks, reaction and paste pops, sidebar movement, and logo arrival. A cue is resolved through the edit's trims into a film frame. Trimmed-away cues are omitted; unknown or repeated scene names fail rather than silently drifting. When an animation's internal timing changes, update its cue frame too.
+
+```json
+{
+  "id": "copy",
+  "scene": "copy",
+  "frame": 42,
+  "sound": "click",
+  "volume": 0.55,
+  "label": "Copy prompt"
+}
+```
+
+Supported original synthesized sounds: `click`, `pop`, `whoosh`, `chime`. No third-party sound files or licenses are needed. Keep the cue sheet's `version: 1`, `fps: 30`, and `cues` array. The local server accepts `--cues /path/cues.json`; **Import cue sheet** replaces the browser's cues. Replacing the film in the browser clears old scene cues to prevent accidental reuse.
+
+In the editor, each cue has an absolute film **Frame**, sound, and volume. Click a timeline marker to seek, **Hear** to audition, or **Add at playhead** to add a cue. You can remove cues, restore the loaded scene sheet, and mute or adjust the entire effects layer. These edits are included in the saved version-2 mix JSON. Cue timing stays attached to the video when the song excerpt moves. Version-1 music-only mixes remain exportable.
+
+Preview and export use the same deterministic 48 kHz synthesis, stereo music summation, fades and peak headroom calculation. Overlapping effects are summed; the combined track is only attenuated if needed to keep its sample peak at or below 0.95. The final MP4 uses AAC, so encoded samples differ from the uncompressed preview. The original video soundtrack is replaced by this complete mix.
+
+### Export everything
+
+**Local studio:** click **Export MP4**. The browser passes the selected files and recipe to its localhost server, which runs FFmpeg and returns a **Download MP4** link for `komo-with-sound.mp4`. Uploaded inputs are deleted after encoding. The download remains available for ten minutes (at most five recent exports), then its temporary file is removed. The endpoint accepts only same-origin local studio requests, caps uploads at 160 MB, and runs one export at a time. Films are limited to ten minutes and cue sheets to 500 events.
+
+**Hosted review preview:** use **Export MP4 locally** to save the recipe, then run the documented mixer command on your machine. There is no cloud upload or remote encoder. For an effects-only mix, omit `--song`; the recipe's `musicEnabled` must be `false`. The MP4 includes the original picture, optional music, and every enabled effect.
+
+```sh
+pnpm audio:test
+```
+
+These checks additionally cover scene-trim resolution, known animation click frames, sample-exact onset placement, stereo summation, deterministic sounds, overlapping cue headroom, effect muting, and malformed cue validation.
+
+The preview staging command accepts an optional third positional path to an already-exported demo MP4; when supplied it adds a **Watch exported demo** link. Generated media remains outside Git.
