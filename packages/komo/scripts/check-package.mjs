@@ -41,6 +41,11 @@ try {
     "--no-fund",
     join(root, packed.filename),
   ]);
+  assert.match(
+    await readFile(join(root, "node_modules/@tjcages/komo/dist/react.js"), "utf8"),
+    /^['"]use client['"];?/,
+    "React entry must preserve its client boundary after minification",
+  );
   await writeFile(
     join(root, "smoke.mjs"),
     `

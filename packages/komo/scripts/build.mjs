@@ -1,4 +1,5 @@
 import { build, transform } from "esbuild";
+import { minify } from "terser";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -70,6 +71,21 @@ const result = await build({
   ],
   external: ["react", "react-dom", "emoji-regex"],
 });
+// Compress the emitted modules without changing their split boundaries or exports.
+// Preserve framework directives ("use client") and linked license notices.
+await Promise.all(
+  Object.keys(result.metafile.outputs)
+    .filter((path) => path.endsWith(".js"))
+    .map(async (path) => {
+      const { code } = await minify(await readFile(path, "utf8"), {
+        module: true,
+        compress: { passes: 2, directives: false },
+        mangle: true,
+        format: { comments: "some" },
+      });
+      await writeFile(path, code);
+    }),
+);
 const packages = new Set();
 const notices = [];
 for (const input of Object.keys({
