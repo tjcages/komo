@@ -101,10 +101,12 @@ export function initComments(options: CommentsOptions): CommentsController {
     throw new Error("Comments require endpoint, repo, branch, and project.");
   const endpoint = new URL(options.endpoint);
   if (
-    endpoint.protocol !== "https:" &&
-    !["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)
+    endpoint.username || endpoint.password ||
+    (endpoint.protocol !== "https:" &&
+      !(endpoint.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)))
   )
-    throw new Error("The comments endpoint must use HTTPS.");
+    throw new Error("Use an HTTPS API endpoint without credentials; HTTP is allowed on localhost.");
   const scope = JSON.stringify([
     endpoint.href,
     options.project,

@@ -8,14 +8,6 @@ export class ApiError extends Error {
     super(message);
   }
 }
-/**
- * Cloudflare preview hosts under one owner: `alias-worker.ACCOUNT.workers.dev`
- * and `hash.PROJECT.pages.dev`. Sharing the session cookie on that parent
- * signs a reviewer in once for every preview of the same account/project.
- */
-export function previewSessionDomain(hostname: string): string {
-  return hostname.match(/^[^.]+\.([^.]+\.(?:workers|pages)\.dev)$/)?.[1] ?? "";
-}
 // Validate persisted/network data before it reaches rendering code.
 function identity(value: Identity): boolean {
   return (
@@ -143,20 +135,26 @@ export class CommentsApi {
   private cookieName: string;
   private cookieDomain: string;
   constructor(private options: CommentsOptions) {
-    this.cookieName = `bc-session-${encodeURIComponent(options.project)}`;
+    const scope = new URL(options.sessionEndpoint ?? options.endpoint).href.replace(/\/$/, "");
     const domain = options.sessionDomain?.replace(/^\./, "") ?? "";
     this.cookieDomain =
       domain &&
       (location.hostname === domain || location.hostname.endsWith(`.${domain}`))
         ? domain
-        : previewSessionDomain(location.hostname);
+        : "";
+    this.cookieName = `${this.cookieDomain ? "__Secure-" : "__Host-"}bc-session-${encodeURIComponent(JSON.stringify([scope, options.project]))}`;
     this.key = `branch-comments:${options.endpoint}:${options.project}`;
     try {
       this.token =
         document.cookie
           .split("; ")
           .find((cookie) => cookie.startsWith(`${this.cookieName}=`))
-          ?.slice(this.cookieName.length + 1) || localStorage.getItem(this.key);
+          ?.slice(this.cookieName.length + 1) || null;
+    } catch {
+      /* Cookies may be blocked independently from local storage. */
+    }
+    try {
+      this.token ||= localStorage.getItem(this.key);
       // Last known account, shown at once; restore() confirms it with /me.
       const known = JSON.parse(localStorage.getItem(this.userKey) ?? "null");
       if (this.token && known?.token === this.token && identity(known.user))
@@ -164,6 +162,19 @@ export class CommentsApi {
     } catch {
       /* Private browsers can disable storage. */
     }
+    // Retire project-only legacy cookies; only scoped local storage may migrate a session.
+    try {
+      const name = `bc-session-${encodeURIComponent(options.project)}`;
+      const parent = location.hostname.match(/^[^.]+\.([^.]+\.(?:workers|pages)\.dev)$/)?.[1];
+      for (const domain of new Set(["", this.cookieDomain, parent]))
+        if (domain !== undefined)
+          document.cookie = `${name}=; Max-Age=0; Path=/${domain ? `; Domain=${domain}` : ""}`;
+    } catch {
+      /* Cookies may be disabled. */
+    }
+  }
+  get sessionKey() {
+    return this.key;
   }
   private get userKey() {
     return `${this.key}:user`;
@@ -201,6 +212,7 @@ export class CommentsApi {
       headers,
       body: data === undefined ? undefined : JSON.stringify(data),
       credentials: "omit",
+      cache: "no-store",
       signal: readSignal ? AbortSignal.any([readSignal, timeout]) : timeout,
     }).catch((error: unknown) => {
       // Browsers hide why a request failed; offline is the one case we can tell.
@@ -241,7 +253,7 @@ export class CommentsApi {
   // A bounded last-known snapshot paints immediately. Partial snapshots never
   // carry a revision: the next load must retrieve the omitted threads.
   private get listKey() {
-    return `${this.key}:${this.options.repo}:${this.options.branch}:threads`;
+    return `${this.key}:${JSON.stringify([this.options.repo, this.options.branch])}:threads`;
   }
   cached(): Thread[] | null {
     try {
@@ -411,13 +423,14 @@ export class CommentsApi {
       localStorage.setItem(this.key, data.token);
       // Browsers cap cookie Max-Age at 400 days; the service session lasts far
       // longer and localStorage keeps the token beyond the cookie's lifetime.
-      this.writeCookie(data.token, 400 * 86400);
     } catch {
       /* Session remains usable for this tab. */
     }
+    this.writeCookie(data.token, 400 * 86400);
   }
   private writeCookie(value: string, maxAge: number) {
-    const attributes = `Path=/; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+    if (location.protocol !== "https:") return;
+    const attributes = "Path=/; SameSite=Lax; Secure";
     try {
       // A host-only cookie from before sharing would shadow the shared one.
       if (this.cookieDomain)
@@ -431,6 +444,9 @@ export class CommentsApi {
     this.cancelReads();
     try {
       localStorage.removeItem(this.listKey);
+      // Clear every channel's snapshot, including legacy keys containing tokens.
+      for (const key of Object.keys(localStorage))
+        if (key.startsWith(`${this.key}:`)) localStorage.removeItem(key);
     } catch {
       /* Nothing cached. */
     }
@@ -454,26 +470,15 @@ export class CommentsApi {
     if (!identity(result.user)) throw invalidResponse();
     this.user = result.user;
     this.rememberUser();
+    this.writeCookie(token, 400 * 86400);
   }
   async guest(name: string) {
     this.save(await this.request("auth/guest", "POST", { name }));
   }
   async logout() {
-    const token = this.token;
-    const user = this.user;
     const request = this.request("me", "DELETE");
     this.clear();
-    try {
-      await request;
-    } catch (error) {
-      if (
-        !this.token &&
-        token &&
-        user &&
-        !(error instanceof ApiError && error.status === 401)
-      )
-        this.save({ token, user });
-      throw error;
-    }
+    // A failed remote revocation must never sign this browser back in.
+    await request;
   }
 }

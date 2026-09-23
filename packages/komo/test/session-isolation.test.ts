@@ -191,3 +191,10 @@ it("stays signed out and does not restore private caches when remote logout fail
   expect(new CommentsApi(options).token).toBeNull();
   expect(new CommentsApi(options).cached()).toBeNull();
 });
+
+it("keeps HTTP development sessions in local storage instead of cookies sent to every port", () => {
+  const dom = page("http://localhost:3000");
+  new CommentsApi(options).save({ token: "local-dev", user });
+  expect(dom.window.document.cookie).toBe("");
+  expect(new CommentsApi(options).token).toBe("local-dev");
+});

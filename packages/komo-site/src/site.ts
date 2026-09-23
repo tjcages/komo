@@ -149,6 +149,9 @@ const review = initKomo({
   )
     ? location.origin
     : undefined,
+  // These previews and the gateway are owned by us and use the same API.
+  sessionDomain: "off-brand.workers.dev",
+  sessionEndpoint: "https://komo.offbr.co",
   project: "komo-landing-demo",
   repo: "tjcages/komo",
   autoHideDrawer: false,

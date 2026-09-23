@@ -55,3 +55,9 @@ it("rejects another scope and keeps a replacement safe from stale teardown", () 
   expect(document.body.style.background).toBe("red");
   expect(initComments({ ...options, branch: "next" })).toBe(controller);
 });
+
+it("rejects unsafe endpoint schemes and embedded credentials before mounting", () => {
+  for (const endpoint of ["ftp://localhost", "http://public.example.test", "https://user:password@example.test"])
+    expect(() => initComments({ ...options, endpoint })).toThrow("HTTPS API endpoint");
+  expect(document.body.children).toHaveLength(0);
+});

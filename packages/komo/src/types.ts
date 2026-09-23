@@ -98,8 +98,10 @@ export interface CommentsOptions {
   pollInterval?: number;
   /** Full emoji JSON URL; fetched only when choosing another emoji. */
   emojiDataSource?: string;
-  /** Controlled parent domain shared by preview hosts; never a public suffix. */
+  /** Opt-in trusted parent domain. Every sibling host can receive the session. */
   sessionDomain?: string;
+  /** Canonical API identity for trusted gateways to the same service. Defaults to endpoint. */
+  sessionEndpoint?: string;
 }
 
 export interface CommentsController {

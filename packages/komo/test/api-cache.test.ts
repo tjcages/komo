@@ -110,20 +110,6 @@ it("persists the last list so a new page load reuses it", async () => {
   expect(new CommentsApi(options).cached()).toBeNull();
 });
 
-it("shares sessions only across one Cloudflare account or Pages project", async () => {
-  const { previewSessionDomain } = await import("../src/api");
-  expect(previewSessionDomain("feat-komo-site.off-brand.workers.dev")).toBe(
-    "off-brand.workers.dev",
-  );
-  expect(previewSessionDomain("abc123.komo-wb5.pages.dev")).toBe(
-    "komo-wb5.pages.dev",
-  );
-  expect(previewSessionDomain("komo-wb5.pages.dev")).toBe("");
-  expect(previewSessionDomain("a.b.off-brand.workers.dev")).toBe("");
-  expect(previewSessionDomain("preview.example.com")).toBe("");
-  expect(previewSessionDomain("localhost")).toBe("");
-});
-
 it("remembers the signed-in account for the same token", () => {
   const store = new Map<string, string>();
   vi.stubGlobal("location", { hostname: "localhost", protocol: "http:" });
