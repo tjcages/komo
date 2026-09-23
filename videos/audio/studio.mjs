@@ -153,7 +153,7 @@ function refresh() {
   $("start").max = $("startNumber").max = song
     ? Math.max(0, song.duration - duration)
     : 0;
-  if (song && !fits)
+  if (song && duration > 0 && !fits)
     status("This song is shorter than the film. Choose a longer track.");
   setStart(number("start"));
 }
@@ -195,10 +195,15 @@ video.onloadedmetadata = () => {
   refresh();
   update();
 };
-video.onerror = () =>
+video.onerror = () => {
+  stop();
+  duration = 0;
+  $("play").disabled = true;
+  refresh();
   status(
     "Choose a video to begin. The local server can load your rendered film automatically.",
   );
+};
 video.onended = stop;
 video.onpause = () => {
   audio.pause();
@@ -226,6 +231,9 @@ $("videoFile").onchange = (e) => {
   if (!file) return;
   stop();
   if (videoURL) URL.revokeObjectURL(videoURL);
+  duration = 0;
+  $("play").disabled = true;
+  refresh();
   timeline = null;
   showCuts();
   videoURL = URL.createObjectURL(file);
@@ -414,3 +422,20 @@ try {
   );
 }
 draw();
+
+// Static preview hosts may not support byte ranges. A local blob gives the
+// media element a fully seekable source, just like a user-selected file.
+try {
+  const response = await fetch("film.mp4");
+  if (!response.ok) throw Error("Film unavailable");
+  const blob = await response.blob();
+  if (!videoURL) {
+    videoURL = URL.createObjectURL(blob);
+    video.src = videoURL;
+  }
+} catch {
+  if (!videoURL)
+    status(
+      "Choose a video to begin. No rendered film was found on this server.",
+    );
+}

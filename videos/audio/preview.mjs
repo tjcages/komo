@@ -1,5 +1,5 @@
 // Stage only in an already-built site's output. Never included in normal site builds.
-import { copyFileSync, mkdirSync, appendFileSync, readFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -39,8 +39,14 @@ for (const name of ["index.html", "style.css", "studio.mjs", "timing.mjs"])
   copyFileSync(resolve(here, name), resolve(out, name));
 copyFileSync(resolve(video), resolve(out, "film.mp4"));
 copyFileSync(resolve(edit), resolve(out, "edit.json"));
-appendFileSync(
-  resolve(out, "../_headers"),
-  "\n/audio/*\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'\n  X-Robots-Tag: noindex\n",
+const headerPath = resolve(out, "../_headers");
+const baseHeaders = readFileSync(headerPath, "utf8").replace(
+  /\n\/audio\/\*\n(?:[ \t].*\n)*/g,
+  "",
+);
+writeFileSync(
+  headerPath,
+  baseHeaders +
+    "\n/audio/*\n  ! Content-Security-Policy\n  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'\n  X-Robots-Tag: noindex\n",
 );
 console.log("Preview-only /audio/ staged with a matching film and cut map.");
