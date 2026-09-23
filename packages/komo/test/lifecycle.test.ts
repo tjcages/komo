@@ -144,5 +144,9 @@ it("clears private cached feedback and identity immediately on another tab's log
     shadow.querySelector('[aria-label="Private Reviewer · Account"]'),
   ).toBeNull();
   expect(shadow.querySelector('[aria-label="Enter your name"]')).not.toBeNull();
+  api.save({ token: "another-session", user: { id: "other", name: "Other Reviewer", verified: true } });
+  window.dispatchEvent(new Event("focus"));
+  expect(shadow.querySelector('[aria-label="Other Reviewer · Account"]')).not.toBeNull();
+  expect(shadow.textContent).not.toContain("Private feedback");
   localStorage.clear();
 });

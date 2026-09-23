@@ -4924,10 +4924,11 @@ export function initComments(options: CommentsOptions): CommentsController {
   ).navigation?.addEventListener("navigatesuccess", onNavigate, {
     signal: abort.signal,
   });
-  window.addEventListener("storage", (event) => {
-    if (event.storageArea !== localStorage || event.key !== api.sessionKey || event.newValue === api.token) return;
+  function syncSession() {
+    const next = new CommentsApi(options);
+    if (next.token === api.token) return false;
     api.cancelReads();
-    api = new CommentsApi(options);
+    api = next;
     projectLoaded = false;
     issue = null;
     connection = "Connecting";
@@ -4942,8 +4943,12 @@ export function initComments(options: CommentsOptions): CommentsController {
     hydrateThreads();
     render();
     run(loadProject);
+    return true;
+  }
+  window.addEventListener("storage", (event) => {
+    if (event.storageArea === localStorage && event.key === api.sessionKey && event.newValue !== api.token) syncSession();
   }, { signal: abort.signal });
-  window.addEventListener("focus", () => polling?.wake(), {
+  window.addEventListener("focus", () => { if (!syncSession()) polling?.wake(); }, {
     signal: abort.signal,
   });
   // Frame mode: a click on the framed site closes the sidebar, like a scrim.
@@ -5014,7 +5019,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         });
         geometry();
       }
-      polling?.wake();
+      if (document.hidden || !syncSession()) polling?.wake();
     },
     { signal: abort.signal },
   );
