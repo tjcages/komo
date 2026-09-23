@@ -134,6 +134,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   let destroyed = false,
     expanded = !!options.onboarding,
     mode = false,
+    commentMode = false,
     hidden = false,
     account = !!options.onboarding,
     pending = false,
@@ -1309,6 +1310,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function setMode(value: boolean) {
     if (options.onboarding) return;
+    commentMode = value;
     if (expanded) toggleExpanded(false);
     const restore = value ? (parkedDraft ?? recoveredDrafts.shift()) : null;
     if (restore) {
@@ -1925,6 +1927,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     presence.update();
   }
   function dismiss() {
+    commentMode = false;
     clearTimeout(accountOpenTimer);
     accountOpenTimer = 0;
     if (account) {
@@ -1943,6 +1946,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     render();
   }
   function selectThread(thread: Thread) {
+    commentMode = false;
     clearTimeout(accountOpenTimer);
     accountOpenTimer = 0;
     if (thread.page !== page()) {
@@ -2062,7 +2066,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         id: "comment",
         label: "Add comment · C",
         icon: glyph("comment"),
-        onSelect: () => setMode(!mode),
+        onSelect: () => setMode(!commentMode),
       },
       {
         id: "comments",
@@ -2145,7 +2149,7 @@ export function initComments(options: CommentsOptions): CommentsController {
               : "bottom")),
       activeId: account
         ? "account"
-        : mode
+        : commentMode
           ? "comment"
           : expanded
             ? "comments"
@@ -2409,8 +2413,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   const dismissedTips = new Set<string>();
   const dismissedTipsKey = "branch-comments:dismissed-tips";
   const tips = [
-    ["copy", "Copy this page’s comments as a prompt for your agent."],
-    ["shortcut", "Press C, then click anything to comment."],
+    ["copy", "Copy comments for your agent."],
+    ["shortcut", "Press C to comment."],
   ] as const;
   // Empty-state coach marks: persistent tooltips pinned to the buttons they
   // describe. They live on the sidebar so they ride along as it parks/peeks.
@@ -3558,6 +3562,14 @@ export function initComments(options: CommentsOptions): CommentsController {
           } else recoveredDrafts.push({ anchor, text: comment.body });
         },
       );
+      // Auth and composing pause capture, but do not end an explicitly chosen mode.
+      // A later Browse/Escape or another selection wins over this pending post.
+      if (commentMode && !draft && !account && selected === optimistic.id(item.id)) {
+        selected = null;
+        if (expanded) toggleExpanded(false);
+        mode = true;
+        render();
+      }
     }
   }
 
@@ -4810,7 +4822,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         return;
       if (event.key.toLowerCase() === "c") {
         event.preventDefault();
-        setMode(!mode);
+        setMode(!commentMode);
       }
       if (event.key.toLowerCase() === "v") {
         event.preventDefault();
