@@ -144,17 +144,17 @@ export class CommentsApi {
         : "";
     this.cookieName = `${this.cookieDomain ? "__Secure-" : "__Host-"}bc-session-${encodeURIComponent(JSON.stringify([scope, options.project]))}`;
     this.key = `branch-comments:${options.endpoint}:${options.project}`;
+    let cookiePresent = false;
     try {
-      this.token =
-        document.cookie
-          .split("; ")
-          .find((cookie) => cookie.startsWith(`${this.cookieName}=`))
-          ?.slice(this.cookieName.length + 1) || null;
+      const cookie = document.cookie.split("; ")
+        .find((cookie) => cookie.startsWith(`${this.cookieName}=`));
+      cookiePresent = cookie !== undefined;
+      this.token = cookie?.slice(this.cookieName.length + 1) || null;
     } catch {
       /* Cookies may be blocked independently from local storage. */
     }
     try {
-      this.token ||= localStorage.getItem(this.key);
+      if (!cookiePresent) this.token = localStorage.getItem(this.key);
       // Last known account, shown at once; restore() confirms it with /me.
       const known = JSON.parse(localStorage.getItem(this.userKey) ?? "null");
       if (this.token && known?.token === this.token && identity(known.user))
@@ -455,7 +455,8 @@ export class CommentsApi {
     this.token = null;
     this.user = null;
     this.rememberUser();
-    this.writeCookie("", 0);
+    // An empty shared cookie prevents another preview's local fallback reviving logout.
+    this.writeCookie("", 400 * 86400);
     try {
       localStorage.removeItem(this.key);
     } catch {

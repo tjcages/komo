@@ -198,3 +198,20 @@ it("keeps HTTP development sessions in local storage instead of cookies sent to 
   expect(dom.window.document.cookie).toBe("");
   expect(new CommentsApi(options).token).toBe("local-dev");
 });
+
+it("shared logout prevents another preview's local fallback from reviving the session", async () => {
+  const jar = new CookieJar();
+  const first = page(undefined, jar);
+  const shared = { ...options, sessionDomain: "account.workers.dev" };
+  new CommentsApi(shared).save({ token: "shared", user });
+  page("https://second.account.workers.dev", jar);
+  const second = new CommentsApi(shared);
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ ok: true })));
+  await second.logout();
+  vi.stubGlobal("document", first.window.document);
+  vi.stubGlobal("location", first.window.location);
+  vi.stubGlobal("localStorage", first.window.localStorage);
+  expect(first.window.localStorage.getItem(`branch-comments:${options.endpoint}:${options.project}`)).toBe("shared");
+  expect(new CommentsApi(shared).token).toBeNull();
+  expect(new CommentsApi(shared).user).toBeNull();
+});
