@@ -460,3 +460,24 @@ a {
   font-size: 13px;
   text-decoration: none;
 }
+
+#loop {
+  background: transparent;
+  color: #bdaeca;
+  border: 1px solid #4c405a;
+  white-space: nowrap;
+}
+#loop[aria-pressed="true"] {
+  background: #cbb4ee;
+  color: #251d30;
+  border-color: #cbb4ee;
+}
+@media (max-width: 650px) {
+  .transport {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .transport button {
+    padding: 10px 12px;
+  }
+}

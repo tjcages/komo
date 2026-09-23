@@ -25,6 +25,12 @@
           <video id="video" muted playsinline preload="metadata"></video>
           <div class="transport">
             <button id="play" disabled>Play preview</button
+            ><button
+              id="loop"
+              aria-pressed="false"
+              title="Repeat video, music and effects until paused"
+            >
+              Loop off</button
             ><output id="clock">0:00 / 0:00</output
             ><label class="quiet file"
               >Replace video<input id="videoFile" type="file" accept="video/*"

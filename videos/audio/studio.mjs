@@ -12,6 +12,7 @@ const video = $("video");
 let timeline,
   duration = 0,
   selectedCut = 0,
+  playbackFrame,
   song,
   context,
   decodedSong,
@@ -116,11 +117,12 @@ function sync() {
     startSound();
 }
 function update() {
+  cancelAnimationFrame(playbackFrame);
   $("clock").textContent =
     `${time(video.currentTime || 0)} / ${time(duration)}`;
   $("scrub").value = video.currentTime || 0;
   sync();
-  if (!video.paused) requestAnimationFrame(update);
+  if (!video.paused) playbackFrame = requestAnimationFrame(update);
 }
 async function play() {
   if (!duration) return;
@@ -276,6 +278,11 @@ video.onseeked = () => {
   if (!video.paused) startSound();
 };
 $("play").onclick = play;
+$("loop").onclick = () => {
+  video.loop = !video.loop;
+  $("loop").setAttribute("aria-pressed", String(video.loop));
+  $("loop").textContent = video.loop ? "Loop on" : "Loop off";
+};
 $("scrub").oninput = () => {
   stop();
   video.currentTime = number("scrub");

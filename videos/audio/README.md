@@ -24,6 +24,8 @@ The server binds only to localhost and serves an explicit file allowlist. You ca
 4. Play, set volume and fades, then **Save mix settings**.
 5. Export with the command below.
 
+**Loop on** beside Play repeats the video and the complete music/effects mix until paused. Turn it off to stop at the next ending. Looping is a preview setting; exported MP4s contain one full pass.
+
 ## Export full-quality MP4
 
 Install FFmpeg (including FFprobe) through your usual package manager. Files remain local. Paths with spaces must be quoted.
