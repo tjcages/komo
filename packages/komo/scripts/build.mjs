@@ -79,7 +79,7 @@ await Promise.all(
     .map(async (path) => {
       const { code } = await minify(await readFile(path, "utf8"), {
         module: true,
-        compress: { passes: 2, directives: false },
+        compress: { passes: 1, directives: false },
         mangle: true,
         format: { comments: "some" },
       });
