@@ -40,6 +40,8 @@ const files = new Map(
     "timing.mjs",
     "effects.mjs",
     "effects-ui.mjs",
+    "project-store.mjs",
+    "browser-export.mjs",
   ].map((name) => [`/${name}`, resolve(here, name)]),
 );
 for (const name of [

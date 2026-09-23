@@ -337,9 +337,10 @@
         </div>
       </section>
       <footer>
-        <p id="status" role="status">
-          Ready. Add music or play the sound effects.
-        </p>
+        <output id="saveState" aria-live="polite"
+          >Loading saved project…</output
+        >
+        <p id="status" role="status">Loading your project…</p>
         <div>
           <!-- EXPORT_EXAMPLE --><button id="help" class="text-button">
             Export help
@@ -352,11 +353,13 @@
           <button id="closeHelp" aria-label="Close export help">×</button>
         </div>
         <p>
-          The local studio combines video, music and sound effects into one MP4.
+          Export MP4 combines your video, imported music and enabled sound
+          effects. Files stay on this device.
         </p>
         <p>
-          This hosted preview saves your mix settings. Export on your computer
-          with your original media:
+          Browser export runs in real time. Keep the tab visible until it
+          finishes. If your browser cannot encode MP4, use the local studio or
+          this command:
         </p>
         <pre>
 node videos/audio/mix.mjs --video /path/film.mp4 --song /path/song.mp3 --mix /path/komo-mix.json --out /path/final.mp4</pre
@@ -367,5 +370,10 @@ node videos/audio/mix.mjs --video /path/film.mp4 --song /path/song.mp3 --mix /pa
         </p>
       </dialog>
     </main>
+    <dialog id="renderProgress" aria-label="Export video">
+      <p id="renderStatus">Preparing your video and audio…</p>
+      <p>Keep this tab visible until export finishes.</p>
+      <button id="cancelExport">Cancel export</button>
+    </dialog>
   </body>
 </html>

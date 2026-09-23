@@ -46,6 +46,10 @@ const bundle = await buildEditorUI();
 const revision = createHash("sha256")
   .update(readFileSync(bundle))
   .update(readFileSync(resolve(here, "studio.mjs")))
+  .update(readFileSync(resolve(here, "browser-export.mjs")))
+  .update(readFileSync(resolve(here, "project-store.mjs")))
+  .update(readFileSync(resolve(here, "effects-ui.mjs")))
+  .update(readFileSync(resolve(here, "effects.mjs")))
   .digest("hex")
   .slice(0, 12);
 const bundleName = `panels-ui-${revision}.mjs`;
@@ -58,6 +62,8 @@ for (const name of [
   "timing.mjs",
   "effects.mjs",
   "effects-ui.mjs",
+  "project-store.mjs",
+  "browser-export.mjs",
   "cues.json",
 ])
   copyFileSync(resolve(here, name), resolve(out, name));
@@ -69,6 +75,16 @@ writeFileSync(
     `"./${bundleName}"`,
   ),
 );
+for (const module of ["studio.mjs", "effects-ui.mjs", "effects.mjs"]) {
+  const path = resolve(out, module);
+  writeFileSync(
+    path,
+    readFileSync(path, "utf8").replace(
+      /"(\.\/[^"?]+\.mjs)"/g,
+      `"$1?v=${revision}"`,
+    ),
+  );
+}
 writeFileSync(
   resolve(out, "index.html"),
   readFileSync(resolve(out, "index.html"), "utf8").replace(
@@ -89,7 +105,7 @@ if (example) {
     page,
     readFileSync(page, "utf8").replace(
       "<!-- EXPORT_EXAMPLE -->",
-      '<a href="example.mp4" target="_blank" rel="noopener">Watch exported demo ↗</a>',
+      '<a href="example.mp4" target="_blank" rel="noopener">Sample export ↗</a>',
     ),
   );
 }

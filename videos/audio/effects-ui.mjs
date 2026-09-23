@@ -239,6 +239,16 @@ export function createEffectsEditor({
   draw();
   return {
     fields,
+    snapshot: () => ({ edit, sheet, selected, replacement }),
+    restore(mix, state) {
+      validateEffects(mix);
+      cues = mix.effects.map((c) => ({ ...c }));
+      edit = state?.edit;
+      sheet = state?.sheet;
+      selected = state?.selected;
+      replacement = state?.replacement;
+      draw();
+    },
     selectCue(id) {
       const cue = cues.find((c) => c.id === id);
       if (cue) select(cue);

@@ -1,3 +1,5 @@
+import { readProject, writeProject } from "./project-store.mjs";
+import { exportBrowserMP4 } from "./browser-export.mjs";
 import { mountEditor } from "./panels-ui.mjs";
 import { loadBrowserSounds } from "./effects.mjs";
 import {
@@ -26,7 +28,11 @@ let timeline,
   soundOffset = 0,
   localExport = false,
   videoURL,
-  generation = 0;
+  generation = 0,
+  recoveryReady = false,
+  exporting = false,
+  importing = false,
+  videoImporting = false;
 const getContext = () =>
   (context ||= new AudioContext({ sampleRate: SAMPLE_RATE }));
 const effects = createEffectsEditor({
@@ -59,6 +65,70 @@ const settings = () => ({
   bpm: number("bpm"),
   firstBeat: number("firstBeat"),
 });
+var saveQueued = false,
+  saveRunning = false,
+  saveAgain = false,
+  saveFailed = false;
+function queueSave() {
+  if (
+    !recoveryReady ||
+    !duration ||
+    !videoFile ||
+    exporting ||
+    importing ||
+    videoImporting ||
+    saveQueued
+  )
+    return;
+  saveQueued = true;
+  $("saveState").textContent = "Saving…";
+  queueMicrotask(async () => {
+    saveQueued = false;
+    if (saveRunning) {
+      saveAgain = true;
+      return;
+    }
+    saveRunning = true;
+    try {
+      do {
+        saveAgain = false;
+        await writeProject({
+          version: 1,
+          video: videoFile,
+          song: songFile,
+          mix: settings(),
+          timeline,
+          selectedCut,
+          effectsState: effects.snapshot(),
+          loop: video.loop,
+          at: video.currentTime,
+        });
+      } while (saveAgain);
+      saveFailed = false;
+      $("saveState").textContent = "Saved on this device";
+    } catch (error) {
+      saveFailed = true;
+      $("saveState").textContent =
+        "Not saved — device storage is unavailable or full";
+    } finally {
+      saveRunning = false;
+    }
+  });
+}
+window.addEventListener("beforeunload", (event) => {
+  if (
+    saveQueued ||
+    saveRunning ||
+    saveFailed ||
+    exporting ||
+    importing ||
+    videoImporting
+  ) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
+window.addEventListener("editor-change", () => queueSave());
 function download(data, name, type) {
   const url = URL.createObjectURL(new Blob([data], { type }));
   const a = document.createElement("a");
@@ -68,6 +138,7 @@ function download(data, name, type) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 function invalidatePreview() {
+  queueSave();
   window.dispatchEvent(new Event("editor-change"));
   previewBuffer = null;
   $("exportDownload").hidden = true;
@@ -133,7 +204,8 @@ function update() {
       `${duration ? (video.currentTime / duration) * 100 : 0}%`,
     );
   sync();
-  if (!video.paused) playbackFrame = requestAnimationFrame(update);
+  if (!exporting && !video.paused)
+    playbackFrame = requestAnimationFrame(update);
 }
 async function play() {
   if (!duration) return;
@@ -269,6 +341,7 @@ function showCuts() {
     : "No cut map for this video";
 }
 video.onloadedmetadata = () => {
+  videoImporting = false;
   duration = video.duration;
   $("scrub").max = duration;
   $("play").disabled = false;
@@ -290,6 +363,7 @@ video.onloadedmetadata = () => {
   update();
 };
 video.onerror = () => {
+  videoImporting = false;
   stop();
   duration = 0;
   $("play").disabled = true;
@@ -304,17 +378,21 @@ video.onpause = () => {
   $("play").textContent = "Play preview";
 };
 video.onwaiting = stopSound;
-video.onplaying = startSound;
+video.onplaying = () => {
+  if (!exporting) startSound();
+};
 video.onseeking = stopSound;
 video.onseeked = () => {
   update();
   if (!video.paused) startSound();
+  queueSave();
 };
 $("play").onclick = play;
 $("loop").onclick = () => {
   video.loop = !video.loop;
   $("loop").setAttribute("aria-pressed", String(video.loop));
   $("loop").textContent = video.loop ? "Loop on" : "Loop off";
+  queueSave();
 };
 $("scrub").oninput = () => {
   stop();
@@ -324,6 +402,8 @@ $("scrub").oninput = () => {
 $("videoFile").onchange = (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  videoImporting = true;
+  $("saveState").textContent = "Importing video…";
   stop();
   if (videoURL) URL.revokeObjectURL(videoURL);
   duration = 0;
@@ -341,6 +421,8 @@ $("videoFile").onchange = (e) => {
 };
 async function loadSong(file) {
   const token = ++generation;
+  importing = true;
+  $("saveState").textContent = "Importing audio…";
   stop();
   status("Analyzing the waveform and tempo…");
   $("save").disabled = true;
@@ -383,13 +465,18 @@ async function loadSong(file) {
     refresh();
     if (song.duration >= duration)
       status("Song ready. Play the preview or align a beat to a cut.");
+    return true;
   } catch (e) {
     if (token !== generation) return;
     // Retain the last successfully decoded track when a replacement fails.
     refresh();
     status(`Could not load song: ${e.message}`);
   } finally {
-    if (token === generation) $("play").disabled = !duration;
+    if (token === generation) {
+      importing = false;
+      $("play").disabled = !duration;
+      queueSave();
+    }
   }
 }
 $("songFile").onchange = (e) => {
@@ -437,9 +524,8 @@ $("save").onclick = () => {
     validateEffects(mix);
     download(JSON.stringify(mix, null, 2), "komo-mix.json", "application/json");
     status(
-      "Mix settings saved. Use the export command below to create your MP4.",
+      "Mix settings downloaded. Export MP4 creates the video with your current audio.",
     );
-    $("exportHelp").showModal();
   } catch (e) {
     status(e.message);
   }
@@ -681,6 +767,14 @@ document.addEventListener("keydown", (event) => {
   }
 });
 mountEditor({ effects, getDuration: () => duration });
+$("panelRoot").inert = true;
+let savedProject;
+try {
+  savedProject = await readProject();
+} catch (error) {
+  $("saveState").textContent = "Device storage unavailable";
+}
+
 await loadBrowserSounds().catch((error) => {
   document.getElementById("status").textContent = error.message;
   throw error;
@@ -713,13 +807,25 @@ draw();
 // Static preview hosts may not support byte ranges. A local blob gives the
 // media element a fully seekable source, just like a user-selected file.
 try {
-  const response = await fetch("film.mp4");
-  if (!response.ok) throw Error("Film unavailable");
-  const blob = await response.blob();
+  let blob = savedProject?.video;
+  if (!blob) {
+    const response = await fetch("film.mp4");
+    if (!response.ok) throw Error("Film unavailable");
+    blob = await response.blob();
+  }
   if (!videoURL) {
     videoFile = blob;
     videoURL = URL.createObjectURL(blob);
+    const loaded = new Promise((resolve, reject) => {
+      video.addEventListener("loadedmetadata", resolve, { once: true });
+      video.addEventListener(
+        "error",
+        () => reject(Error("Saved video could not load")),
+        { once: true },
+      );
+    });
     video.src = videoURL;
+    await loaded;
   }
 } catch {
   if (!videoURL)
@@ -734,20 +840,116 @@ try {
 } catch {
   /* Static preview uses the documented local command. */
 }
-if (!localExport) $("export").title = "Save mix for local MP4 export";
+try {
+  if (savedProject) {
+    if (savedProject.version !== 1)
+      throw Error("Unknown saved project version");
+    if (savedProject.song && !(await loadSong(savedProject.song)))
+      throw Error("Saved audio could not be restored");
+    const mix = savedProject.mix;
+    // An unfinished edit may be too short or have overlapping fades; retain it
+    // for correction, while the normal export validation still rejects it.
+    if (Math.abs(mix.duration - duration) > 0.08)
+      throw Error("Saved media duration does not match its edits");
+    for (const key of [
+      "start",
+      "volume",
+      "fadeIn",
+      "fadeOut",
+      "bpm",
+      "firstBeat",
+      "musicSpeed",
+      "effectsSpeed",
+      "effectsVolume",
+    ])
+      if (!Number.isFinite(mix[key]) || mix[key] < 0)
+        throw Error(`Invalid saved ${key}`);
+    validateEffects(mix);
+    timeline = savedProject.timeline;
+    for (const id of [
+      "volume",
+      "fadeIn",
+      "fadeOut",
+      "bpm",
+      "firstBeat",
+      "musicSpeed",
+      "effectsVolume",
+      "effectsSpeed",
+    ])
+      $(id).value = mix[id];
+    $("effectsEnabled").checked = mix.effectsEnabled;
+    effects.restore(mix, savedProject.effectsState);
+    showCuts();
+    selectedCut = Math.min(
+      savedProject.selectedCut || 0,
+      Math.max(0, (timeline?.cuts.length || 1) - 1),
+    );
+    [...$("cutList").children].forEach((node, index) =>
+      node.setAttribute("aria-pressed", String(index === selectedCut)),
+    );
+    if (!timeline) showSingleClip();
+    refresh();
+    setStart(mix.start);
+    video.loop = !!savedProject.loop;
+    $("loop").setAttribute("aria-pressed", String(video.loop));
+    $("loop").textContent = video.loop ? "Loop on" : "Loop off";
+    video.currentTime = Math.min(savedProject.at || 0, duration);
+    makeThumbnails();
+    update();
+    status("Restored your video, audio and edits from this device.");
+  }
+  if (!savedProject) status("Ready. Add music or play the sound effects.");
+  recoveryReady = true;
+  queueSave();
+} catch (error) {
+  $("saveState").textContent = "Recovery failed — saved copy kept";
+  status(
+    `Could not restore the complete project: ${error.message}. The saved copy has not been overwritten.`,
+  );
+} finally {
+  $("panelRoot").inert = false;
+}
+
 $("export").onclick = async () => {
   try {
     const mix = validateMix(settings(), duration, song?.duration);
     validateEffects(mix);
+    if (mix.musicEnabled && (!songFile || !decodedSong))
+      throw Error(
+        "The selected audio is missing. Add it again before exporting.",
+      );
+    stop();
+    $("export").disabled = true;
+    exporting = true;
     if (!localExport) {
-      $("save").click();
+      prepareSound();
+      const abort = new AbortController();
+      $("cancelExport").onclick = () => abort.abort();
+      $("renderProgress").oncancel = (event) => {
+        event.preventDefault();
+        abort.abort();
+      };
+      $("renderProgress").showModal();
+      const blob = await exportBrowserMP4({
+        video,
+        buffer: previewBuffer,
+        context: getContext(),
+        signal: abort.signal,
+        onProgress: (progress) => {
+          $("renderStatus").textContent =
+            `Exporting your mix… ${Math.min(100, Math.round(progress * 100))}%`;
+        },
+      });
+      const link = $("exportDownload");
+      if (link.href.startsWith("blob:")) URL.revokeObjectURL(link.href);
+      link.href = URL.createObjectURL(blob);
+      link.hidden = false;
+      link.click();
       status(
-        "Mix saved with all sound cues. Run the export command below, or open the local studio for one-click MP4 download.",
+        `MP4 exported with ${song?.name || "sound effects"} and your current mix.`,
       );
       return;
     }
-    stop();
-    $("export").disabled = true;
     status("Exporting picture, music and sound effects together…");
     const body = new FormData();
     body.append("mix", JSON.stringify(mix));
@@ -768,6 +970,8 @@ $("export").onclick = async () => {
   } catch (error) {
     status(`Export failed: ${error.message}`);
   } finally {
+    exporting = false;
+    $("renderProgress").close();
     $("export").disabled = !duration;
   }
 };

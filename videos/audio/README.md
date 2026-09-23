@@ -100,7 +100,7 @@ Preview and export use the same cached Cuelume 48 kHz samples, stereo music summ
 
 **Local studio:** click **Export MP4**. The browser passes the selected files and recipe to its localhost server, which runs FFmpeg and returns a **Download MP4** link for `komo-with-sound.mp4`. Uploaded inputs are deleted after encoding. The download remains available for ten minutes (at most five recent exports), then its temporary file is removed. The endpoint accepts only same-origin local studio requests, caps uploads at 160 MB, and runs one export at a time. Films are limited to ten minutes and cue sheets to 500 events.
 
-**Hosted review preview:** use **Export MP4 locally** to save the recipe, then run the documented mixer command on your machine. There is no cloud upload or remote encoder. For an effects-only mix, omit `--song`; the recipe's `musicEnabled` must be `false`. The MP4 includes the original picture, optional music, and every enabled effect.
+**Hosted review preview:** **Export MP4** records the selected video and current mixed soundtrack into an MP4 on your device using browser MP4 encoding. Keep the tab visible; encoding runs in real time. Browsers without MP4 MediaRecorder support require the local studio or mixer command. There is no cloud upload or remote encoder. For an effects-only mix, omit `--song`; the recipe's `musicEnabled` must be `false`. The MP4 includes the original picture, optional music, and every enabled effect.
 
 ```sh
 pnpm audio:test
@@ -131,3 +131,9 @@ The React/panels entrypoint is bundled by `build-ui.mjs` into the ignored audio 
 ## Bulk sound changes
 
 All 18 authored droplet cues now use pulse. In **Effects → Replace sounds**, choose From and To, review the matching cue count, and replace all matches together. Cue timing and volume stay unchanged. **Undo replacement** restores that batch without removing subsequent timing/level edits. Saved mixes, preview playback and MP4 exports use the updated cues. The sidebar uses the package's actual ToolPanel shell, segmented control, option list, and field controls; layout overrides only dock its shell to the right edge. Advanced sections start collapsed.
+
+## Recovery across refreshes
+
+The editor automatically saves its current project to IndexedDB on this browser/device and origin: original video and audio files, all cues and bulk edits, levels, speed, fades, excerpt, loop state, and playhead. The footer shows Saving / Saved on this device, or an explicit storage failure. Reload waits for the stored media to load and restores edits before allowing changes. Pending writes and exports warn before navigation. Failed recovery retains the saved record. Clearing site data removes the local project; Save mix also downloads a portable recipe.
+
+Export uses the current imported audio (including after recovery), never the static sample export. The local server retains native FFmpeg encoding; the hosted studio mixes through the same audio engine and records H.264/AAC where browser support is available. Browser encoding re-encodes the picture, unlike local FFmpeg's stream copy.
