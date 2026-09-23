@@ -27,20 +27,23 @@ Follow-up to OFF-713, implemented under OFF-715 in PR #29. The changes extend th
 - [x] Reconcile session changes across tabs/focus, discard obsolete queued writes without rolling private drafts into the new account, reject mismatched widget scopes, and make teardown idempotent.
 - [x] Preserve authorization for imported thread actions and fail closed when approved-site policy reads encounter operational database errors. See [package safety review](package-safety.md) for boundaries and evidence.
 
+- [x] Preserve host DOM ownership and body layout; use existing boxed roots for Frame, with safe Floating fallback and restored border-box sizing.
+- [x] Fix CLI logout after project deletion and imported feedback IDs. Patch test/deployment tooling advisories; full dependency audit reports zero known vulnerabilities. Prepare an unpublished 0.5.0 candidate because 0.4.1 already exists.
+
 ## Measurements and checks
 
 | Measurement | Reviewed baseline | Current |
 | --- | ---: | ---: |
-| Initial browser gzip | 99,894 bytes | 96,812 bytes |
-| All features gzip | 195,983 bytes | 195,855 bytes |
-| Budget headroom (initial / all) | 106 / 17 bytes | 3,188 / 145 bytes |
+| Initial browser gzip | 99,894 bytes | 96,964 bytes |
+| All features gzip | 195,983 bytes | 195,882 bytes |
+| Budget headroom (initial / all) | 106 / 17 bytes | 3,036 / 118 bytes |
 | Idle polls per visible tab/hour | 900 | about 60 |
 | Scoped anchor text walks, 40-card synthetic pass | 10,080 | 240 |
 | Same jsdom diagnostic time | 160 ms | 13 ms |
 
 Poll savings are calculated cadence reductions (~93% while idle), not production billing. Anchor timings are synthetic diagnostics, not real-user latency. React remains required by the full lazy menu/color-picker runtime; its peers were not falsely marked optional. No budget was raised.
 
-Local build, typecheck, full suite (201 tests), size gate, and packed-consumer gate passed. Browser checks cover valid 0/40-comment benchmark loads and cleanup, cached account/comments/open-sidebar reload, repeated Floating/Frame switching, lazy toolbar/color controls, and the configurable emoji data failure UI. No public feedback was posted or modified.
+Local build, typecheck, full suite (205 tests), size gate, and packed-consumer gate passed. Browser checks cover valid 0/40-comment benchmark loads and cleanup, cached account/comments/open-sidebar reload, repeated Floating/Frame switching, lazy toolbar/color controls, and the configurable emoji data failure UI. No public feedback was posted or modified.
 
 ## Release steps and remaining architecture
 
