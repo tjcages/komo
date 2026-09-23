@@ -19,6 +19,17 @@ export interface Anchor {
   pageY: number;
   viewportWidth: number;
   source?: string;
+  /** Optional public target details; old anchors remain valid without them. */
+  context?: {
+    tag?: string;
+    role?: string;
+    label?: string;
+    nearby?: string;
+    classes?: string;
+    selectedText?: string;
+    styles?: string;
+    scope?: string;
+  };
 }
 
 export interface Comment {
