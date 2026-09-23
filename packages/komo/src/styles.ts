@@ -413,9 +413,6 @@ small {
   color: #777268;
   line-height: 1.5;
 }
-.notice.warn {
-  color: #9a602e;
-}
 .error {
   background: #fff0e5;
   color: #9c4619;
@@ -1198,10 +1195,6 @@ ${morphingMenuStyles}
 .reaction {
   background: #ffffff08;
   color: #ccc;
-}
-.reaction.mine {
-  background: #6978ff22;
-  box-shadow: inset 0 0 0 1px #8a97ff44;
 }
 .pin {
   touch-action: none;

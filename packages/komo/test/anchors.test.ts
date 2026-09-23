@@ -100,7 +100,13 @@ describe("precise anchors", () => {
     document.body.innerHTML =
       '<section id="settings"><label for="name">Display name</label><input id="name" value="secret"><textarea>private draft</textarea><div contenteditable>private edit</div><script>secretCode()</script><style>.secret{}</style><button aria-label="Delete item"><svg></svg></button></section>';
     const button = document.querySelector("button")!;
+    button.setAttribute(
+      "style",
+      "width: 120px; background-image: url(https://example.test/secret)",
+    );
     const anchor = capture(button);
+    expect(anchor.context?.styles).toContain("width: 120px");
+    expect(anchor.context?.styles).not.toMatch(/url|secret/);
     expect(anchor.context?.label).toBe("Delete item");
     expect(anchor.context?.nearby).toBe("Display name");
     expect(capture(document.querySelector("input")!).context?.label).toBe(

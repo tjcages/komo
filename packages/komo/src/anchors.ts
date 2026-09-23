@@ -33,7 +33,11 @@ function stableFor(element: Element, preferred?: string): string | undefined {
       attr === "id"
         ? `#${CSS.escape(value)}`
         : `[${attr}="${CSS.escape(value)}"]`;
-    if (selector.length <= 2000 && (!preferred || selector === preferred) && unique(selector) === element)
+    if (
+      selector.length <= 2000 &&
+      (!preferred || selector === preferred) &&
+      unique(selector) === element
+    )
       return selector;
   }
 }
@@ -91,6 +95,7 @@ function contextFor(element: Element): NonNullable<Anchor["context"]> {
     parent = parent.parentElement;
   const selection = window.getSelection();
   const selected = selection?.rangeCount ? selection.getRangeAt(0) : null;
+  const style = getComputedStyle(element);
   return {
     tag:
       element.tagName.length <= 32 ? element.tagName.toLowerCase() : undefined,
@@ -98,6 +103,18 @@ function contextFor(element: Element): NonNullable<Anchor["context"]> {
     label: labelFor(element) || undefined,
     nearby: nearbyFor(element) || undefined,
     classes: trim(element.getAttribute("class") || "", 200) || undefined,
+    styles: [
+      "display",
+      "width",
+      "height",
+      "font-size",
+      "color",
+      "padding",
+      "gap",
+    ]
+      .map((key) => `${key}: ${style.getPropertyValue(key)}`)
+      .join("; ")
+      .slice(0, 500),
     selectedText:
       selected &&
       element.contains(selected.commonAncestorContainer) &&
@@ -197,6 +214,7 @@ export function resolveAnchor(
     }
   } catch {
     // Invalid legacy selectors or ambiguous/missing targets retain their fallback position.
+    element = null;
   }
   return element;
 }
