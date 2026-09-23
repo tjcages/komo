@@ -125,7 +125,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   const roots = [...document.body.childNodes].filter(node => node instanceof Element
     ? !node.matches("script,style,link,meta,template,noscript")
     : node.nodeType === 3 && node.textContent?.trim());
-  const surface = options.pageRoot ?? (roots.length === 1 && roots[0] instanceof HTMLElement ? roots[0] : document.body);
+  const root = options.pageRoot ?? (roots.length === 1 && roots[0] instanceof HTMLElement ? roots[0] : document.body);
+  const surface = getComputedStyle(root).display === "contents" ? document.body : root;
   const canFrame = surface !== document.body;
   const sidebarModeKey = `branch-comments:sidebar-mode:${options.project}:${options.repo}`;
   let sidebarMode: "background" | "edge" = (() => {
@@ -512,6 +513,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   const pagePaddingBottom = getComputedStyle(surface).paddingBottom;
   const savedStyle = {
     width: surface.style.width,
+    boxSizing: surface.style.boxSizing,
     zoom: surface.style.zoom,
     transformOrigin: surface.style.transformOrigin,
     transform: surface.style.transform,
@@ -1449,6 +1451,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         left: `${layout.left / effective}px`,
         top: `${layout.top / effective}px`,
         width: `${window.innerWidth / zoom}px`,
+        boxSizing: "border-box",
         height: useWindowScroll ? "auto" : `${layout.height / effective}px`,
         paddingBottom: useWindowScroll
           ? `calc(${pagePaddingBottom} + ${Math.max(0, viewportHeight - layout.height) / effective}px)`

@@ -193,6 +193,7 @@ it("frames an existing sole app root without reparenting it", () => {
   document.body.append(app, document.createElement("script"));
   controller = initComments({ ...options, sidebar: "background" });
   expect(app.parentElement).toBe(document.body);
+  expect(app.style.boxSizing).toBe("border-box");
   const host = [...document.body.children].find(
     (node) => node.shadowRoot,
   )! as HTMLElement;
@@ -200,6 +201,7 @@ it("frames an existing sole app root without reparenting it", () => {
   controller.destroy();
   expect(app.parentElement).toBe(document.body);
   expect(app.style.transform).toBe("");
+  expect(app.style.boxSizing).toBe("");
   document.body.append(document.createElement("aside"));
   controller = initComments({
     ...options,
@@ -228,4 +230,16 @@ it("rejects unsafe page roots before mounting", () => {
   expect([...document.body.children].some((node) => node.shadowRoot)).toBe(
     false,
   );
+});
+
+it("uses Floating for boxless content roots even when explicitly configured", () => {
+  const app = document.createElement("main");
+  app.style.display = "contents";
+  document.body.append(app);
+  controller = initComments({ ...options, sidebar: "background" });
+  expect(([...document.body.children].find(node => node.shadowRoot)! as HTMLElement).dataset.sidebar).toBe("edge");
+  expect(app.style.display).toBe("contents");
+  controller.destroy();
+  controller = initComments({ ...options, sidebar: "background", pageRoot: app });
+  expect(([...document.body.children].find(node => node.shadowRoot)! as HTMLElement).dataset.sidebar).toBe("edge");
 });
