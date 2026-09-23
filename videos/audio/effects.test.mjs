@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   SOUNDS,
+  replaceCueSounds,
   resolveCues,
   validateEffects,
   renderSoundtrack,
@@ -196,4 +197,20 @@ test("track speeds change source duration without shifting effect trigger frames
   assert.ok(fast.slice(0, 24000).every((v) => v === 0));
   assert.equal(fast[24000 + 100], normal[24000 + 200]);
   assert.throws(() => renderSoundtrack({ ...base, musicSpeed: 0 }));
+});
+
+test("bulk replacement preserves cue timing, levels and unrelated sounds", () => {
+  const cues = [
+    { id: "a", sound: "droplet", frame: 77, volume: 0.65, label: "Comment" },
+    { id: "b", sound: "press", frame: 80, volume: 0.4, label: "Click" },
+    { id: "c", sound: "pop", frame: 94, volume: 0.3, label: "Legacy" },
+  ];
+  const result = replaceCueSounds(cues, "droplet", "pulse");
+  assert.deepEqual(result, [
+    { ...cues[0], sound: "pulse" },
+    cues[1],
+    { ...cues[2], sound: "pulse" },
+  ]);
+  assert.equal(cues[0].sound, "droplet");
+  assert.throws(() => replaceCueSounds(cues, "droplet", "missing"));
 });

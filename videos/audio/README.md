@@ -127,3 +127,7 @@ pnpm exec wrangler versions upload --config packages/komo-site/wrangler.jsonc --
 This alias stays constant across revisions. Use it for the PR description and handoff rather than a version-specific URL. Preview deployments do not change production traffic.
 
 The React/panels entrypoint is bundled by `build-ui.mjs` into the ignored audio cache when starting the local studio or staging a preview. It is isolated from the published komo package and normal site builds. Native media DOM islands retain the existing audio engine and export path across panel switches.
+
+## Bulk sound changes
+
+All 18 authored droplet cues now use pulse. In **Effects → Replace sounds**, choose From and To, review the matching cue count, and replace all matches together. Cue timing and volume stay unchanged. **Undo replacement** restores that batch without removing subsequent timing/level edits. Saved mixes, preview playback and MP4 exports use the updated cues. The sidebar uses the package's actual ToolPanel shell, segmented control, option list, and field controls; layout overrides only dock its shell to the right edge. Advanced sections start collapsed.

@@ -204,3 +204,12 @@ export function encodeWav(channels, rate = SAMPLE_RATE) {
       view.setFloat32(44 + (i * count + ch) * 4, channels[ch][i], true);
   return new Uint8Array(bytes);
 }
+
+// Bulk edits change sound identity only, preserving each event's timing and mix.
+export function replaceCueSounds(cues, from, to) {
+  if (!Object.hasOwn(SOUNDS, from) || !Object.hasOwn(SOUNDS, to))
+    throw Error("Choose a valid Cuelume sound.");
+  return cues.map((cue) =>
+    canonicalSound(cue.sound) === from ? { ...cue, sound: to } : cue,
+  );
+}

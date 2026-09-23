@@ -46,7 +46,7 @@
       "id": "context-pin-0",
       "scene": "context",
       "frame": 16,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.6,
       "label": "Comment pin appears 1"
     },
@@ -54,7 +54,7 @@
       "id": "context-pin-1",
       "scene": "context",
       "frame": 25,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.6,
       "label": "Comment pin appears 2"
     },
@@ -86,7 +86,7 @@
       "id": "comment-0",
       "scene": "conversation",
       "frame": 0,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Incoming comment 1"
     },
@@ -126,7 +126,7 @@
       "id": "comment-1",
       "scene": "conversation",
       "frame": 17,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Incoming comment 2"
     },
@@ -174,7 +174,7 @@
       "id": "comment-2",
       "scene": "conversation",
       "frame": 34,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Incoming comment 3"
     },
@@ -190,7 +190,7 @@
       "id": "reaction",
       "scene": "conversation",
       "frame": 39,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.55,
       "label": "Reaction appears"
     },
@@ -222,7 +222,7 @@
       "id": "reaction-1",
       "scene": "conversation",
       "frame": 44,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.5,
       "label": "Reaction appears 2"
     },
@@ -230,7 +230,7 @@
       "id": "reaction-2",
       "scene": "conversation",
       "frame": 49,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.5,
       "label": "Reaction appears 3"
     },
@@ -270,7 +270,7 @@
       "id": "sidebar-pin-0",
       "scene": "sidebar",
       "frame": 3,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.38,
       "label": "Page comment pin 1"
     },
@@ -278,7 +278,7 @@
       "id": "sidebar-pin-1",
       "scene": "sidebar",
       "frame": 6,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.38,
       "label": "Page comment pin 2"
     },
@@ -286,7 +286,7 @@
       "id": "sidebar-pin-2",
       "scene": "sidebar",
       "frame": 9,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.38,
       "label": "Page comment pin 3"
     },
@@ -302,7 +302,7 @@
       "id": "feed-comment-0",
       "scene": "feed",
       "frame": 7,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Feed comment arrives 1"
     },
@@ -310,7 +310,7 @@
       "id": "feed-comment-1",
       "scene": "feed",
       "frame": 16,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Feed comment arrives 2"
     },
@@ -318,7 +318,7 @@
       "id": "feed-comment-2",
       "scene": "feed",
       "frame": 25,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Feed comment arrives 3"
     },
@@ -326,7 +326,7 @@
       "id": "feed-comment-3",
       "scene": "feed",
       "frame": 34,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Feed comment arrives 4"
     },
@@ -334,7 +334,7 @@
       "id": "feed-comment-4",
       "scene": "feed",
       "frame": 43,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Feed comment arrives 5"
     },
@@ -342,7 +342,7 @@
       "id": "feed-comment-5",
       "scene": "feed",
       "frame": 52,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.65,
       "label": "Feed comment arrives 6"
     },
@@ -574,7 +574,7 @@
       "id": "paste",
       "scene": "agent",
       "frame": 22,
-      "sound": "droplet",
+      "sound": "pulse",
       "volume": 0.55,
       "label": "Prompt pasted"
     },

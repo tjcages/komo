@@ -1,5 +1,7 @@
 import {
   SOUNDS,
+  canonicalSound,
+  replaceCueSounds,
   resolveCues,
   synthesize,
   validateEffects,
@@ -14,7 +16,8 @@ export function createEffectsEditor({
   let cues = [],
     edit,
     sheet,
-    selected;
+    selected,
+    replacement;
   const fields = () => ({
     fps: 30,
     effects: cues.map((c) => ({ ...c })),
@@ -193,6 +196,7 @@ export function createEffectsEditor({
       ...fields(),
       effects: next,
     });
+    replacement = undefined;
     sheet = data;
     cues = next;
     selected = undefined;
@@ -235,6 +239,37 @@ export function createEffectsEditor({
   draw();
   return {
     fields,
+    selectCue(id) {
+      const cue = cues.find((c) => c.id === id);
+      if (cue) select(cue);
+    },
+    replaceSounds(from, to) {
+      if (from === to) return 0;
+      const before = cues.filter((c) => canonicalSound(c.sound) === from);
+      if (!before.length) return 0;
+      const next = replaceCueSounds(cues, from, to);
+      replacement = {
+        before: before.map((c) => ({ id: c.id, sound: c.sound })),
+        to,
+      };
+      cues = next;
+      changed();
+      draw();
+      return before.length;
+    },
+    canUndoReplacement: () => !!replacement,
+    undoReplacement() {
+      if (!replacement) return;
+      const previous = new Map(replacement.before.map((c) => [c.id, c.sound]));
+      cues = cues.map((c) =>
+        previous.has(c.id) && c.sound === replacement.to
+          ? { ...c, sound: previous.get(c.id) }
+          : c,
+      );
+      replacement = undefined;
+      changed();
+      draw();
+    },
     selected: () => cues.find((c) => c.id === selected),
     patchSelected(patch) {
       const cue = cues.find((c) => c.id === selected);
@@ -262,6 +297,7 @@ export function createEffectsEditor({
     setEdit(value) {
       edit = value;
       if (!edit) {
+        replacement = undefined;
         cues = [];
         sheet = null;
         selected = undefined;

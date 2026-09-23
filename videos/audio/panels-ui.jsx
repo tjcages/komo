@@ -1,7 +1,11 @@
+import { SOUNDS, canonicalSound } from "./effects.mjs";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  PANEL_CSS,
+  ToolPanel,
+  ControlToggleGroup,
+  ControlOptionList,
+  ControlHint,
   PanelThemeProvider,
   ControlSection,
   ControlSlider,
@@ -11,7 +15,6 @@ import {
   ControlSelect,
   ControlReadout,
   ControlTextInput,
-  ControlSearchField,
 } from "@tjcages/panels/dev";
 
 const $ = (id) => document.getElementById(id);
@@ -65,7 +68,7 @@ export function mountEditor({ effects, getDuration }) {
     clock: $("clock"),
     actions: document.querySelector(".header-actions"),
     footer: document.querySelector("footer"),
-    waveform: document.querySelector(".excerpt"),
+    waveform: document.querySelector(".wave-wrap"),
     cues: $("cueList"),
     dialog: $("exportHelp"),
   };
@@ -97,6 +100,17 @@ export function mountEditor({ effects, getDuration }) {
         window.removeEventListener("editor-track", select);
       };
     }, []);
+    const [replaceFrom, setReplaceFrom] = useState("droplet"),
+      [replaceTo, setReplaceTo] = useState("pulse");
+    const [replacementMessage, setReplacementMessage] = useState("");
+    const soundOptions = Object.keys(SOUNDS).map((value) => ({
+      value,
+      label: value,
+    }));
+    const allCues = effects.fields().effects;
+    const matching = allCues.filter(
+      (c) => canonicalSound(c.sound) === replaceFrom,
+    ).length;
     const cue = effects.selected();
     const music = $("songName").textContent;
     const hasMusic = !$("controls").disabled;
@@ -110,24 +124,7 @@ export function mountEditor({ effects, getDuration }) {
         onChange={(v) => setValue(id, v, event)}
       />
     );
-    const speed = (id) => (
-      <>
-        {slider("Speed", id, 0.5, 2)}
-        <ControlActionGroup>
-          {[0.5, 1, 1.5, 2].map((v) => (
-            <ControlAction
-              key={v}
-              label={`${v}×`}
-              onClick={() => setValue(id, v)}
-              variant={value(id) === v ? "primary" : "default"}
-            />
-          ))}
-        </ControlActionGroup>
-        <p className="panel-note">
-          Speed changes pitch. Picture timing stays fixed.
-        </p>
-      </>
-    );
+    const speed = (id) => slider("Speed · ×", id, 0.5, 2);
     return (
       <PanelThemeProvider value="light">
         <header className="studio-header">
@@ -140,7 +137,6 @@ export function mountEditor({ effects, getDuration }) {
           </div>
           <Island node={islands.actions} />
         </header>
-        <style>{PANEL_CSS}</style>
         <div className="studio-shell">
           <div
             className="canvas-workspace"
@@ -197,51 +193,25 @@ export function mountEditor({ effects, getDuration }) {
               </div>
             </section>
           </div>
-          <aside
-            className="studio-sidebar"
-            aria-label="Editor sidebar"
-            data-panel=""
-            data-panel-theme="light"
-          >
-            <h2 className="sidebar-heading">Project</h2>
-            <div className="sidebar-content">
-              <ControlSection title="Media">
-                <ControlReadout label="Video" value="Launch film" />
-                <ControlReadout
-                  label="Duration"
-                  value={`${getDuration().toFixed(2)} s · 30 fps`}
-                />
-                <ControlActionGroup>
-                  <ControlAction
-                    label="Replace video"
-                    onClick={() => click("videoFile")}
-                  />
-                  <ControlAction
-                    label="Add music"
-                    onClick={() => click("songFile")}
-                  />
-                </ControlActionGroup>
-                <ControlAction
-                  label="Try demo music"
-                  onClick={() => click("demo")}
-                />
-              </ControlSection>
-              <div
-                className="inspector-switch"
-                role="tablist"
-                aria-label="Track properties"
-              >
-                {["music", "effects"].map((t) => (
-                  <button
-                    key={t}
-                    role="tab"
-                    aria-selected={track === t}
-                    onClick={() => setTrack(t)}
-                  >
-                    {t === "music" ? "Music" : "Effects"}
-                  </button>
-                ))}
-              </div>
+          <aside className="studio-sidebar" aria-label="Editor sidebar">
+            <ToolPanel
+              side="right"
+              title="Audio"
+              open={true}
+              onClose={() => {}}
+              inline
+              peek={false}
+              defaultTheme="light"
+              className="docked-panel"
+            >
+              <ControlToggleGroup
+                value={track}
+                options={[
+                  { value: "music", label: "Music" },
+                  { value: "effects", label: "Effects" },
+                ]}
+                onChange={setTrack}
+              />
               {track === "music" ? (
                 <>
                   <ControlSection title="Playback">
@@ -256,13 +226,22 @@ export function mountEditor({ effects, getDuration }) {
                       onClick={() => click("songFile")}
                     />
                   </ControlSection>
-                  <ControlSection title="Excerpt">
+                  <ControlSection title="Excerpt & fades" defaultOpen={false}>
                     <Island node={islands.waveform} />
+                    <ControlSlider
+                      label="Start · s"
+                      value={value("start")}
+                      min={0}
+                      max={Number($("start").max) || 0}
+                      step={0.01}
+                      onChange={(v) => setValue("start", v)}
+                    />
+                    <ControlHint>{$("range").textContent}</ControlHint>
                     {slider("Fade in · s", "fadeIn", 0, 10, 0.1, "change")}
                     {slider("Fade out · s", "fadeOut", 0, 10, 0.1, "change")}
                   </ControlSection>
                   <ControlSection title="Beat alignment" defaultOpen={false}>
-                    <p className="panel-note">{$("analysis").textContent}</p>
+                    <ControlHint>{$("analysis").textContent}</ControlHint>
                     {slider("Source BPM", "bpm", 30, 300, 0.1, "change")}
                     {slider(
                       "First beat · s",
@@ -277,7 +256,7 @@ export function mountEditor({ effects, getDuration }) {
                       disabled={$("snap").disabled}
                       onClick={() => click("snap")}
                     />
-                    <p className="panel-note">{$("tempo").textContent}</p>
+                    <ControlHint>{$("tempo").textContent}</ControlHint>
                   </ControlSection>
                 </>
               ) : (
@@ -306,10 +285,7 @@ export function mountEditor({ effects, getDuration }) {
                         <ControlSelect
                           label="Sound"
                           value={cue.sound}
-                          options={[
-                            ...$("cueInspector").querySelector("select")
-                              .options,
-                          ].map((o) => ({ label: o.label, value: o.value }))}
+                          options={soundOptions}
                           onChange={(sound) => effects.patchSelected({ sound })}
                         />
                         <ControlSlider
@@ -352,40 +328,83 @@ export function mountEditor({ effects, getDuration }) {
                         </ControlActionGroup>
                       </>
                     ) : (
-                      <p className="panel-note">
-                        Select a cue on the timeline or in the project panel.
-                      </p>
+                      <ControlHint>
+                        Select a timeline cue to edit its sound and timing.
+                      </ControlHint>
                     )}
                   </ControlSection>
-                  <ControlSection title="Cue sheet" defaultOpen={false}>
-                    <ControlAction
-                      label="Import cue sheet"
-                      onClick={() => click("cueFile")}
+                  <ControlSection title="Replace sounds">
+                    <ControlSelect
+                      label="From"
+                      value={replaceFrom}
+                      options={soundOptions}
+                      onChange={setReplaceFrom}
+                    />
+                    <ControlSelect
+                      label="To"
+                      value={replaceTo}
+                      options={soundOptions}
+                      onChange={setReplaceTo}
                     />
                     <ControlAction
-                      label="Restore scene cues"
-                      onClick={() => click("restoreCues")}
+                      label={`Replace ${matching} ${matching === 1 ? "cue" : "cues"}`}
+                      disabled={!matching || replaceFrom === replaceTo}
+                      onClick={() => {
+                        const count = effects.replaceSounds(
+                          replaceFrom,
+                          replaceTo,
+                        );
+                        setReplacementMessage(
+                          `${count} cues changed to ${replaceTo}. Timing and volume kept.`,
+                        );
+                      }}
                     />
+                    {effects.canUndoReplacement() && (
+                      <ControlAction
+                        label="Undo replacement"
+                        onClick={() => {
+                          effects.undoReplacement();
+                          setReplacementMessage("Replacement undone.");
+                        }}
+                      />
+                    )}
+                    <ControlHint>
+                      {replacementMessage ||
+                        "Changes every matching cue in this video."}
+                    </ControlHint>
                   </ControlSection>
                 </>
               )}
               <div hidden={track !== "effects"}>
-                <ControlSection title="Sound cues">
-                  <ControlSearchField
+                <ControlSection title="All cues" defaultOpen={false}>
+                  <ControlTextInput
                     label="Find"
                     placeholder="Clicks, comments…"
                     value={search}
-                    onChange={(v) => {
-                      setSearch(v);
-                      setValue("cueSearch", v);
-                    }}
+                    onChange={setSearch}
                   />
-                  <Island node={islands.cues} className="cue-browser" />
+                  <ControlOptionList
+                    className="cue-browser"
+                    items={allCues
+                      .filter((c) =>
+                        `${c.label} ${c.sound}`
+                          .toLowerCase()
+                          .includes(search.toLowerCase()),
+                      )
+                      .sort((a, b) => a.frame - b.frame)
+                      .map((c) => ({
+                        id: c.id,
+                        label: c.label,
+                        description: `${(c.frame / 30).toFixed(2)}s · ${c.sound}`,
+                      }))}
+                    onSelect={effects.selectCue}
+                    emptyLabel="No matching cues"
+                  />
                   <ControlAction
                     label="Add sound at playhead"
                     onClick={() => click("addCue")}
                   />
-                  <p className="panel-note">
+                  <ControlHint>
                     Sound library by{" "}
                     <a
                       href="https://cuelume-site.pages.dev/"
@@ -394,10 +413,32 @@ export function mountEditor({ effects, getDuration }) {
                     >
                       Cuelume
                     </a>
-                  </p>
+                  </ControlHint>
                 </ControlSection>
               </div>
-            </div>
+              <ControlSection title="Project" defaultOpen={false}>
+                <ControlReadout
+                  label="Duration"
+                  value={`${getDuration().toFixed(2)} s · 30 fps`}
+                />
+                <ControlAction
+                  label="Replace video"
+                  onClick={() => click("videoFile")}
+                />
+                <ControlAction
+                  label="Try demo music"
+                  onClick={() => click("demo")}
+                />
+                <ControlAction
+                  label="Import cue sheet"
+                  onClick={() => click("cueFile")}
+                />
+                <ControlAction
+                  label="Restore scene cues"
+                  onClick={() => click("restoreCues")}
+                />
+              </ControlSection>
+            </ToolPanel>
           </aside>
         </div>
         <Island node={islands.footer} className="studio-footer" />
