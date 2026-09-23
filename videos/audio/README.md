@@ -112,7 +112,7 @@ The preview staging command accepts an optional third positional path to an alre
 
 ## Visual editor and speed
 
-The editor uses the actual `@tjcages/panels` ToolShell, ToolPanel, and control components, with a canvas workspace and a collapsible filmstrip, waveform, and sound-cue timeline. Both panels can close to make room for the preview; its zoom controls reset to fit. Click a scene to seek and choose a beat-alignment target. Select a diamond sound marker to edit it in the right panel; search the cue list to find crowded events. Space plays/pauses outside text fields.
+The editor uses the actual `@tjcages/panels` control components in one fixed right sidebar, with a canvas workspace and a collapsible filmstrip, waveform, and sound-cue timeline. Media, music settings, effects settings, and cue search share the sidebar; the canvas zoom controls reset to fit. Click a scene to seek and choose a beat-alignment target. Select a diamond sound marker to edit it in the right panel; search the cue list to find crowded events. Space plays/pauses outside text fields.
 
 Music and effects have independent 0.5×–2× speed sliders and presets. Speed changes pitch. Music consumes `duration × musicSpeed` seconds of source audio; changing speed clamps the excerpt start and rejects a source that is too short. Effects change duration but remain anchored to their original trigger frames. Saved v2 recipes include `musicSpeed` and `effectsSpeed`; omitted values in older recipes mean 1×. Preview, audition and native MP4 export apply the same speed behavior.
 

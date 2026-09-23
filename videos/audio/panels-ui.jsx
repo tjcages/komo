@@ -1,8 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  ToolShell,
-  ToolPanel,
+  PANEL_CSS,
   PanelThemeProvider,
   ControlSection,
   ControlSlider,
@@ -75,8 +74,6 @@ export function mountEditor({ effects, getDuration }) {
   $("save").textContent = "Save mix";
   function App() {
     const [, redraw] = useState(0);
-    const [left, setLeft] = useState(window.innerWidth > 1050),
-      [right, setRight] = useState(window.innerWidth > 740);
     const [track, setTrack] = useState("music"),
       [expanded, setExpanded] = useState(true);
     const [zoom, setZoom] = useState(1),
@@ -89,7 +86,6 @@ export function mountEditor({ effects, getDuration }) {
       };
       const select = (e) => {
         setTrack(e.detail);
-        setRight(true);
         update();
       };
       window.addEventListener("editor-change", update);
@@ -144,24 +140,71 @@ export function mountEditor({ effects, getDuration }) {
           </div>
           <Island node={islands.actions} />
         </header>
-        <ToolShell
-          className="studio-shell"
-          leftOpen={left}
-          rightOpen={right}
-          onLeftOpenChange={setLeft}
-          onRightOpenChange={setRight}
-          showEyeToggle={false}
-          leftPanel={
-            <ToolPanel
-              side="left"
-              title="Project"
-              open={left}
-              onClose={() => setLeft(false)}
-              onOpen={() => setLeft(true)}
-              defaultTheme="light"
-              themeStorageKey="komo-studio-left"
-              className="studio-panel"
+        <style>{PANEL_CSS}</style>
+        <div className="studio-shell">
+          <div
+            className="canvas-workspace"
+            style={{
+              "--preview-zoom": zoom,
+            }}
+          >
+            <div className="canvas-area">
+              <div className="canvas-caption">
+                LAUNCH FILM <span>1920 × 1080</span>
+              </div>
+              <Island node={islands.stage} className="preview-host" />
+              <div className="canvas-tools">
+                <button
+                  aria-label="Zoom out"
+                  onClick={() => setZoom((v) => Math.max(0.25, v - 0.1))}
+                >
+                  <Icon name="minus" />
+                </button>
+                <button onClick={() => setZoom(1)} title="Fit preview">
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button
+                  aria-label="Zoom in"
+                  onClick={() => setZoom((v) => Math.min(2, v + 0.1))}
+                >
+                  <Icon name="plus" />
+                </button>
+              </div>
+            </div>
+            <section
+              className={`editor-timeline ${expanded ? "expanded" : ""}`}
+              aria-label="Editing timeline"
             >
+              <button
+                className="timeline-tab"
+                aria-expanded={expanded}
+                onClick={() => setExpanded((v) => !v)}
+              >
+                <Icon name="chevron" />
+                Timeline<span>{effects.fields().effects.length}</span>
+              </button>
+              <div className="timeline-content" hidden={!expanded}>
+                <div className="timeline-toolbar">
+                  <Island node={islands.transport} />
+                  <Island node={islands.clock} />
+                  <span>30 fps</span>
+                </div>
+                <Island node={islands.timeline} />
+                <div className="timeline-bottom">
+                  <span>Click a scene to seek · select a cue to edit</span>
+                  <span>Space to play</span>
+                </div>
+              </div>
+            </section>
+          </div>
+          <aside
+            className="studio-sidebar"
+            aria-label="Editor sidebar"
+            data-panel=""
+            data-panel-theme="light"
+          >
+            <h2 className="sidebar-heading">Project</h2>
+            <div className="sidebar-content">
               <ControlSection title="Media">
                 <ControlReadout label="Video" value="Launch film" />
                 <ControlReadout
@@ -183,80 +226,6 @@ export function mountEditor({ effects, getDuration }) {
                   onClick={() => click("demo")}
                 />
               </ControlSection>
-              <ControlSection title="Tracks">
-                <button
-                  className={`project-track ${track === "music" ? "selected" : ""}`}
-                  onClick={() => {
-                    setTrack("music");
-                    setRight(true);
-                  }}
-                >
-                  <span className="track-bullet music-bullet" />
-                  <span>
-                    Music<small>{hasMusic ? music : "No track added"}</small>
-                  </span>
-                  <span className="track-rate">
-                    {value("musicSpeed").toFixed(2)}×
-                  </span>
-                </button>
-                <button
-                  className={`project-track ${track === "effects" ? "selected" : ""}`}
-                  onClick={() => {
-                    setTrack("effects");
-                    setRight(true);
-                  }}
-                >
-                  <span className="track-bullet" />
-                  <span>
-                    Sound effects
-                    <small>
-                      Cuelume · {effects.fields().effects.length} cues
-                    </small>
-                  </span>
-                  <span className="track-rate">
-                    {value("effectsSpeed").toFixed(2)}×
-                  </span>
-                </button>
-              </ControlSection>
-              <ControlSection title="Sound cues">
-                <ControlSearchField
-                  label="Find"
-                  placeholder="Clicks, comments…"
-                  value={search}
-                  onChange={(v) => {
-                    setSearch(v);
-                    setValue("cueSearch", v);
-                  }}
-                />
-                <Island node={islands.cues} className="cue-browser" />
-                <ControlAction
-                  label="Add sound at playhead"
-                  onClick={() => click("addCue")}
-                />
-                <p className="panel-note">
-                  Sound library by{" "}
-                  <a
-                    href="https://cuelume-site.pages.dev/"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    Cuelume
-                  </a>
-                </p>
-              </ControlSection>
-            </ToolPanel>
-          }
-          rightPanel={
-            <ToolPanel
-              side="right"
-              title={track === "music" ? "Music" : "Sound effects"}
-              open={right}
-              onClose={() => setRight(false)}
-              onOpen={() => setRight(true)}
-              defaultTheme="light"
-              themeStorageKey="komo-studio-right"
-              className="studio-panel"
-            >
               <div
                 className="inspector-switch"
                 role="tablist"
@@ -400,67 +369,37 @@ export function mountEditor({ effects, getDuration }) {
                   </ControlSection>
                 </>
               )}
-            </ToolPanel>
-          }
-        >
-          <div
-            className="canvas-workspace"
-            style={{
-              "--left-inset": left ? "312px" : "48px",
-              "--right-inset": right ? "312px" : "48px",
-              "--preview-zoom": zoom,
-            }}
-          >
-            <div className="canvas-area">
-              <div className="canvas-caption">
-                LAUNCH FILM <span>1920 × 1080</span>
-              </div>
-              <Island node={islands.stage} className="preview-host" />
-              <div className="canvas-tools">
-                <button
-                  aria-label="Zoom out"
-                  onClick={() => setZoom((v) => Math.max(0.25, v - 0.1))}
-                >
-                  <Icon name="minus" />
-                </button>
-                <button onClick={() => setZoom(1)} title="Fit preview">
-                  {Math.round(zoom * 100)}%
-                </button>
-                <button
-                  aria-label="Zoom in"
-                  onClick={() => setZoom((v) => Math.min(2, v + 0.1))}
-                >
-                  <Icon name="plus" />
-                </button>
+              <div hidden={track !== "effects"}>
+                <ControlSection title="Sound cues">
+                  <ControlSearchField
+                    label="Find"
+                    placeholder="Clicks, comments…"
+                    value={search}
+                    onChange={(v) => {
+                      setSearch(v);
+                      setValue("cueSearch", v);
+                    }}
+                  />
+                  <Island node={islands.cues} className="cue-browser" />
+                  <ControlAction
+                    label="Add sound at playhead"
+                    onClick={() => click("addCue")}
+                  />
+                  <p className="panel-note">
+                    Sound library by{" "}
+                    <a
+                      href="https://cuelume-site.pages.dev/"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      Cuelume
+                    </a>
+                  </p>
+                </ControlSection>
               </div>
             </div>
-            <section
-              className={`editor-timeline ${expanded ? "expanded" : ""}`}
-              aria-label="Editing timeline"
-            >
-              <button
-                className="timeline-tab"
-                aria-expanded={expanded}
-                onClick={() => setExpanded((v) => !v)}
-              >
-                <Icon name="chevron" />
-                Timeline<span>{effects.fields().effects.length}</span>
-              </button>
-              <div className="timeline-content" hidden={!expanded}>
-                <div className="timeline-toolbar">
-                  <Island node={islands.transport} />
-                  <Island node={islands.clock} />
-                  <span>30 fps</span>
-                </div>
-                <Island node={islands.timeline} />
-                <div className="timeline-bottom">
-                  <span>Click a scene to seek · select a cue to edit</span>
-                  <span>Space to play</span>
-                </div>
-              </div>
-            </section>
-          </div>
-        </ToolShell>
+          </aside>
+        </div>
         <Island node={islands.footer} className="studio-footer" />
       </PanelThemeProvider>
     );
