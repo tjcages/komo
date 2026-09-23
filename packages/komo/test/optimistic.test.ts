@@ -20,16 +20,16 @@ describe("optimistic writes", () => {
     const revision = queue.revision;
     const first = queue.submit(
       (s) => ({ ...s, title: "After" }),
-      () => a.promise
+      () => a.promise,
     );
     const failed = expect(first).rejects.toThrow("Offline");
     const second = queue.submit(
       (s) => ({ ...s, resolved: true }),
-      () => b.promise
+      () => b.promise,
     );
     expect(visible).toEqual({ title: "After", resolved: true });
     expect(queue.replace({ title: "Stale", resolved: false }, revision)).toBe(
-      false
+      false,
     );
     a.reject(new Error("Offline"));
     await failed;
@@ -37,7 +37,7 @@ describe("optimistic writes", () => {
     b.resolve();
     await second;
     expect(queue.replace({ title: "Stale", resolved: false }, revision)).toBe(
-      false
+      false,
     );
   });
   it("queues immediate Undo without dropping it", async () => {
@@ -48,11 +48,11 @@ describe("optimistic writes", () => {
     });
     const first = queue.submit(
       () => true,
-      () => save.promise
+      () => save.promise,
     );
     const undo = queue.submit(
       () => false,
-      async () => {}
+      async () => {},
     );
     expect(visible).toBe(false);
     save.resolve();
@@ -67,20 +67,20 @@ describe("optimistic writes", () => {
     const queue = new OptimisticQueue<Row[]>(
       [],
       () => {},
-      (rows, id) => rows.map((row) => ({ ...row, id: id(row.id) }))
+      (rows, id) => rows.map((row) => ({ ...row, id: id(row.id) })),
     );
     const first = queue.submit(
       (rows) => [...rows, { id: "temp", body: "Hello" }],
-      () => created.promise
+      () => created.promise,
     );
     const edit = queue.submit(
       (rows, id) =>
         rows.map((row) =>
-          row.id === id("temp") ? { ...row, body: "Edited" } : row
+          row.id === id("temp") ? { ...row, body: "Edited" } : row,
         ),
       async (id) => {
         requested = id("temp");
-      }
+      },
     );
     expect(queue.value[0].body).toBe("Edited");
     created.resolve({ temp: "saved" });
@@ -88,4 +88,41 @@ describe("optimistic writes", () => {
     expect(requested).toBe("saved");
     expect(queue.value).toEqual([{ id: "saved", body: "Edited" }]);
   });
+});
+
+it("discards old-session jobs without applying late writes over the new session", async () => {
+  const old = deferred();
+  const next = deferred();
+  let queuedRan = false;
+  const queue = new OptimisticQueue("private", () => {});
+  const first = queue.submit(
+    () => "private edit",
+    () => old.promise,
+  );
+  const queued = queue.submit(
+    () => "queued private",
+    async () => {
+      queuedRan = true;
+    },
+  );
+  const rejected = Promise.all(
+    [first, queued].map((p) =>
+      expect(p).rejects.toMatchObject({ name: "AbortError" }),
+    ),
+  );
+  queue.reset("public");
+  await rejected;
+  const fresh = queue.submit(
+    () => "new session",
+    () => next.promise,
+  );
+  old.resolve();
+  await Promise.resolve();
+  expect(queue.value).toBe("new session");
+  expect(queue.busy).toBe(true);
+  expect(queuedRan).toBe(false);
+  next.resolve();
+  await fresh;
+  expect(queue.value).toBe("new session");
+  expect(queue.busy).toBe(false);
 });

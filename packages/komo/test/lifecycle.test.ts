@@ -24,6 +24,10 @@ beforeEach(() => {
     addEventListener() {},
     removeEventListener() {},
   }));
+  Object.defineProperty(document, "elementsFromPoint", {
+    configurable: true,
+    value: () => [],
+  });
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -60,4 +64,85 @@ it("rejects unsafe endpoint schemes and embedded credentials before mounting", (
   for (const endpoint of ["ftp://localhost", "http://public.example.test", "https://user:password@example.test"])
     expect(() => initComments({ ...options, endpoint })).toThrow("HTTPS API endpoint");
   expect(document.body.children).toHaveLength(0);
+});
+
+it("clears private cached feedback and identity immediately on another tab's logout", async () => {
+  const { CommentsApi } = await import("../src/api");
+  const config = { ...options, onboarding: undefined };
+  const api = new CommentsApi(config);
+  api.save({
+    token: "private-session",
+    user: { id: "reviewer", name: "Private Reviewer", verified: true },
+  });
+  localStorage.setItem(
+    `${api.sessionKey}:${JSON.stringify([config.repo, "local"])}:threads`,
+    JSON.stringify({
+      token: api.token,
+      threads: [
+        {
+          id: "private",
+          page: "/",
+          resolved: false,
+          resolvedBy: null,
+          createdAt: 1,
+          updatedAt: 1,
+          anchor: {
+            selector: "body",
+            text: "",
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 10,
+            pageX: 0,
+            pageY: 0,
+            viewportWidth: 1200,
+          },
+          comments: [
+            {
+              id: "comment",
+              body: "Private feedback",
+              author: api.user,
+              createdAt: 1,
+              editedAt: null,
+              reactions: {},
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => new Promise(() => {})),
+  );
+  controller = initComments(config);
+  controller.open();
+  const shadow = [...document.body.children].find(
+    (node) => node.shadowRoot,
+  )!.shadowRoot!;
+  expect(shadow.textContent).toContain("Private feedback");
+  expect(
+    shadow.querySelector('[aria-label="Private Reviewer · Account"]'),
+  ).not.toBeNull();
+  window.dispatchEvent(
+    new StorageEvent("storage", {
+      key: "another-project",
+      storageArea: localStorage,
+    }),
+  );
+  expect(shadow.textContent).toContain("Private feedback");
+  localStorage.removeItem(api.sessionKey);
+  window.dispatchEvent(
+    new StorageEvent("storage", {
+      key: api.sessionKey,
+      newValue: null,
+      storageArea: localStorage,
+    }),
+  );
+  expect(shadow.textContent).not.toContain("Private feedback");
+  expect(
+    shadow.querySelector('[aria-label="Private Reviewer · Account"]'),
+  ).toBeNull();
+  expect(shadow.querySelector('[aria-label="Enter your name"]')).not.toBeNull();
+  localStorage.clear();
 });

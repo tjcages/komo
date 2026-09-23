@@ -206,14 +206,17 @@ export function initComments(options: CommentsOptions): CommentsController {
     save: Parameters<typeof optimistic.submit>[1],
     rollback?: () => void,
   ) {
+    const client = api;
     const token = api.token;
+    const session = sessionRevision;
+    const obsolete = () => destroyed || api !== client || session !== sessionRevision || api.token !== token;
     try {
       await optimistic.submit(change, async (resolve) => {
-        if (api.token !== token)
-          throw new Error("Your account changed. Try again.");
+        if (obsolete()) throw new DOMException("Session changed", "AbortError");
         return save(resolve);
       });
     } catch (reason) {
+      if (obsolete()) throw new DOMException("Session changed", "AbortError");
       rollback?.();
       render();
       throw new Error(
@@ -221,6 +224,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         { cause: reason },
       );
     }
+    if (obsolete()) throw new DOMException("Session changed", "AbortError");
     if (!optimistic.busy) run(refresh);
   }
   let filter: "open" | "resolved" | "all" = "open",
@@ -852,7 +856,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     lastRefresh = undefined;
     const cached = api.cached();
     knownThreads = cached !== null;
-    optimistic.replace(visibleThreads(cached ?? []));
+    optimistic.reset(visibleThreads(cached ?? []));
   }
   const grip = el("div", "edge-sidebar-grip");
   grip.setAttribute("aria-hidden", "true");
@@ -1197,6 +1201,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
   }
   function fail(reason: unknown) {
+    if (destroyed || (reason instanceof DOMException && reason.name === "AbortError")) return;
     error =
       reason instanceof Error
         ? reason.message
@@ -4919,6 +4924,25 @@ export function initComments(options: CommentsOptions): CommentsController {
   ).navigation?.addEventListener("navigatesuccess", onNavigate, {
     signal: abort.signal,
   });
+  window.addEventListener("storage", (event) => {
+    if (event.storageArea !== localStorage || event.key !== api.sessionKey || event.newValue === api.token) return;
+    api.cancelReads();
+    api = new CommentsApi(options);
+    projectLoaded = false;
+    issue = null;
+    connection = "Connecting";
+    google = github = guests = guestResolve = false;
+    draft = parkedDraft = null;
+    draftText = "";
+    replies.clear();
+    recoveredDrafts.length = 0;
+    queuedProfile = profileDraft = confirmedProfile = null;
+    profileRevision++;
+    clearTimeout(profileSaveTimer);
+    hydrateThreads();
+    render();
+    run(loadProject);
+  }, { signal: abort.signal });
   window.addEventListener("focus", () => polling?.wake(), {
     signal: abort.signal,
   });
