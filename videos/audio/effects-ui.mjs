@@ -181,6 +181,7 @@ export function createEffectsEditor({
       $("cueTrack").append(marker);
     }
     inspect(cues.find((c) => c.id === selected));
+    window.dispatchEvent(new Event("editor-change"));
   }
   function loadSheet(data) {
     if (!edit) throw Error("A scene cue sheet needs the matching film edit.");
@@ -234,6 +235,28 @@ export function createEffectsEditor({
   draw();
   return {
     fields,
+    selected: () => cues.find((c) => c.id === selected),
+    patchSelected(patch) {
+      const cue = cues.find((c) => c.id === selected);
+      if (!cue) return;
+      const next = { ...cue, ...patch };
+      if (
+        !Number.isInteger(next.frame) ||
+        next.frame < 0 ||
+        next.frame >= Math.ceil(getDuration() * 30)
+      )
+        return;
+      if (
+        !SOUNDS[next.sound] ||
+        !Number.isFinite(next.volume) ||
+        next.volume < 0 ||
+        next.volume > 1
+      )
+        return;
+      Object.assign(cue, next);
+      changed();
+      draw();
+    },
     draw,
     loadSheet,
     setEdit(value) {

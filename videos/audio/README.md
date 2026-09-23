@@ -112,7 +112,7 @@ The preview staging command accepts an optional third positional path to an alre
 
 ## Visual editor and speed
 
-The preview uses a video filmstrip, music waveform, and stacked sound-effect clips on a shared timeline. Click a scene to seek and choose a beat-alignment target. Select a sound to edit it in the right inspector; search the cue list to find crowded events. Space plays/pauses outside text fields.
+The editor uses the actual `@tjcages/panels` ToolShell, ToolPanel, and control components, with a canvas workspace and a collapsible filmstrip, waveform, and sound-cue timeline. Both panels can close to make room for the preview; its zoom controls reset to fit. Click a scene to seek and choose a beat-alignment target. Select a diamond sound marker to edit it in the right panel; search the cue list to find crowded events. Space plays/pauses outside text fields.
 
 Music and effects have independent 0.5×–2× speed sliders and presets. Speed changes pitch. Music consumes `duration × musicSpeed` seconds of source audio; changing speed clamps the excerpt start and rejects a source that is too short. Effects change duration but remain anchored to their original trigger frames. Saved v2 recipes include `musicSpeed` and `effectsSpeed`; omitted values in older recipes mean 1×. Preview, audition and native MP4 export apply the same speed behavior.
 
@@ -125,3 +125,5 @@ pnpm exec wrangler versions upload --config packages/komo-site/wrangler.jsonc --
 ```
 
 This alias stays constant across revisions. Use it for the PR description and handoff rather than a version-specific URL. Preview deployments do not change production traffic.
+
+The React/panels entrypoint is bundled by `build-ui.mjs` into the ignored audio cache when starting the local studio or staging a preview. It is isolated from the published komo package and normal site builds. Native media DOM islands retain the existing audio engine and export path across panel switches.

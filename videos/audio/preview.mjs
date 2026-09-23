@@ -1,3 +1,4 @@
+import { buildEditorUI } from "./build-ui.mjs";
 import { ensureCuelume } from "./cuelume-bank.mjs";
 import { cpSync } from "node:fs";
 // Stage only in an already-built site's output. Never included in normal site builds.
@@ -40,6 +41,7 @@ if (!Number.isFinite(actual) || Math.abs(actual - timeline.duration) > 0.08)
   throw Error("Preview film and cut map do not match.");
 const out = resolve(repo, "packages/komo-site/dist/audio");
 mkdirSync(out, { recursive: true });
+copyFileSync(await buildEditorUI(), resolve(out, "panels-ui.mjs"));
 cpSync(await ensureCuelume(), resolve(out, "cuelume"), { recursive: true });
 for (const name of [
   "index.html",

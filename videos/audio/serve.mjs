@@ -1,3 +1,5 @@
+import { buildEditorUI } from "./build-ui.mjs";
+const editorBundle = await buildEditorUI();
 import { ensureCuelume } from "./cuelume-bank.mjs";
 import { SOUNDS } from "./effects.mjs";
 const bankDirectory = await ensureCuelume();
@@ -45,6 +47,7 @@ for (const name of [
   "LICENSE.txt",
 ])
   files.set(`/cuelume/${name}`, fileURLToPath(new URL(name, bankDirectory)));
+files.set("/panels-ui.mjs", editorBundle);
 files.set("/", resolve(here, "index.html"));
 files.set("/film.mp4", video);
 files.set("/edit.json", edit);

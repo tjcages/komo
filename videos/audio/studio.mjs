@@ -1,8 +1,5 @@
+import { mountEditor } from "./panels-ui.mjs";
 import { loadBrowserSounds } from "./effects.mjs";
-await loadBrowserSounds().catch((error) => {
-  document.getElementById("status").textContent = error.message;
-  throw error;
-});
 import {
   analyzeSamples,
   cutTimeline,
@@ -45,6 +42,7 @@ const time = (value) =>
   `${Math.floor(value / 60)}:${(value % 60).toFixed(2).padStart(5, "0")}`;
 const status = (text) => {
   $("status").textContent = text;
+  window.dispatchEvent(new Event("editor-change"));
 };
 const number = (id) => Number($(id).value);
 const settings = () => ({
@@ -70,6 +68,7 @@ function download(data, name, type) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 function invalidatePreview() {
+  window.dispatchEvent(new Event("editor-change"));
   previewBuffer = null;
   $("exportDownload").hidden = true;
 }
@@ -163,7 +162,7 @@ function draw() {
   const peaks =
     song?.peaks ||
     Array.from({ length: 800 }, (_, i) => 0.06 + 0.035 * Math.sin(i * 0.12));
-  ctx.fillStyle = song ? "#4d9c82" : "#c8dcd4";
+  ctx.fillStyle = song ? "#879893" : "#d6dcda";
   peaks.forEach((p, i) =>
     ctx.fillRect(
       (i * w) / peaks.length,
@@ -194,7 +193,7 @@ function draw() {
     }
   }
   for (const cut of timeline?.cuts || []) {
-    ctx.fillStyle = "#3166e7";
+    ctx.fillStyle = "#738893";
     ctx.fillRect(
       ((start + cut.at * number("musicSpeed")) / song.duration) * w,
       0,
@@ -221,6 +220,7 @@ function setStart(value) {
   draw();
 }
 function refresh() {
+  window.dispatchEvent(new Event("editor-change"));
   const fits =
     !!song &&
     song.duration + 0.025 >= duration * number("musicSpeed") &&
@@ -508,6 +508,7 @@ $("demo").onclick = async () => {
 };
 
 function selectTrack(name) {
+  window.dispatchEvent(new CustomEvent("editor-track", { detail: name }));
   for (const track of ["music", "effects"]) {
     $(track + "Panel").hidden = track !== name;
     $(track + "Tab").setAttribute("aria-selected", String(track === name));
@@ -580,7 +581,7 @@ function drawMusicTrack() {
   if (!song) return;
   const start = number("start"),
     speed = number("musicSpeed");
-  ctx.fillStyle = "#60a68e";
+  ctx.fillStyle = "#879893";
   for (let x = 0; x < canvas.width; x += 3) {
     const t = start + (x / canvas.width) * duration * speed;
     const p =
@@ -678,6 +679,11 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     play();
   }
+});
+mountEditor({ effects, getDuration: () => duration });
+await loadBrowserSounds().catch((error) => {
+  document.getElementById("status").textContent = error.message;
+  throw error;
 });
 try {
   const response = await fetch("edit.json");

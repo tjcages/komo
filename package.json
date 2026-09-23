@@ -21,9 +21,13 @@
     "audio:test": "node --test videos/audio/*.test.mjs"
   },
   "devDependencies": {
+    "@tjcages/panels": "0.1.0",
     "cuelume": "0.2.2",
+    "esbuild": "0.25.12",
     "node-web-audio-api": "2.2.0",
     "prettier": "3.8.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "wrangler": "4.136.3"
   }
 }
