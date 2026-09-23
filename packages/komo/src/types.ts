@@ -96,6 +96,8 @@ export interface CommentsOptions {
   /** Defaults to location.pathname; query strings are not stored. */
   page?: () => string;
   pollInterval?: number;
+  /** Full emoji JSON URL; fetched only when choosing another emoji. */
+  emojiDataSource?: string;
   /** Controlled parent domain shared by preview hosts; never a public suffix. */
   sessionDomain?: string;
 }

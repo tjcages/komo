@@ -213,8 +213,11 @@ Pass these to `initKomo(config)` from `@tjcages/komo` or `useKomo(config)` from 
 | `drawerContainer` | `HTMLElement` | Viewport | Element used to center the drawer before it is dragged. |
 | `autoHideDrawer` | `boolean` | `true` | Set `false` to keep the drawer visible away from the pointer. |
 | `sidebar` | `"background" \| "edge"` | `"edge"` | `"edge"` (Floating) is a draggable sidebar that parks off and peeks from the viewport edge while closed. `"background"` (Frame) frames the site and shows the sidebar in the scaled review sheet. Account → Sidebar switches the two; that choice is remembered per project. |
+| `emojiDataSource` | `string` | jsDelivr emoji data 1.8.0 | Full emoji JSON URL; fetched only after “Choose another emoji”. |
 | `pollInterval` | `number` | `4000` | Refresh interval in milliseconds, minimum 2000. |
 | `sessionDomain` | `string` | Cloudflare account/project for `workers.dev` and `pages.dev` previews; otherwise current origin | Trusted parent domain for cross-preview sessions. |
+
+For a restricted CSP or offline deployment, host `emoji-picker-element-data@1.8.0/en/emojibase/data.json` on your site and pass `emojiDataSource: "/emoji/data.json"`. Allow that URL in `connect-src`; cache it with your service worker for first-use offline access. Quick reactions need no emoji data download. The full picker caches its data in IndexedDB after the first successful load.
 
 The lower-level `initComments` export remains available. It requires explicit `endpoint`, `project`, `repo`, and `branch`; it does not infer scope. Existing integrations keep their branch grouping.
 
