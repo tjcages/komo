@@ -28,6 +28,26 @@ function identity(value: Identity): boolean {
     )
   );
 }
+function anchorContext(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const limits: Record<string, number> = {
+    tag: 32,
+    role: 80,
+    label: 160,
+    nearby: 160,
+    classes: 200,
+    selectedText: 200,
+    styles: 500,
+    scope: 2000,
+  };
+  return Object.entries(value).every(
+    ([key, text]) =>
+      typeof limits[key] === "number" &&
+      typeof text === "string" &&
+      text.length <= limits[key],
+  );
+}
 function threadList(value: unknown): value is Thread[] {
   return (
     Array.isArray(value) &&
@@ -41,6 +61,7 @@ function threadList(value: unknown): value is Thread[] {
         Number.isFinite(t.updatedAt) &&
         (t.resolvedBy === null || identity(t.resolvedBy)) &&
         t.anchor &&
+        (!("context" in t.anchor) || anchorContext(t.anchor.context)) &&
         typeof t.anchor.selector === "string" &&
         typeof t.anchor.text === "string" &&
         [

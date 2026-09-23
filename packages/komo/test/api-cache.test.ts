@@ -219,6 +219,17 @@ it("rejects invalid refreshes without overwriting the last healthy cache", async
     Response.json(null),
     Response.json({}),
     Response.json({ threads: [null] }),
+    Response.json({
+      threads: [
+        {
+          ...thread("broken"),
+          anchor: {
+            ...thread("broken").anchor,
+            context: { label: { nested: "invalid" } },
+          },
+        },
+      ],
+    }),
     Response.json({ threads: [], next: 0 }),
   ]) {
     fetch.mockResolvedValueOnce(response);
@@ -232,6 +243,15 @@ it("rejects invalid refreshes without overwriting the last healthy cache", async
     [null],
     [{ ...thread("broken"), comments: [null] }],
     [{ ...thread("broken"), anchor: null }],
+    ...[
+      null,
+      [],
+      { label: 4 },
+      { scope: "x".repeat(2001) },
+      { unexpected: "x" },
+    ].map((context) => [
+      { ...thread("broken"), anchor: { ...thread("broken").anchor, context } },
+    ]),
   ]) {
     store.set(key, JSON.stringify({ token: "", revision: 1, threads }));
     expect(new CommentsApi(options).cached()).toBeNull();
