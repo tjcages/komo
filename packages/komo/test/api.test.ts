@@ -148,7 +148,7 @@ beforeAll(async () => {
     INSERT INTO users(id,name,verified) VALUES('google:fixture','Owner',1),('guest:fixture','Guest',0);
     WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<65)
     INSERT INTO threads(id,project,repo,branch,page,anchor,created_at,updated_at)
-    SELECT printf('cursor-%03d',i),'test','owner/site','pagination','/','${JSON.stringify(anchor)}',100,100 FROM n;
+    SELECT printf('import:%03d',i),'test','owner/site','pagination','/','${JSON.stringify(anchor)}',100,100 FROM n;
     INSERT INTO project_owners(project,user_id) VALUES('owned','google:fixture');
     INSERT INTO project_members(project,user_id) VALUES('other','google:fixture'),('removed-project','google:fixture');
     INSERT INTO users(id,name,verified) VALUES('google:usage','Usage owner',1);
@@ -1769,6 +1769,7 @@ it("paginates tied timestamps with scoped cursors while preserving offset client
     (await request(`/threads?${query}`, "GET", undefined, undefined, branch)).json();
   const first = await read("authors=1");
   expect(first.threads).toHaveLength(50);
+  expect(JSON.parse(first.nextCursor)).toEqual([100, "import:050"]);
   const query = `cursor=${encodeURIComponent(first.nextCursor)}`;
   const next = await read(`${query}&revision=${first.revision}&authors=1`);
   expect(next.threads).toHaveLength(15);

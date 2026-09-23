@@ -1038,7 +1038,7 @@ async function route(
       check(
         Array.isArray(cursor) && cursor.length === 2 &&
         Number.isSafeInteger(cursor[0]) && cursor[0] >= 0 &&
-        typeof cursor[1] === "string" && /^[\w-]{1,100}$/.test(cursor[1]),
+        typeof cursor[1] === "string" && cursor[1].length > 0 && cursor[1].length <= 100,
         400, "Invalid cursor."
       );
     }
