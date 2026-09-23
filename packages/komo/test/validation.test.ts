@@ -3,6 +3,7 @@ import {
   anchorValue,
   originAllowed,
   pagePath,
+  previewPattern,
   cliReturnOrigin,
 } from "../server/validation";
 const anchor = {
@@ -90,4 +91,19 @@ describe("CLI OAuth return origin", () => {
     ])
       expect(() => cliReturnOrigin(value, "https://site.example")).toThrow();
   });
+});
+
+it("derives a preview pattern only for Cloudflare Pages projects", () => {
+  const pages = previewPattern("https://abc123.shop.pages.dev")!;
+  expect(pages).toBe("https://*.shop.pages.dev");
+  expect(previewPattern("https://shop.pages.dev")).toBe(pages);
+  expect(originAllowed("https://feature-x.shop.pages.dev", [pages])).toBe(true);
+  expect(originAllowed("https://abc.other.pages.dev", [pages])).toBe(false);
+  for (const origin of [
+    "https://shop.vercel.app",
+    "https://deploy-preview-4--shop.netlify.app",
+    "https://shop.example.com",
+    "http://abc.shop.pages.dev",
+  ])
+    expect(previewPattern(origin)).toBeUndefined();
 });

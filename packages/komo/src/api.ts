@@ -3,10 +3,18 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public code?: string
+    public code?: string,
   ) {
     super(message);
   }
+}
+/**
+ * Cloudflare preview hosts under one owner: `alias-worker.ACCOUNT.workers.dev`
+ * and `hash.PROJECT.pages.dev`. Sharing the session cookie on that parent
+ * signs a reviewer in once for every preview of the same account/project.
+ */
+export function previewSessionDomain(hostname: string): string {
+  return hostname.match(/^[^.]+\.([^.]+\.(?:workers|pages)\.dev)$/)?.[1] ?? "";
 }
 export class CommentsApi {
   token: string | null = null;
@@ -23,7 +31,7 @@ export class CommentsApi {
       domain &&
       (location.hostname === domain || location.hostname.endsWith(`.${domain}`))
         ? domain
-        : "";
+        : previewSessionDomain(location.hostname);
     this.key = `branch-comments:${options.endpoint}:${options.project}`;
     try {
       this.token =
@@ -31,8 +39,26 @@ export class CommentsApi {
           .split("; ")
           .find((cookie) => cookie.startsWith(`${this.cookieName}=`))
           ?.slice(this.cookieName.length + 1) || localStorage.getItem(this.key);
+      // Last known account, shown at once; restore() confirms it with /me.
+      const known = JSON.parse(localStorage.getItem(this.userKey) ?? "null");
+      if (this.token && known?.token === this.token) this.user = known.user;
     } catch {
       /* Private browsers can disable storage. */
+    }
+  }
+  private get userKey() {
+    return `${this.key}:user`;
+  }
+  private rememberUser() {
+    try {
+      if (this.token && this.user)
+        localStorage.setItem(
+          this.userKey,
+          JSON.stringify({ token: this.token, user: this.user }),
+        );
+      else localStorage.removeItem(this.userKey);
+    } catch {
+      /* The account reloads from the server next time. */
     }
   }
   async request<T>(path: string, method = "GET", data?: unknown): Promise<T> {
@@ -65,17 +91,53 @@ export class CommentsApi {
         throw new ApiError(
           response.status,
           "Comments aren’t turned on for this site yet.",
-          result.code
+          result.code,
         );
       throw new ApiError(
         response.status,
         result.error ?? "Could not load comments.",
-        result.code
+        result.code,
       );
     }
     return result as T;
   }
+  // ponytail: last list lives in localStorage so the next page load paints at
+  // once and asks the server "notModified?" instead of refetching every page.
+  // Quota overflow just skips the cache; IndexedDB if projects outgrow ~5MB.
+  private get listKey() {
+    return `${this.key}:${this.options.repo}:${this.options.branch}:threads`;
+  }
+  cached(): Thread[] | null {
+    try {
+      const stored = JSON.parse(localStorage.getItem(this.listKey) ?? "null");
+      if (
+        stored?.token !== (this.token ?? "") ||
+        !Array.isArray(stored.threads)
+      )
+        return null;
+      this.revision = stored.revision;
+      this.cachedThreads = stored.threads;
+      return stored.threads;
+    } catch {
+      return null;
+    }
+  }
+  private persist() {
+    try {
+      localStorage.setItem(
+        this.listKey,
+        JSON.stringify({
+          token: this.token ?? "",
+          revision: this.revision,
+          threads: this.cachedThreads,
+        }),
+      );
+    } catch {
+      /* Storage full or blocked; the next load fetches normally. */
+    }
+  }
   async list(): Promise<Thread[]> {
+    const token = this.token;
     const threads: Thread[] = [];
     let offset: number | null = 0;
     let revision: number | undefined;
@@ -86,8 +148,10 @@ export class CommentsApi {
         revision?: number;
         notModified?: boolean;
       } = await this.request(
-        `threads?offset=${offset}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`
+        `threads?offset=${offset}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`,
       );
+      // Never apply or persist a response requested by a previous account.
+      if (this.token !== token) return this.list();
       if (result.notModified) return this.cachedThreads;
       if (offset === 0) revision = result.revision;
       threads.push(...(result.threads ?? []));
@@ -95,11 +159,17 @@ export class CommentsApi {
     }
     this.revision = revision;
     this.cachedThreads = threads;
+    this.persist();
     return threads;
   }
   save(data: { token: string; user: Identity }) {
+    if (data.token !== this.token) {
+      this.revision = undefined;
+      this.cachedThreads = [];
+    }
     this.token = data.token;
     this.user = data.user;
+    this.rememberUser();
     try {
       localStorage.setItem(this.key, data.token);
       // Browsers cap cookie Max-Age at 400 days; the service session lasts far
@@ -110,15 +180,27 @@ export class CommentsApi {
     }
   }
   private writeCookie(value: string, maxAge: number) {
+    const attributes = `Path=/; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
     try {
-      document.cookie = `${this.cookieName}=${value}; Path=/; Max-Age=${maxAge}; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}${this.cookieDomain ? `; Domain=${this.cookieDomain}` : ""}`;
+      // A host-only cookie from before sharing would shadow the shared one.
+      if (this.cookieDomain)
+        document.cookie = `${this.cookieName}=; Max-Age=0; ${attributes}`;
+      document.cookie = `${this.cookieName}=${value}; Max-Age=${maxAge}; ${attributes}${this.cookieDomain ? `; Domain=${this.cookieDomain}` : ""}`;
     } catch {
       /* Storage may be unavailable in this browser. */
     }
   }
   clear() {
+    try {
+      localStorage.removeItem(this.listKey);
+    } catch {
+      /* Nothing cached. */
+    }
+    this.revision = undefined;
+    this.cachedThreads = [];
     this.token = null;
     this.user = null;
+    this.rememberUser();
     this.writeCookie("", 0);
     try {
       localStorage.removeItem(this.key);
@@ -128,8 +210,11 @@ export class CommentsApi {
   }
   async restore() {
     if (!this.token) return;
+    const token = this.token;
     const result = await this.request<{ user: Identity }>("me");
+    if (this.token !== token) return;
     this.user = result.user;
+    this.rememberUser();
   }
   async guest(name: string) {
     this.save(await this.request("auth/guest", "POST", { name }));

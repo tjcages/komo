@@ -9,11 +9,11 @@ it("reuses the revision cache and replaces it when comments change", async () =>
   const fetch = vi
     .fn()
     .mockResolvedValueOnce(
-      Response.json({ threads: [{ id: "first" }], revision: 1 })
+      Response.json({ threads: [{ id: "first" }], revision: 1 }),
     )
     .mockResolvedValueOnce(Response.json({ notModified: true }))
     .mockResolvedValueOnce(
-      Response.json({ threads: [{ id: "second" }], revision: 2 })
+      Response.json({ threads: [{ id: "second" }], revision: 2 }),
     );
   vi.stubGlobal("fetch", fetch);
   const api = new CommentsApi({
@@ -36,7 +36,7 @@ it("explains network and CORS failures without claiming the cause is known", asy
   vi.stubGlobal("localStorage", { getItem: () => null });
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
+    vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
   );
   const api = new CommentsApi({
     endpoint: "https://example.com",
@@ -45,6 +45,115 @@ it("explains network and CORS failures without claiming the cause is known", asy
     branch: "shared",
   });
   await expect(api.request("config")).rejects.toThrow(
-    "Can’t connect to comments."
+    "Can’t connect to comments.",
   );
+});
+
+it("persists the last list so a new page load reuses it", async () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("location", { hostname: "localhost" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+  });
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      Response.json({ threads: [{ id: "first" }], revision: 1 }),
+    )
+    .mockResolvedValueOnce(Response.json({ notModified: true }));
+  vi.stubGlobal("fetch", fetch);
+  const options = {
+    endpoint: "https://example.com/api/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  };
+  await new CommentsApi(options).list();
+  const reloaded = new CommentsApi(options);
+  expect(reloaded.cached()).toEqual([{ id: "first" }]);
+  expect(await reloaded.list()).toEqual([{ id: "first" }]);
+  expect(fetch.mock.calls[1][0].searchParams.get("revision")).toBe("1");
+  expect(new CommentsApi({ ...options, branch: "other" }).cached()).toBeNull();
+  reloaded.clear();
+  expect(new CommentsApi(options).cached()).toBeNull();
+});
+
+it("shares sessions only across one Cloudflare account or Pages project", async () => {
+  const { previewSessionDomain } = await import("../src/api");
+  expect(previewSessionDomain("feat-komo-site.off-brand.workers.dev")).toBe(
+    "off-brand.workers.dev",
+  );
+  expect(previewSessionDomain("abc123.komo-wb5.pages.dev")).toBe(
+    "komo-wb5.pages.dev",
+  );
+  expect(previewSessionDomain("komo-wb5.pages.dev")).toBe("");
+  expect(previewSessionDomain("a.b.off-brand.workers.dev")).toBe("");
+  expect(previewSessionDomain("preview.example.com")).toBe("");
+  expect(previewSessionDomain("localhost")).toBe("");
+});
+
+it("remembers the signed-in account for the same token", () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("location", { hostname: "localhost", protocol: "http:" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+  });
+  const options = {
+    endpoint: "https://example.com/api/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  };
+  const user = { id: "u1", name: "Ty", verified: true };
+  new CommentsApi(options).save({ token: "t1", user } as never);
+  expect(new CommentsApi(options).user).toEqual(user);
+  new CommentsApi(options).clear();
+  expect(new CommentsApi(options).user).toBeNull();
+});
+
+it("discards a previous account's in-flight list before caching", async () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("location", { hostname: "localhost", protocol: "http:" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+  });
+  let finish!: (response: Response) => void;
+  const fetch = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    )
+    .mockResolvedValueOnce(
+      Response.json({ threads: [{ id: "public" }], revision: 2 }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const options = {
+    endpoint: "https://example.com/api/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  };
+  const api = new CommentsApi(options);
+  api.save({
+    token: "private",
+    user: { id: "u1", name: "Ty", verified: true },
+  } as never);
+  const pending = api.list();
+  api.clear();
+  finish(Response.json({ threads: [{ id: "private" }], revision: 1 }));
+  expect(await pending).toEqual([{ id: "public" }]);
+  expect(fetch.mock.calls[1][1].headers.Authorization).toBeUndefined();
+  expect(new CommentsApi(options).cached()).toEqual([{ id: "public" }]);
 });

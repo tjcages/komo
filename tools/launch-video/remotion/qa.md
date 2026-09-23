@@ -1,26 +1,14 @@
-# Render evidence — 2026-09-17, camera and resolution pass
+# Current render evidence — 2026-09-22
 
-[Review preview](https://efa70964.komo-wb5.pages.dev/promo/) · [PR #10](https://github.com/tjcages/komo/pull/10) · [OFF-672](https://linear.app/off-brand-studio/issue/OFF-672)
+[Worker preview](https://427324ea-komo-site.off-brand.workers.dev/promo/) · [PR #28](https://github.com/tjcages/komo/pull/28) · [OFF-680](https://linear.app/off-brand-studio/issue/OFF-680)
 
-- H.264 MP4: 1920×1080, 30 fps, 618 frames, exactly 20.6 seconds. Silent. Eight deterministic scene clips concatenated without re-encoding.
-- Menu hold frames 28 and 38 are byte-identical: SHA-256 `ba7e22405ff07d433ae2b1594931cd456c0349ec2c88c82d405c4ee45a18704c`. No text movement during the hold. Panel center stays fixed during shell expansion; zoom starts after the spring settles.
-- First and last source PNGs are byte-identical: SHA-256 `4db304ac8a74dc130af5979239d93168fc4aa2163449573452443e4ca05d703c`.
-- Native drawer row selection background, inset outline, ink and first-row corners restored. Cursor traverses actual row hover states before Copy. Label and icon confirmation use the product’s 200ms blur/translation/scale swap, including the check icon and actual “Copied prompt” label.
-- Last streamed row settles 17.5 frames before Search clicks. Completed “lavender” query holds 15 frames. Copy holds 18 frames before click and 18 afterward. Settled logo holds approximately 31 frames before fading.
-- Pin click compresses then rebounds. Last conversation reaction is 🎉. Drawer scales in, pauses 15 frames, collapses internally to one pointer and opens horizontally before menu expansion.
-- Prompt excerpt uses the exact title and first paragraph from the real formatter, enlarged with an ellipsis for additional content. Send uses the native arrow. Sent bubble rises while composer fades downward; lower bubble edge fades before its corners.
-- Inspected native menu hover, confirmation mid-swap, prompt and sent-message stills, plus extracted final-video contact sheet. QC boundary warnings are intentional continuous camera/state matches (sidebar/feed, drawer/copy) and blank fade bridges (conversation/sidebar, agent/logo).
-- Local build, typecheck, 111 tests in 18 files and size gates pass. Recording dependencies remain outside the package workspace.
+- Exact opening: “Figma comments for any site”. One 96px line, 77-frame validated reading hold, clear side margins through the final camera zoom. The other seven scenes retain their choreography.
+- Render source `0237614`. H.264, 1920×1080, 30fps, 626 frames, exactly 20.866667 seconds, silent. The review label rounds to 20.9s.
+- Movie: 2,963,263 bytes. Local and deployed SHA-256 match: `31ec84074f390f0abcb7ac69e7389583a8126b1d642a863e1579e36ec83934a6`.
+- Local build, typecheck, 146 tests across 24 files, and size gates pass. Remotion typecheck and reading-time validation pass. Opening middle and final-zoom stills were inspected; all eight scenes were reviewed in the preceding choreography pass.
+- Boundary QC has three intentional warnings: conversation/sidebar and agent/logo meet on the canvas color; drawer/copy share the settled menu camera. No other frame warnings. Native reset CSS disables animations; every filmed motion uses frame time.
+- Chrome playback verifies the exact opening, advancing sidebar sequence, 20.9s label, and PR #28 link. Existing Worker preview version: `427324ea-5624-4455-a05f-d32a8290cd92`. No production deployment.
+- Conversation uses fixed message slots. Resolve presses at frame78, rebounds, holds accent feedback, and exits at84. Paste/Send use continuous press/release curves. The resolved conversation remains excluded from the eleven open threads in the drawer and prompt. No agent execution is implied.
+- The retired webpage film is removed. Licensed helper source and generated media stay outside Git; prior media was preserved. The owner approved the video and subsequently requested this final wording revision. Merge is coordinated separately.
 
-Source and render commands: README.md. Ignored output: `tools/launch-video/output/remotion/komo-promo-20.6s.mp4`. Creative acceptance remains In Review; no merge or social publication.
-
-- Opening pins share the title’s exact slow scale curve. All three reactions have settled by conversation frame 69; the card holds until its exit starts at frame 84.
-- Search result verified visually: “Can we try lavender here?” by Alex.
-- Cursor moves upward into the first menu row before traversing the remaining rows. Composer and bubble use identical width, padding, border allocation, font sizes and explicit heading line-height; text never resizes or reflows on send.
-
-- Final MP4: 2,992,245 bytes; SHA-256 `516e38a107468c1348e3df2a419102c1010fe694edfb2eb769a5d4419387a27e`.
-
-- Opening uses one shared parent transform: title, pin positions/sizes and cursor all zoom together.
-- Inspected frame 84: cursor tip aligns with the native Resolve check mark; the card exits immediately afterward.
-- Page pins enter left-to-right at frames 3/6/9 before sidebar motion begins at frame 15.
-- Resolved fixture is absent from the subsequent open list and actual generated prompt; verified prompt reports 11 open threads, matching drawer count.
+Source/render commands: [README](./README.md). Previous revision evidence remains in Git history.

@@ -15,7 +15,7 @@
     "dev:api": "pnpm --filter @tjcages/komo dev:api",
     "deploy:site": "pnpm --filter komo-site run deploy",
     "deploy:api": "pnpm --filter @tjcages/komo build:setup && wrangler deploy --config packages/komo/server/hosted.jsonc",
-    "preview:deploy": "pnpm build && wrangler pages deploy packages/komo-site/dist --project-name komo --branch preview",
+    "preview:deploy": "pnpm preview:site",
     "preview:site": "pnpm build && wrangler versions upload --config packages/komo-site/wrangler.jsonc --preview-alias \"$(git rev-parse --abbrev-ref HEAD | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')\""
   },
   "devDependencies": {

@@ -111,6 +111,19 @@ export function initComments(options: CommentsOptions): CommentsController {
     return options.sidebar === "background" ? "background" : "edge";
   })();
   let edgeSidebar = sidebarMode === "edge";
+  // Localhost starts in a private "local" channel so a new install works
+  // before any site is shared; Shared reads the same comments as deploys.
+  const localSite = ["localhost", "127.0.0.1"].includes(location.hostname);
+  const sharedBranch = options.branch;
+  const channelKey = `branch-comments:channel:${options.project}:${options.repo}`;
+  let channel: "local" | "shared" = "local";
+  try {
+    if (localStorage.getItem(channelKey) === "shared") channel = "shared";
+  } catch {
+    /* Default to the local channel when storage is blocked. */
+  }
+  if (localSite && channel === "local")
+    options = { ...options, branch: "local" };
   let api = new CommentsApi(options);
   const abort = new AbortController();
   let destroyed = false,
@@ -513,6 +526,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   let framedAccount = false;
   let pageMotion: ReturnType<typeof animate> | undefined;
   let keyboardAction = false;
+  // True while reopening a remembered sidebar on load: skip the open motion.
+  let restoring = false;
+  const openKey = `branch-comments:open:${options.project}:${options.repo}`;
   let searchOpen = false;
   let dockMotion: ReturnType<typeof animate> | undefined;
   let edgeMotions: ReturnType<typeof animate>[] = [];
@@ -555,8 +571,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function applySidebarSize() {
     sidebar.style.width = `${sidebarWidth}px`;
-    sidebar.style.height =
-      sidebarHeight == null ? "" : `${sidebarHeight}px`;
+    sidebar.style.height = sidebarHeight == null ? "" : `${sidebarHeight}px`;
     pointTips();
   }
   function persistSidebarPlacement() {
@@ -610,6 +625,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
     sidebar.style.left = `${geometry.x}px`;
     sidebar.style.top = `${geometry.y}px`;
+    sidebar.style.setProperty(
+      "--edge-account-max-height",
+      `${Math.max(0, window.innerHeight - geometry.y - 28)}px`,
+    );
     sidebar.style.right = "auto";
     sidebar.style.bottom = "auto";
     sidebar.style.transformOrigin =
@@ -633,7 +652,9 @@ export function initComments(options: CommentsOptions): CommentsController {
     host.dataset.sidebar = edgeSidebar ? "edge" : "background";
     sidebar.classList.toggle("edge-sidebar", edgeSidebar);
     sidebar.style.transition = "none";
-    sidebar.style.translate = "0px 0px";
+    // Clear, don't zero: any translate makes the sidebar the containing block
+    // for the fixed Frame panel and collapses it to zero height.
+    sidebar.style.translate = "";
     sidebar.style.opacity = "";
     stopEdgeMotion(true);
     if (edgeSidebar) {
@@ -647,9 +668,35 @@ export function initComments(options: CommentsOptions): CommentsController {
     void sidebar.offsetWidth;
     sidebar.style.transition = "";
   }
+  let layoutMotions: Animation[] = [];
+  let switchingSidebar = false;
+  function stopLayoutMotion() {
+    for (const motion of layoutMotions) motion.cancel();
+    layoutMotions = [];
+    pageTransitioning = false;
+    pins.style.opacity = "1";
+  }
   function setSidebarMode(mode: "background" | "edge") {
-    stopEdgeMotion(true);
     if (mode === sidebarMode || destroyed) return;
+    // Read the visible, possibly interrupted positions before settling layout.
+    const nodes = () => [
+      surface,
+      sidebar.querySelector<HTMLElement>(".panel"),
+      toolbar,
+      dialogs.querySelector<HTMLElement>(".account-dialog"),
+    ];
+    const before = nodes().map((node) => node?.getBoundingClientRect());
+    stopLayoutMotion();
+    pageMotion?.stop();
+    pageMotion = undefined;
+    dockMotion?.stop();
+    dockMotion = undefined;
+    stopEdgeMotion(true);
+    clearEdgeRows();
+    undockEdgeTabs();
+    toolbar.style.translate = "";
+    dockCenter = undefined;
+    switchingSidebar = true;
     sidebarMode = mode;
     edgeSidebar = mode === "edge";
     options = { ...options, sidebar: mode };
@@ -661,34 +708,103 @@ export function initComments(options: CommentsOptions): CommentsController {
     syncEdgeMode();
     scalePage();
     render();
-    if (edgeSidebar) {
-      sidebar.style.transition = "none";
-      positionSidebar();
-      void sidebar.offsetWidth;
-      sidebar.style.transition = "";
-    }
-  }
-  function sidebarSetting() {
-    const field = el("label", "account-setting");
-    const label = el("span", "account-setting-label", "Sidebar");
-    const select = el("select");
-    select.name = "sidebar";
-    select.setAttribute("aria-label", "Sidebar");
-    const choices: Array<["edge" | "background", string]> = [
-      ["edge", "Floating"],
-      ["background", "Frame"],
-    ];
-    for (const [value, text] of choices) {
-      const option = el("option", "", text);
-      option.value = value;
-      select.append(option);
-    }
-    select.value = sidebarMode;
-    select.addEventListener("change", () => {
-      setSidebarMode(select.value === "background" ? "background" : "edge");
+    switchingSidebar = false;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    nodes().forEach((node, index) => {
+      const from = before[index];
+      if (!node?.isConnected || !from?.width) return;
+      if (node !== surface)
+        node.getAnimations().forEach((motion) => motion.cancel());
+      const to = node.getBoundingClientRect();
+      if (!to.width) return;
+      const zoom = to.width / node.offsetWidth;
+      const end = getComputedStyle(node).transform;
+      layoutMotions.push(
+        node.animate(
+          [
+            {
+              transform: `${end === "none" ? "" : end} translate(${(from.left - to.left) / zoom}px, ${(from.top - to.top) / zoom}px) scale(${from.width / to.width})`,
+              transformOrigin: "top left",
+            },
+            { transform: end, transformOrigin: "top left" },
+          ],
+          { duration: 250, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+        ),
+      );
     });
+    const motions = layoutMotions;
+    pageTransitioning = true;
+    pins.style.opacity = "0";
+    void Promise.all(motions.map((motion) => motion.finished))
+      .then(() => {
+        if (destroyed || motions !== layoutMotions) return;
+        layoutMotions = [];
+        pageTransitioning = false;
+        pins.style.opacity = "1";
+        geometry();
+      })
+      .catch(() => {});
+  }
+  function selectSetting<T extends string>(
+    name: string,
+    labelText: string,
+    choices: Array<[T, string]>,
+    value: T,
+    onChange: (value: T) => void,
+  ) {
+    const field = el("div", "account-setting");
+    const label = el("span", "account-setting-label", labelText);
+    const select = selectionMenu(labelText, choices, value, (next) =>
+      onChange(next as T),
+    );
+    select.querySelector("summary")!.dataset.focusKey = `setting-${name}`;
     field.append(label, select);
     return field;
+  }
+  function sidebarSetting() {
+    return selectSetting(
+      "sidebar",
+      "Sidebar",
+      [
+        ["edge", "Floating"],
+        ["background", "Frame"],
+      ],
+      sidebarMode,
+      setSidebarMode,
+    );
+  }
+  function channelSetting() {
+    return selectSetting(
+      "channel",
+      "Comments",
+      [
+        ["local", "Local only"],
+        ["shared", "Shared with deploys"],
+      ],
+      channel,
+      setChannel,
+    );
+  }
+  function setChannel(value: "local" | "shared") {
+    if (value === channel || destroyed) return;
+    channel = value;
+    try {
+      localStorage.setItem(channelKey, value);
+    } catch {
+      /* Keep the choice in memory when storage is blocked. */
+    }
+    const user = api.user;
+    options = {
+      ...options,
+      branch: value === "local" ? "local" : sharedBranch,
+    };
+    api = new CommentsApi(options);
+    api.user = user;
+    selected = null;
+    draft = null;
+    parkedDraft = null;
+    render();
+    retryConnection();
   }
   const grip = el("div", "edge-sidebar-grip");
   grip.setAttribute("aria-hidden", "true");
@@ -722,12 +838,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     handle.addEventListener(
       "pointerdown",
       (event) => {
-        if (
-          event.button !== 0 ||
-          !expanded ||
-          !edgeSidebar ||
-          edgeMorphing
-        )
+        if (event.button !== 0 || !expanded || !edgeSidebar || edgeMorphing)
           return;
         event.preventDefault();
         event.stopPropagation();
@@ -747,7 +858,8 @@ export function initComments(options: CommentsOptions): CommentsController {
             window.innerHeight,
           );
           sidebarWidth = next.width;
-          if (dir.includes("n") || dir.includes("s")) sidebarHeight = next.height;
+          if (dir.includes("n") || dir.includes("s"))
+            sidebarHeight = next.height;
           sidebarPlacement = { x: next.left, y: next.top };
           sidebar.style.left = `${next.left}px`;
           sidebar.style.top = `${next.top}px`;
@@ -1059,8 +1171,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     return later(
       el("section", "account-usage"),
       import("./onboarding.js").then(({ accountUsage }) =>
-        accountUsage(api, path)
-      )
+        accountUsage(api, path, true, localSite && channel === "local"),
+      ),
     );
   }
   // Retry from the start if the project config never loaded.
@@ -1082,6 +1194,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       render();
     }
   }
+  const visibleThreads = (items: Thread[]) =>
+    items
+      .map((thread) => ({
+        ...thread,
+        comments: thread.comments.filter(
+          (comment) => comment.body !== "[Comment deleted]",
+        ),
+      }))
+      .filter((thread) => thread.comments.length > 0);
   let lastRefresh: Thread[] | undefined;
   let lastRefreshRevision = -1;
   async function refresh() {
@@ -1101,14 +1222,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         return;
       lastRefresh = response;
       lastRefreshRevision = revision;
-      const next = response
-        .map((thread) => ({
-          ...thread,
-          comments: thread.comments.filter(
-            (comment) => comment.body !== "[Comment deleted]",
-          ),
-        }))
-        .filter((thread) => thread.comments.length > 0);
+      const next = visibleThreads(response);
       if (destroyed || optimistic.busy || revision !== optimistic.revision)
         return;
       const changed = JSON.stringify(next) !== JSON.stringify(threads);
@@ -1180,14 +1294,20 @@ export function initComments(options: CommentsOptions): CommentsController {
           window.visualViewport?.height ?? window.innerHeight,
         )
       : window.innerHeight;
-    const viewportKey = `${window.innerWidth}:${window.innerHeight}:${viewportHeight}:${zoom}:${expanded}:${account}:${window.visualViewport?.offsetTop ?? 0}`;
+    const viewportKey = `${window.innerWidth}:${window.innerHeight}:${viewportHeight}:${zoom}:${expanded}:${account}:${sidebarMode}:${window.visualViewport?.offsetTop ?? 0}`;
     if (appliedViewport === viewportKey) return;
+    stopLayoutMotion();
     appliedViewport = viewportKey;
     if (edgeSidebar) {
       // The edge sidebar floats over the live page: never frame or zoom it.
       pageMotion?.stop();
       pageTransitioning = false;
       pins.style.opacity = "1";
+      const scroll = framed
+        ? nativeReviewScroll
+          ? window.scrollY / appliedScale
+          : surface.scrollTop * zoom
+        : null;
       if (framed) {
         for (const [header, styles] of fixedHeaders)
           Object.assign(header.style, styles);
@@ -1198,6 +1318,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       document.documentElement.style.overflow = savedHtmlOverflow;
       Object.assign(document.body.style, savedBody);
       document.documentElement.style.background = savedHtmlBackground;
+      if (scroll !== null)
+        window.scrollTo({ top: scroll, behavior: "instant" });
       host.style.zoom = String(1 / zoom);
       host.style.width = `${window.innerWidth}px`;
       host.style.height = `${viewportHeight}px`;
@@ -1314,6 +1436,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (
       (useFrame !== wasFramed || (layout.mobile && accountChanged)) &&
       !keyboardAction &&
+      !switchingSidebar &&
+      !restoring &&
       !matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
       const after = useFrame
@@ -1473,6 +1597,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     edgeMotions = [];
     const wasMorphing = edgeMorphing;
     edgeMorphing = false;
+    if (release) sidebar.toggleAttribute("data-tips-ready", expanded);
     if (!release || !wasMorphing) return;
     delete sidebar.dataset.morphing;
     delete toolbar.dataset.edgeSurface;
@@ -1487,7 +1612,12 @@ export function initComments(options: CommentsOptions): CommentsController {
   function morphEdgeSidebar(
     opening: boolean,
     interrupted: boolean,
-    openingPill?: { left: number; top: number; width: number; height: number } | null,
+    openingPill?: {
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    } | null,
   ) {
     const closingRect = sidebar.getBoundingClientRect();
     const closingFrom = opening
@@ -1523,8 +1653,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         undockEdgeTabs();
       }
       releaseEdgeBox();
+      if (opening) sidebar.dataset.tipsReady = "";
     };
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced =
+      restoring || matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (opening) {
       const visual = interrupted ? sidebar.getBoundingClientRect() : null;
       const radius = sidebar.style.borderRadius || "16px";
@@ -1679,7 +1811,17 @@ export function initComments(options: CommentsOptions): CommentsController {
     });
   }
   function toggleExpanded(value: boolean) {
+    stopLayoutMotion();
     expanded = value;
+    delete sidebar.dataset.tipsReady;
+    sidebar.toggleAttribute("data-tips-restored", restoring);
+    if (!options.onboarding)
+      try {
+        if (value) localStorage.setItem(openKey, "1");
+        else localStorage.removeItem(openKey);
+      } catch {
+        /* The sidebar starts closed next time. */
+      }
     if (value) mode = false;
     if (!value) {
       clearTimeout(accountOpenTimer);
@@ -1714,7 +1856,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     dockMotion?.stop();
     toolbar.style.translate = "0px 0px";
     const after = toolbar.getBoundingClientRect();
-    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
       dockMotion = animate(
         toolbar,
         {
@@ -2220,6 +2362,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       renderList();
     }, 2000);
   }
+  let disposeHeaderTip: (() => void) | undefined;
+  const dismissedTips = new Set<string>();
   const dismissedTipsKey = "branch-comments:dismissed-tips";
   const tips = [
     ["copy", "Copy this page’s comments as a prompt for your agent."],
@@ -2228,15 +2372,17 @@ export function initComments(options: CommentsOptions): CommentsController {
   // Empty-state coach marks: persistent tooltips pinned to the buttons they
   // describe. They live on the sidebar so they ride along as it parks/peeks.
   function syncTips(show: boolean) {
-    let dismissed: string[] = [];
     try {
-      dismissed = JSON.parse(localStorage.getItem(dismissedTipsKey) ?? "[]");
+      const stored = JSON.parse(localStorage.getItem(dismissedTipsKey) ?? "[]");
+      if (Array.isArray(stored))
+        for (const id of stored)
+          if (typeof id === "string") dismissedTips.add(id);
     } catch {
       /* Show every tip when storage is blocked. */
     }
     for (const [id, body] of tips) {
       let card = sidebar.querySelector<HTMLElement>(`[data-tip="${id}"]`);
-      if (!show || dismissed.includes(id)) {
+      if (!show || dismissedTips.has(id)) {
         card?.remove();
         continue;
       }
@@ -2249,11 +2395,14 @@ export function initComments(options: CommentsOptions): CommentsController {
         button(
           "Dismiss tip",
           () => {
-            dismissed.push(id);
+            dismissedTips.add(id);
             try {
-              localStorage.setItem(dismissedTipsKey, JSON.stringify(dismissed));
+              localStorage.setItem(
+                dismissedTipsKey,
+                JSON.stringify([...dismissedTips]),
+              );
             } catch {
-              /* Dismissal lasts for this render only. */
+              /* Dismissal still lasts for this widget instance. */
             }
             node.dataset.leaving = "";
             setTimeout(() => node.remove(), 150);
@@ -2354,8 +2503,50 @@ export function initComments(options: CommentsOptions): CommentsController {
     prompt.style.top = `${Math.max(12, Math.min(rect.bottom + 8, innerHeight - prompt.offsetHeight - 12))}px`;
     actions.querySelector<HTMLButtonElement>("button")?.focus();
   }
+  const canResolve = () => !pending && (guestResolve || !!api.user?.verified);
+  function toggleResolved(
+    thread: Thread,
+    noticeAnchor?: ReturnType<typeof captureNoticePosition>,
+  ) {
+    if (!api.user && (!guests || !guestName.trim())) {
+      openAccount();
+      return;
+    }
+    // Sidebar toggles leave the open card alone; the card's own toggle closes it.
+    const wasSelected = selected === thread.id;
+    const updateResolved = (resolved: boolean) => {
+      const previous = selected;
+      if (wasSelected) selected = resolved ? null : thread.id;
+      return saveOptimistic(
+        changeThread(thread.id, (current) => ({
+          ...current,
+          resolved,
+          resolvedBy: resolved ? api.user : null,
+        })),
+        async (id) => {
+          if (!api.user) await api.guest(guestName);
+          await api.request(`threads/${id(thread.id)}`, "PATCH", {
+            resolved,
+          });
+        },
+        () => {
+          if (!selected) selected = previous;
+        },
+      );
+    };
+    run(() => updateResolved(!thread.resolved));
+    notify(
+      thread.resolved ? "Comment reopened" : "Comment resolved",
+      {
+        label: "Undo",
+        run: () => run(() => updateResolved(thread.resolved)),
+      },
+      noticeAnchor,
+    );
+  }
   function renderList() {
     if (options.onboarding) {
+      disposeHeaderTip?.();
       sidebar.replaceChildren();
       if (options.onboarding.inProject) return;
       if (expanded) {
@@ -2386,6 +2577,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       ? (shadow.activeElement as HTMLInputElement).selectionStart
       : null;
     if (!expanded && !edgeSidebar) {
+      disposeHeaderTip?.();
       sidebar.replaceChildren();
       return;
     }
@@ -2507,6 +2699,11 @@ export function initComments(options: CommentsOptions): CommentsController {
         delete tip.dataset.open;
         tipWarmUntil = Date.now() + 300;
       };
+      disposeHeaderTip = () => {
+        clearTimeout(tipTimer);
+        tip.remove();
+        disposeHeaderTip = undefined;
+      };
       const showTip = (target: HTMLElement) => {
         clearTimeout(tipTimer);
         const reveal = () => {
@@ -2527,6 +2724,8 @@ export function initComments(options: CommentsOptions): CommentsController {
           if (event.pointerType === "mouse") showTip(node);
         });
         node.addEventListener("pointerleave", hideTip);
+        node.addEventListener("focus", () => showTip(node));
+        node.addEventListener("blur", hideTip);
       }
       tools.addEventListener("pointerdown", hideTip);
       panel.append(head);
@@ -2686,8 +2885,17 @@ export function initComments(options: CommentsOptions): CommentsController {
               : "",
         ),
       );
-      card.dataset.thread = thread.id;
       card.append(el("p", "preview", first.body), header, meta);
+      const item = el("div", "thread-item");
+      item.dataset.thread = thread.id;
+      const quickResolve = button(
+        thread.resolved ? "Reopen comment" : "Resolve comment",
+        () => toggleResolved(thread),
+        "icon card-resolve",
+        "check",
+      );
+      quickResolve.disabled = !canResolve();
+      item.append(card, quickResolve);
       if (thread.comments.length > 1) {
         const replies = el("div", "sidebar-replies");
         for (const reply of thread.comments.slice(1)) {
@@ -2707,7 +2915,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         }
         card.append(replies);
       }
-      list.append(card);
+      list.append(item);
     }
     if (!list.childElementCount) {
       const empty = el("div", "empty");
@@ -2737,16 +2945,30 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (issue.kind === "site")
           actions.append(
             button(
+              "Turn on comments",
+              () => {
+                // The owner approves this site on the komo service, where
+                // sign-in isn't blocked; returning to this tab retries.
+                const setup = new URL("/setup", options.endpoint);
+                setup.searchParams.set("workspace", options.project);
+                setup.searchParams.set("site", location.origin);
+                window.open(setup, "_blank", "noopener");
+              },
+              "primary",
+            ),
+            button(
               "Copy link",
               () =>
                 void navigator.clipboard
                   .writeText(location.origin)
                   .then(() => notify("Link copied"))
                   .catch(() => notify(location.origin)),
-              "secondary"
-            )
+              "secondary",
+            ),
           );
-        actions.append(button("Try again", retryConnection, "secondary"));
+        // Returning focus retries a site approval; other issues need a button.
+        if (issue.kind !== "site")
+          actions.append(button("Try again", retryConnection, "secondary"));
         empty.append(actions);
       } else if (!search && filter !== "resolved") {
         empty.append(
@@ -2769,7 +2991,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     syncTips(!!list.querySelector(".empty [aria-label='Add a comment']"));
     requestAnimationFrame(pointTips);
     list.scrollTop = scroll;
-    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
       let entered = 0;
       for (const card of list.querySelectorAll<HTMLElement>("[data-thread]")) {
         const oldTop = previous.get(card.dataset.thread);
@@ -3271,6 +3493,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     const focusKey = active?.dataset.focusKey;
     const caret = focusKey ? active?.selectionStart : null;
     const scroll = dialogs.querySelector(".messages")?.scrollTop ?? 0;
+    const accountScroll =
+      dialogs.querySelector(".account-dialog")?.scrollTop ?? 0;
     const nextKey = account ? "account" : draft ? "draft" : selected;
     const previousDialog = dialogs.firstElementChild as HTMLElement | null;
     const changing = dialogKey !== nextKey;
@@ -3422,46 +3646,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       controls.append(more);
       const resolve = button(
         thread.resolved ? "Reopen comment" : "Resolve comment",
-        () => {
-          if (!api.user && (!guests || !guestName.trim())) {
-            openAccount();
-            return;
-          }
-          const noticeAnchor = captureNoticePosition(thread.anchor);
-          const updateResolved = (resolved: boolean) => {
-            const previous = selected;
-            selected = resolved ? null : thread.id;
-            return saveOptimistic(
-              changeThread(thread.id, (current) => ({
-                ...current,
-                resolved,
-                resolvedBy: resolved ? api.user : null,
-              })),
-              async (id) => {
-                if (!api.user) await api.guest(guestName);
-                await api.request(`threads/${id(thread.id)}`, "PATCH", {
-                  resolved,
-                });
-              },
-              () => {
-                if (!selected) selected = previous;
-              },
-            );
-          };
-          run(() => updateResolved(!thread.resolved));
-          notify(
-            thread.resolved ? "Comment reopened" : "Comment resolved",
-            {
-              label: "Undo",
-              run: () => run(() => updateResolved(thread.resolved)),
-            },
-            noticeAnchor,
-          );
-        },
+        () => toggleResolved(thread, captureNoticePosition(thread.anchor)),
         "icon",
         "check",
       );
-      resolve.disabled = pending || (!guestResolve && !api.user?.verified);
+      resolve.disabled = !canResolve();
       controls.append(resolve);
     }
     controls.append(
@@ -3577,12 +3766,13 @@ export function initComments(options: CommentsOptions): CommentsController {
             later(
               el("section", "onboarding-panel"),
               import("./onboarding.js").then(({ onboardingPanel }) =>
-                onboardingPanel(api, onboarding)
-              )
-            )
+                onboardingPanel(api, onboarding),
+              ),
+            ),
           );
         } else {
           content.append(sidebarSetting());
+          if (localSite) content.append(channelSetting());
           content.append(usagePanel());
         }
         if (
@@ -3593,32 +3783,30 @@ export function initComments(options: CommentsOptions): CommentsController {
         ) {
           const settings = el("div");
           content.append(settings);
-          void import("./onboarding.js").then(
-            ({ projectManagement }) => {
-              if (settings.isConnected)
-                settings.replaceWith(
-                  projectManagement(
-                    api,
-                    options.onboarding?.workspace,
-                    (deleted) => {
-                      if (deleted) {
-                        selected = null;
-                        optimistic.replace([], optimistic.revision);
-                        content.querySelector(".account-usage")?.remove();
-                      } else {
-                        const path = options.onboarding?.workspace
-                          ? `usage?workspace=${encodeURIComponent(options.onboarding.workspace)}`
-                          : "usage";
-                        content
-                          .querySelector(".account-usage")
-                          ?.replaceWith(usagePanel(path));
-                        void refresh().catch(() => {});
-                      }
-                    },
-                  ),
-                );
-            },
-          );
+          void import("./onboarding.js").then(({ projectManagement }) => {
+            if (settings.isConnected)
+              settings.replaceWith(
+                projectManagement(
+                  api,
+                  options.onboarding?.workspace,
+                  (deleted) => {
+                    if (deleted) {
+                      selected = null;
+                      optimistic.replace([], optimistic.revision);
+                      content.querySelector(".account-usage")?.remove();
+                    } else {
+                      const path = options.onboarding?.workspace
+                        ? `usage?workspace=${encodeURIComponent(options.onboarding.workspace)}`
+                        : "usage";
+                      content
+                        .querySelector(".account-usage")
+                        ?.replaceWith(usagePanel(path));
+                      void refresh().catch(() => {});
+                    }
+                  },
+                ),
+              );
+          });
         }
         content.addEventListener("submit", (event) => {
           event.preventDefault();
@@ -3917,6 +4105,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     openingPreview = null;
     const messages = dialog.querySelector(".messages");
     if (messages) messages.scrollTop = scroll;
+    if (account && !changing) dialog.scrollTop = accountScroll;
     if (focusKey) {
       const next = dialog.querySelector<HTMLInputElement | HTMLTextAreaElement>(
         `[data-focus-key="${focusKey}"]`,
@@ -4607,16 +4796,65 @@ export function initComments(options: CommentsOptions): CommentsController {
   dialogs.addEventListener("pointerdown", (event) => {
     if (account && event.target === dialogs) dismiss();
   });
+  function checkPage() {
+    if (destroyed || page() === lastPage) return;
+    lastPage = page();
+    parkedDraft = null;
+    selected = null;
+    draft = null;
+    render();
+  }
+  // Client-side routers change the URL without reloading; repaint pins right
+  // away from the threads already in memory. The poll below still catches
+  // routers that update the URL after these events fire.
+  const onNavigate = () => setTimeout(checkPage);
+  window.addEventListener("popstate", onNavigate, { signal: abort.signal });
+  (
+    window as Window & { navigation?: EventTarget }
+  ).navigation?.addEventListener("navigatesuccess", onNavigate, {
+    signal: abort.signal,
+  });
+  window.addEventListener(
+    "focus",
+    () => {
+      if (issue?.kind === "site") retryConnection();
+    },
+    { signal: abort.signal },
+  );
+  // Frame mode: a click on the framed site closes the sidebar, like a scrim.
+  // Armed on pointerdown so a press that only dismisses a draft or selection
+  // keeps the sidebar open; click (not pointerdown) so scrolling never closes.
+  let frameCloseArmed = false;
+  surface.addEventListener(
+    "pointerdown",
+    (event) => {
+      frameCloseArmed =
+        event.button === 0 &&
+        expanded &&
+        framed &&
+        !edgeSidebar &&
+        !mode &&
+        !account &&
+        !selected &&
+        !draft;
+    },
+    { capture: true, signal: abort.signal },
+  );
+  surface.addEventListener(
+    "click",
+    (event) => {
+      if (!frameCloseArmed || !expanded || edgeSidebar) return;
+      frameCloseArmed = false;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleExpanded(false);
+    },
+    { capture: true, signal: abort.signal },
+  );
   const interval = window.setInterval(
     () => {
       if (document.hidden || destroyed) return;
-      if (page() !== lastPage) {
-        lastPage = page();
-        parkedDraft = null;
-        selected = null;
-        draft = null;
-        render();
-      }
+      checkPage();
       void (
         projectLoaded || options.onboarding ? refresh() : loadProject()
       ).catch(() => {});
@@ -4628,7 +4866,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     () => {
       if (connection === "Offline" && !options.onboarding) retryConnection();
     },
-    { signal: abort.signal }
+    { signal: abort.signal },
   );
   document.addEventListener(
     "visibilitychange",
@@ -4651,6 +4889,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   );
   const controller: CommentsController = {
     destroy() {
+      stopLayoutMotion();
+      disposeHeaderTip?.();
       clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
       clearTimeout(accountOpenTimer);
@@ -4727,7 +4967,14 @@ export function initComments(options: CommentsOptions): CommentsController {
     refresh,
   };
   instances.set(document, controller);
+  try {
+    restoring = !options.onboarding && localStorage.getItem(openKey) === "1";
+  } catch {
+    /* Start closed when storage is blocked. */
+  }
   scalePage();
+  const cached = options.onboarding ? null : api.cached();
+  if (cached) optimistic.replace(visibleThreads(cached));
   render();
   if (edgeSidebar) {
     // Park without the 320ms transition so the collapsed state is applied in
@@ -4737,6 +4984,17 @@ export function initComments(options: CommentsOptions): CommentsController {
     void sidebar.offsetWidth;
     sidebar.style.transition = "";
   }
+  if (restoring) {
+    // Reopen where the reviewer left off: no frame, dock or card motion; one fade.
+    toggleExpanded(true);
+    restoring = false;
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
+      for (const node of [host, framed ? surface : null])
+        node?.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: 200,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        });
+  }
   async function loadProject() {
     let config: {
       github: boolean;
@@ -4744,6 +5002,14 @@ export function initComments(options: CommentsOptions): CommentsController {
       guests: boolean;
       guestResolve: boolean;
     };
+    // Threads need the settled session, not the config: load both in parallel.
+    const listed = api
+      .restore()
+      .catch(() => {
+        /* An expired guest session can be renewed by entering a name. */
+      })
+      .then(refresh);
+    listed.catch(() => {});
     try {
       config = await api.request("config");
     } catch (reason) {
@@ -4759,16 +5025,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     github = config.github;
     guests = config.guests;
     guestResolve = config.guestResolve;
-    try {
-      await api.restore();
-    } catch {
-      /* An expired guest session can be renewed by entering a name. */
-    }
-    await refresh();
+    await listed;
     const deepLink = new URL(location.href).searchParams.get("comment");
     const thread = threads.find((t) => t.id === deepLink);
     if (thread) {
-      toggleExpanded(true);
+      if (!expanded) toggleExpanded(true);
       selectThread(thread);
     }
     render();
