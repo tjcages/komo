@@ -18,20 +18,25 @@ Follow-up to OFF-713, implemented under OFF-715 in PR #29. The changes extend th
 - [x] Remove 24 superseded style declarations. Pin emoji data to 1.8.0, allow `emojiDataSource` for self-hosting/CSP, and show a recoverable data-load failure.
 - [x] Route the website preview through its matching API; keep OAuth on the registered canonical callback and validate popup messages against the API-returned authorization origin and popup window.
 
+- [x] Keep explicitly selected comment mode active after successful posting, including deferred sign-in; preserve failed drafts and honor Browse/V/Escape exits. Shorten sidebar coach marks and copy-action labels.
+- [x] Use cursor pagination ordered by creation time and ID, with legacy offset fallback. Imported IDs and tied timestamps remain valid; scope/authentication filters are unchanged.
+- [x] Limit sidebar row animations to the visible list area. Lists over 40 rows use native offscreen content rendering containment while keeping every comment in the DOM; this is not full DOM virtualization. Browser support falls back to normal rendering. See [CSS content visibility](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/content-visibility).
+- [x] Apply conservative build-only compression to emitted modules, preserving public exports, lazy boundaries, client directives and license notices. Verify the client directive in the packed consumer gate.
+
 ## Measurements and checks
 
 | Measurement | Reviewed baseline | Current |
 | --- | ---: | ---: |
-| Initial browser gzip | 99,894 bytes | 96,520 bytes |
-| All features gzip | 195,983 bytes | 195,599 bytes |
-| Budget headroom (initial / all) | 106 / 17 bytes | 3,480 / 401 bytes |
+| Initial browser gzip | 99,894 bytes | 96,197 bytes |
+| All features gzip | 195,983 bytes | 195,238 bytes |
+| Budget headroom (initial / all) | 106 / 17 bytes | 3,803 / 762 bytes |
 | Idle polls per visible tab/hour | 900 | about 60 |
 | Scoped anchor text walks, 40-card synthetic pass | 10,080 | 240 |
 | Same jsdom diagnostic time | 160 ms | 13 ms |
 
 Poll savings are calculated cadence reductions (~93% while idle), not production billing. Anchor timings are synthetic diagnostics, not real-user latency. React remains required by the full lazy menu/color-picker runtime; its peers were not falsely marked optional. No budget was raised.
 
-Local build, typecheck, full suite (179 tests before the additional preview-routing case), subsequent focused routing/cache tests, size gate, and packed-consumer gate passed. Browser checks cover valid 0/40-comment benchmark loads and cleanup, cached account/comments/open-sidebar reload, repeated Floating/Frame switching, lazy toolbar/color controls, and the configurable emoji data failure UI. No public feedback was posted or modified.
+Local build, typecheck, full suite (182 tests), size gate, and packed-consumer gate passed. Browser checks cover valid 0/40-comment benchmark loads and cleanup, cached account/comments/open-sidebar reload, repeated Floating/Frame switching, lazy toolbar/color controls, and the configurable emoji data failure UI. No public feedback was posted or modified.
 
 ## Release steps and remaining architecture
 
@@ -39,4 +44,5 @@ Local build, typecheck, full suite (179 tests before the additional preview-rout
 - Production receives 100% of its previous API version. The review API receives 0% of ordinary traffic and is selected explicitly by the website preview.
 - Exact SQL rate-limit counters remain: an edge limiter is not an equivalent replacement for global/day and project/day guarantees. Adaptive polling reduces their use without weakening enforcement. Redesigning these counters needs a separate shared-quota architecture.
 - 15–20% bundle headroom is still a target, not achieved. Both tested Motion import substitutions increased total size or lost required layout behavior. Larger savings require restructuring the React UI islands and interleaved account/management code/styles with interaction parity checks.
-- Cross-tab polling leadership, cursor pagination and viewport-rendered long lists remain follow-ups after measuring this pass. They are not represented as completed work.
+- Cursor pagination is complete. Native offscreen rendering is implemented for long lists; full DOM virtualization remains a separate option if creation/memory benchmarks justify its complexity.
+- Cross-tab polling coordination remains next: coordinate scheduled reads with per-poll Web Locks and revision-only broadcasts, scoped to endpoint/project/repository/branch/session fingerprint. Suppress a read only when the receiving tab already has a complete matching snapshot. Partial caches, writes, explicit refresh, authentication and changed revisions still fetch independently. Unsupported browsers retain independent polling. This design is not yet implemented; separate preview origins cannot share same-origin coordination.
