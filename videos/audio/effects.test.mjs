@@ -69,6 +69,19 @@ test("authored cues land on actual click frames in the current film", () => {
   assert.equal(cues.find((c) => c.id === "resolve").frame, 155);
   assert.equal(cues.find((c) => c.id === "copy").frame, 449);
   assert.equal(cues.find((c) => c.id === "send").frame, 517);
+  // Feed uses SidebarStage(frame + 42): arrivals and search must use local frames.
+  assert.deepEqual(
+    cues.filter((c) => c.id.startsWith("feed-comment-")).map((c) => c.frame),
+    [216, 225, 234, 243, 252, 261],
+  );
+  assert.deepEqual(
+    cues.filter((c) => /^comment-\d$/.test(c.id)).map((c) => c.frame),
+    [77, 94, 111],
+  );
+  assert.equal(cues.find((c) => c.id === "search-click").frame, 286);
+  assert.equal(cues.find((c) => c.id === "composer-click").frame, 484);
+  assert.equal(cues.length, sheet.cues.length);
+  validateEffects({ ...base, duration: 626 / 30, effects: cues });
 });
 test("effects are sample-aligned, deterministic and layered on both music channels", () => {
   const cue = {

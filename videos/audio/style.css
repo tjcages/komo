@@ -481,3 +481,11 @@ a {
     padding: 10px 12px;
   }
 }
+
+/* Keep dense sound passes editable without burying playback/export controls. */
+#cueList {
+  max-height: 32rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}

@@ -3,28 +3,292 @@
   "fps": 30,
   "cues": [
     {
+      "id": "title-0",
+      "scene": "context",
+      "frame": 1,
+      "sound": "tick",
+      "volume": 0.12,
+      "label": "Title word 1"
+    },
+    {
+      "id": "title-1",
+      "scene": "context",
+      "frame": 4,
+      "sound": "tick",
+      "volume": 0.12,
+      "label": "Title word 2"
+    },
+    {
+      "id": "title-2",
+      "scene": "context",
+      "frame": 7,
+      "sound": "tick",
+      "volume": 0.12,
+      "label": "Title word 3"
+    },
+    {
+      "id": "title-3",
+      "scene": "context",
+      "frame": 10,
+      "sound": "tick",
+      "volume": 0.12,
+      "label": "Title word 4"
+    },
+    {
+      "id": "title-4",
+      "scene": "context",
+      "frame": 13,
+      "sound": "tick",
+      "volume": 0.12,
+      "label": "Title word 5"
+    },
+    {
+      "id": "context-pin-0",
+      "scene": "context",
+      "frame": 16,
+      "sound": "droplet",
+      "volume": 0.6,
+      "label": "Comment pin appears 1"
+    },
+    {
+      "id": "context-pin-1",
+      "scene": "context",
+      "frame": 25,
+      "sound": "droplet",
+      "volume": 0.6,
+      "label": "Comment pin appears 2"
+    },
+    {
       "id": "pin",
       "scene": "context",
       "frame": 54,
       "sound": "press",
-      "volume": 0.55,
+      "volume": 0.8,
       "label": "Pin click"
+    },
+    {
+      "id": "pin-release",
+      "scene": "context",
+      "frame": 57,
+      "sound": "release",
+      "volume": 0.32,
+      "label": "Pin click release"
+    },
+    {
+      "id": "thread-open",
+      "scene": "conversation",
+      "frame": 0,
+      "sound": "page",
+      "volume": 0.45,
+      "label": "Comment thread opens"
+    },
+    {
+      "id": "comment-0",
+      "scene": "conversation",
+      "frame": 0,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Incoming comment 1"
+    },
+    {
+      "id": "comment-0-typing-0",
+      "scene": "conversation",
+      "frame": 3,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 1 typing 1"
+    },
+    {
+      "id": "comment-0-typing-1",
+      "scene": "conversation",
+      "frame": 5,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 1 typing 2"
+    },
+    {
+      "id": "comment-0-typing-2",
+      "scene": "conversation",
+      "frame": 7,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 1 typing 3"
+    },
+    {
+      "id": "comment-0-typing-3",
+      "scene": "conversation",
+      "frame": 9,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 1 typing 4"
+    },
+    {
+      "id": "comment-1",
+      "scene": "conversation",
+      "frame": 17,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Incoming comment 2"
+    },
+    {
+      "id": "comment-1-typing-0",
+      "scene": "conversation",
+      "frame": 20,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 2 typing 1"
+    },
+    {
+      "id": "comment-1-typing-1",
+      "scene": "conversation",
+      "frame": 22,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 2 typing 2"
+    },
+    {
+      "id": "comment-1-typing-2",
+      "scene": "conversation",
+      "frame": 24,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 2 typing 3"
+    },
+    {
+      "id": "comment-1-typing-3",
+      "scene": "conversation",
+      "frame": 26,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 2 typing 4"
+    },
+    {
+      "id": "comment-1-typing-4",
+      "scene": "conversation",
+      "frame": 28,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 2 typing 5"
+    },
+    {
+      "id": "comment-2",
+      "scene": "conversation",
+      "frame": 34,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Incoming comment 3"
+    },
+    {
+      "id": "comment-2-typing-0",
+      "scene": "conversation",
+      "frame": 37,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 3 typing 1"
     },
     {
       "id": "reaction",
       "scene": "conversation",
       "frame": 39,
       "sound": "droplet",
-      "volume": 0.25,
+      "volume": 0.55,
       "label": "Reaction appears"
+    },
+    {
+      "id": "comment-2-typing-1",
+      "scene": "conversation",
+      "frame": 39,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 3 typing 2"
+    },
+    {
+      "id": "comment-2-typing-2",
+      "scene": "conversation",
+      "frame": 41,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 3 typing 3"
+    },
+    {
+      "id": "comment-2-typing-3",
+      "scene": "conversation",
+      "frame": 43,
+      "sound": "tick",
+      "volume": 0.2,
+      "label": "Comment 3 typing 4"
+    },
+    {
+      "id": "reaction-1",
+      "scene": "conversation",
+      "frame": 44,
+      "sound": "droplet",
+      "volume": 0.5,
+      "label": "Reaction appears 2"
+    },
+    {
+      "id": "reaction-2",
+      "scene": "conversation",
+      "frame": 49,
+      "sound": "droplet",
+      "volume": 0.5,
+      "label": "Reaction appears 3"
     },
     {
       "id": "resolve",
       "scene": "conversation",
       "frame": 78,
       "sound": "press",
-      "volume": 0.5,
+      "volume": 0.8,
       "label": "Resolve click"
+    },
+    {
+      "id": "resolve-confirm",
+      "scene": "conversation",
+      "frame": 79,
+      "sound": "success",
+      "volume": 0.48,
+      "label": "Comment resolved"
+    },
+    {
+      "id": "resolve-release",
+      "scene": "conversation",
+      "frame": 81,
+      "sound": "release",
+      "volume": 0.3,
+      "label": "Resolve click release"
+    },
+    {
+      "id": "thread-close",
+      "scene": "conversation",
+      "frame": 84,
+      "sound": "whisper",
+      "volume": 0.32,
+      "label": "Comment thread closes"
+    },
+    {
+      "id": "sidebar-pin-0",
+      "scene": "sidebar",
+      "frame": 3,
+      "sound": "droplet",
+      "volume": 0.38,
+      "label": "Page comment pin 1"
+    },
+    {
+      "id": "sidebar-pin-1",
+      "scene": "sidebar",
+      "frame": 6,
+      "sound": "droplet",
+      "volume": 0.38,
+      "label": "Page comment pin 2"
+    },
+    {
+      "id": "sidebar-pin-2",
+      "scene": "sidebar",
+      "frame": 9,
+      "sound": "droplet",
+      "volume": 0.38,
+      "label": "Page comment pin 3"
     },
     {
       "id": "sidebar",
@@ -35,36 +299,324 @@
       "label": "Sidebar opens"
     },
     {
+      "id": "feed-comment-0",
+      "scene": "feed",
+      "frame": 7,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Feed comment arrives 1"
+    },
+    {
+      "id": "feed-comment-1",
+      "scene": "feed",
+      "frame": 16,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Feed comment arrives 2"
+    },
+    {
+      "id": "feed-comment-2",
+      "scene": "feed",
+      "frame": 25,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Feed comment arrives 3"
+    },
+    {
+      "id": "feed-comment-3",
+      "scene": "feed",
+      "frame": 34,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Feed comment arrives 4"
+    },
+    {
+      "id": "feed-comment-4",
+      "scene": "feed",
+      "frame": 43,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Feed comment arrives 5"
+    },
+    {
+      "id": "feed-comment-5",
+      "scene": "feed",
+      "frame": 52,
+      "sound": "droplet",
+      "volume": 0.65,
+      "label": "Feed comment arrives 6"
+    },
+    {
+      "id": "search-click",
+      "scene": "feed",
+      "frame": 77,
+      "sound": "press",
+      "volume": 0.7,
+      "label": "Search click"
+    },
+    {
+      "id": "search-open",
+      "scene": "feed",
+      "frame": 78,
+      "sound": "toggle",
+      "volume": 0.45,
+      "label": "Search field expands"
+    },
+    {
+      "id": "search-release",
+      "scene": "feed",
+      "frame": 80,
+      "sound": "release",
+      "volume": 0.32,
+      "label": "Search click release"
+    },
+    {
+      "id": "search-type-0",
+      "scene": "feed",
+      "frame": 85,
+      "sound": "tick",
+      "volume": 0.3,
+      "label": "Search types l"
+    },
+    {
+      "id": "search-type-1",
+      "scene": "feed",
+      "frame": 87,
+      "sound": "tick",
+      "volume": 0.3,
+      "label": "Search types a"
+    },
+    {
+      "id": "search-type-2",
+      "scene": "feed",
+      "frame": 89,
+      "sound": "tick",
+      "volume": 0.3,
+      "label": "Search types v"
+    },
+    {
+      "id": "search-type-3",
+      "scene": "feed",
+      "frame": 91,
+      "sound": "tick",
+      "volume": 0.3,
+      "label": "Search types e"
+    },
+    {
+      "id": "search-filter",
+      "scene": "feed",
+      "frame": 91,
+      "sound": "scan",
+      "volume": 0.2,
+      "label": "Search results filter"
+    },
+    {
+      "id": "search-type-4",
+      "scene": "feed",
+      "frame": 93,
+      "sound": "tick",
+      "volume": 0.3,
+      "label": "Search types n"
+    },
+    {
+      "id": "search-type-5",
+      "scene": "feed",
+      "frame": 95,
+      "sound": "tick",
+      "volume": 0.3,
+      "label": "Search types d"
+    },
+    {
+      "id": "search-type-6",
+      "scene": "feed",
+      "frame": 97,
+      "sound": "tick",
+      "volume": 0.3,
+      "label": "Search types e"
+    },
+    {
+      "id": "search-type-7",
+      "scene": "feed",
+      "frame": 99,
+      "sound": "tick",
+      "volume": 0.3,
+      "label": "Search types r"
+    },
+    {
+      "id": "toolbar-appear",
+      "scene": "drawer",
+      "frame": 0,
+      "sound": "bloom",
+      "volume": 0.4,
+      "label": "Toolbar appears"
+    },
+    {
+      "id": "toolbar-collapse",
+      "scene": "drawer",
+      "frame": 25,
+      "sound": "toggle",
+      "volume": 0.55,
+      "label": "Toolbar collapses"
+    },
+    {
+      "id": "toolbar-horizontal",
+      "scene": "drawer",
+      "frame": 39,
+      "sound": "page",
+      "volume": 0.45,
+      "label": "Toolbar expands horizontally"
+    },
+    {
       "id": "drawer",
       "scene": "drawer",
       "frame": 53,
       "sound": "press",
-      "volume": 0.5,
+      "volume": 0.8,
       "label": "Drawer click"
+    },
+    {
+      "id": "drawer-open",
+      "scene": "drawer",
+      "frame": 54,
+      "sound": "page",
+      "volume": 0.55,
+      "label": "Menu opens"
+    },
+    {
+      "id": "drawer-release",
+      "scene": "drawer",
+      "frame": 56,
+      "sound": "release",
+      "volume": 0.32,
+      "label": "Menu click release"
+    },
+    {
+      "id": "hover-8",
+      "scene": "copy",
+      "frame": 8,
+      "sound": "tick",
+      "volume": 0.23,
+      "label": "Menu focus: account"
+    },
+    {
+      "id": "hover-15",
+      "scene": "copy",
+      "frame": 15,
+      "sound": "tick",
+      "volume": 0.23,
+      "label": "Menu focus: browse"
+    },
+    {
+      "id": "hover-16",
+      "scene": "copy",
+      "frame": 16,
+      "sound": "tick",
+      "volume": 0.23,
+      "label": "Menu focus: comment"
+    },
+    {
+      "id": "hover-17",
+      "scene": "copy",
+      "frame": 17,
+      "sound": "tick",
+      "volume": 0.23,
+      "label": "Menu focus: comments"
+    },
+    {
+      "id": "hover-20",
+      "scene": "copy",
+      "frame": 20,
+      "sound": "tick",
+      "volume": 0.23,
+      "label": "Menu focus: copy-prompts"
     },
     {
       "id": "copy",
       "scene": "copy",
       "frame": 42,
       "sound": "press",
-      "volume": 0.55,
+      "volume": 0.8,
       "label": "Copy prompt"
+    },
+    {
+      "id": "copy-confirm",
+      "scene": "copy",
+      "frame": 43,
+      "sound": "success",
+      "volume": 0.55,
+      "label": "Copied prompt confirmation"
+    },
+    {
+      "id": "copy-release",
+      "scene": "copy",
+      "frame": 45,
+      "sound": "release",
+      "volume": 0.32,
+      "label": "Copy click release"
+    },
+    {
+      "id": "agent-open",
+      "scene": "agent",
+      "frame": 0,
+      "sound": "page",
+      "volume": 0.4,
+      "label": "Agent composer opens"
+    },
+    {
+      "id": "composer-click",
+      "scene": "agent",
+      "frame": 20,
+      "sound": "press",
+      "volume": 0.65,
+      "label": "Focus agent composer"
     },
     {
       "id": "paste",
       "scene": "agent",
       "frame": 22,
       "sound": "droplet",
-      "volume": 0.3,
+      "volume": 0.55,
       "label": "Prompt pasted"
+    },
+    {
+      "id": "composer-release",
+      "scene": "agent",
+      "frame": 23,
+      "sound": "release",
+      "volume": 0.3,
+      "label": "Composer click release"
     },
     {
       "id": "send",
       "scene": "agent",
       "frame": 53,
       "sound": "press",
-      "volume": 0.6,
+      "volume": 0.8,
       "label": "Send click"
+    },
+    {
+      "id": "sent-message",
+      "scene": "agent",
+      "frame": 54,
+      "sound": "success",
+      "volume": 0.55,
+      "label": "Sent message appears"
+    },
+    {
+      "id": "send-release",
+      "scene": "agent",
+      "frame": 55,
+      "sound": "release",
+      "volume": 0.32,
+      "label": "Send click release"
+    },
+    {
+      "id": "composer-away",
+      "scene": "agent",
+      "frame": 61,
+      "sound": "whisper",
+      "volume": 0.25,
+      "label": "Composer slides away"
     },
     {
       "id": "logo",

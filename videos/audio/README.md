@@ -77,7 +77,7 @@ The tests cover pulse estimation, trimmed cut timing, beat alignment at excerpt 
 
 ## Animation sound effects
 
-The model authors `videos/audio/cues.json` from the animation source, using a **scene name and scene-local frame**. The supplied nine cues match pin / Resolve / drawer / Copy / Send clicks, reaction and paste pops, sidebar movement, and logo arrival. A cue is resolved through the edit's trims into a film frame. Trimmed-away cues are omitted; unknown or repeated scene names fail rather than silently drifting. When an animation's internal timing changes, update its cue frame too.
+The model authors `videos/audio/cues.json` from the animation source, using a **scene name and scene-local frame**. The supplied 78 cues cover title words and pins; all three incoming conversation comments and their typing/reactions; all six feed arrivals; search click, expansion, eight keystrokes and filtering; toolbar morphs, menu focus changes, click/release pairs, copy confirmation, composer focus, paste, send feedback and logo arrival. Primary clicks use higher levels than typing and hover textures. A cue is resolved through the edit's trims into a film frame. Trimmed-away cues are omitted; unknown or repeated scene names fail rather than silently drifting. When an animation's internal timing changes, update its cue frame too.
 
 ```json
 {
