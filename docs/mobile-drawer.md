@@ -80,3 +80,13 @@ The owner confirmed the toolbar now follows Safari's resizing controls smoothly,
 The previous CSS `translate` positioning that made the toolbar track Safari's viewport remains unchanged. The owner must verify Drawer finger tracking on the next Worker preview; automated pointer tests establish the gesture state and scroll guard, not native iOS smoothness.
 
 Local validation: build and typecheck passed; all 208 tests passed. Initial gzip is 96,829 bytes and all-features gzip is 195,781 bytes, below the unchanged 196,000-byte limit.
+
+## Fixed sheet rendering follow-up
+
+The owner tested that version on iPhone and reported the same finger-tracking stutter. The webpage behind the Drawer does not move during a slow handle drag, ruling out competing page scroll as the visible symptom. A Chrome mobile-emulation trace of 25 touch moves showed direct pointer delivery, no layout during the drag, and only two paints. Vaul's live demo also followed all 25 moves, so this trace does not reproduce or explain iOS Safari's stutter.
+
+The sheet and backdrop now use fixed positioning, matching Vaul's drawer placement. Viewport alignment uses the sheet's `bottom` position instead of composing CSS `translate` with the drag `transform` on the same element. The toolbar's separate viewport positioning remains unchanged. This is a Safari compositing hypothesis, not a verified native fix; Device Hub computer use still fails with `Computer Use server error -10005: timeoutReached`.
+
+The mobile toolbar also had a translucent `backdrop-filter` surface above the moving sheet. While the Drawer is open, it now uses an opaque surface without backdrop blur so the sheet does not animate under a live blur. This is another Safari rendering hypothesis pending owner testing; the closed toolbar appearance is unchanged.
+
+Local Chrome read-back confirms the sheet computes to `position: fixed`, has no individual `translate`, and the open Drawer toolbar computes to `backdrop-filter: none`. A synthetic 25-move touch drag updated the sheet 25 times with no layout during movement. The all-features bundle is 195,813 / 196,000 bytes.

@@ -82,7 +82,7 @@ it("drags the handle and list top without stealing a scrolled list", () => {
   const sheet = shadow.querySelector(".mobile-drawer") as HTMLElement;
   const head = shadow.querySelector(".mobile-drawer-head") as HTMLElement;
   drawer!.position(-40);
-  expect(sheet.style.translate).toBe("0 -40px");
+  expect(sheet.style.bottom).toBe("40px");
   Object.defineProperty(sheet, "getBoundingClientRect", { value: () => ({ height: 600 }) });
   Object.defineProperty(list, "scrollHeight", { value: 1000 });
   Object.defineProperty(list, "clientHeight", { value: 500 });

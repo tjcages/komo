@@ -125,7 +125,7 @@ export function mobileDrawer(
   sheet.inert = true;
   return {
     position(bottom: number) {
-      sheet.style.translate = `0 ${bottom}px`;
+      sheet.style.bottom = `${-bottom}px`;
     },
     update(value: boolean, restored = false, lock = value) {
       if (disposed) return;

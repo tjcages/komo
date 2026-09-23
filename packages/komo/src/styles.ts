@@ -2400,7 +2400,7 @@ textarea {
 /* Mobile owns a bottom sheet, never a shrunken desktop sidebar. */
 :host([data-sidebar="drawer"]) .sidebar-tip { display:none !important; }
 :host([data-sidebar="drawer"]) .mobile-drawer {
-  position:absolute; inset:auto 0 0; height: min(82%, 820px);
+  position:fixed; inset:auto 0 0; height: min(82%, 820px);
   display:flex; flex-direction:column; min-height:0; pointer-events:auto;
   background:#0d0d0d; color:#e9e6e1; border-radius:24px 24px 0 0;
   box-shadow:0 -1px 0 #ffffff24;
@@ -2408,7 +2408,7 @@ textarea {
 
 }
 .mobile-drawer[hidden] { display:none !important; }
-.mobile-drawer-backdrop { position:absolute; inset:0; background:#0005; pointer-events:auto; z-index:7; touch-action:none; will-change:opacity; }
+.mobile-drawer-backdrop { position:fixed; inset:0; background:#0005; pointer-events:auto; z-index:7; touch-action:none; will-change:opacity; }
 .mobile-drawer-backdrop[hidden] { display:none; }
 .mobile-drawer-head { touch-action:none; position:relative; height:36px; flex:none; display:flex; align-items:center; justify-content:center; }
 .mobile-drawer-handle { width:72px; height:32px; display:flex; align-items:center; justify-content:center; }
@@ -2424,6 +2424,8 @@ textarea {
 :host([data-sidebar="drawer"]) .panel::before { display:none; }
 :host([data-sidebar="drawer"]) .panel .list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; padding-bottom:calc(88px + env(safe-area-inset-bottom,0px)); -webkit-mask-image:none; mask-image:none; scrollbar-gutter:auto; }
 :host([data-sidebar="drawer"]) .toolbar { position:absolute; z-index:10; }
+:host([data-sidebar="drawer"].review-open) .toolbar .morphing-menu { --mm-surface:#282828; }
+:host([data-sidebar="drawer"].review-open) .toolbar .morphing-menu__shell { backdrop-filter:none; }
 :host([data-sidebar="drawer"]) .account-layer { top:0; height:100%; z-index:11; }
 :host([data-sidebar="drawer"]):not(.review-open) .panel { display:none; }
 :host([data-sidebar="drawer"]) > :not(.mobile-drawer-mount) > .panel { position:absolute; inset:18% 0 0; height:82%; background:#0d0d0d; }
