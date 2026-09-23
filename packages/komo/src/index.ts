@@ -2688,7 +2688,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       };
       tools.append(
         button(
-          "Copy this page’s comments for agent",
+          "Copy page comments",
           () =>
             filter === "resolved"
               ? confirmResolvedCleanup(
@@ -2839,10 +2839,10 @@ export function initComments(options: CommentsOptions): CommentsController {
       deleting
         ? cleanupOwner
           ? "Delete resolved comments permanently"
-          : "Only the project owner can delete resolved comments"
+          : "Project owner only"
         : copiedPrompt === "page"
           ? "Copied prompt"
-          : "Copy this page’s comments for agent",
+          : "Copy page comments",
     );
     panel.dataset.search = String(searchOpen);
     panel.querySelector<HTMLElement>(".filter-slot")!.inert = searchOpen;
