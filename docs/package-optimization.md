@@ -23,20 +23,24 @@ Follow-up to OFF-713, implemented under OFF-715 in PR #29. The changes extend th
 - [x] Limit sidebar row animations to the visible list area. Lists over 40 rows use native offscreen content rendering containment while keeping every comment in the DOM; this is not full DOM virtualization. Browser support falls back to normal rendering. See [CSS content visibility](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/content-visibility).
 - [x] Apply conservative build-only compression to emitted modules, preserving public exports, lazy boundaries, client directives and license notices. Verify the client directive in the packed consumer gate.
 
+- [x] Isolate cookies by API/project, make parent-domain sharing explicit, preserve validated account migration, and keep HTTP development tokens out of cookies. Clear all scoped channel caches on logout, honor shared logout markers, and retain memory-only sessions when storage is blocked.
+- [x] Reconcile session changes across tabs/focus, discard obsolete queued writes without rolling private drafts into the new account, reject mismatched widget scopes, and make teardown idempotent.
+- [x] Preserve authorization for imported thread actions and fail closed when approved-site policy reads encounter operational database errors. See [package safety review](package-safety.md) for boundaries and evidence.
+
 ## Measurements and checks
 
 | Measurement | Reviewed baseline | Current |
 | --- | ---: | ---: |
-| Initial browser gzip | 99,894 bytes | 96,197 bytes |
-| All features gzip | 195,983 bytes | 195,238 bytes |
-| Budget headroom (initial / all) | 106 / 17 bytes | 3,803 / 762 bytes |
+| Initial browser gzip | 99,894 bytes | 96,812 bytes |
+| All features gzip | 195,983 bytes | 195,855 bytes |
+| Budget headroom (initial / all) | 106 / 17 bytes | 3,188 / 145 bytes |
 | Idle polls per visible tab/hour | 900 | about 60 |
 | Scoped anchor text walks, 40-card synthetic pass | 10,080 | 240 |
 | Same jsdom diagnostic time | 160 ms | 13 ms |
 
 Poll savings are calculated cadence reductions (~93% while idle), not production billing. Anchor timings are synthetic diagnostics, not real-user latency. React remains required by the full lazy menu/color-picker runtime; its peers were not falsely marked optional. No budget was raised.
 
-Local build, typecheck, full suite (182 tests), size gate, and packed-consumer gate passed. Browser checks cover valid 0/40-comment benchmark loads and cleanup, cached account/comments/open-sidebar reload, repeated Floating/Frame switching, lazy toolbar/color controls, and the configurable emoji data failure UI. No public feedback was posted or modified.
+Local build, typecheck, full suite (201 tests), size gate, and packed-consumer gate passed. Browser checks cover valid 0/40-comment benchmark loads and cleanup, cached account/comments/open-sidebar reload, repeated Floating/Frame switching, lazy toolbar/color controls, and the configurable emoji data failure UI. No public feedback was posted or modified.
 
 ## Release steps and remaining architecture
 
