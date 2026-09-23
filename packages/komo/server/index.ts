@@ -8,6 +8,7 @@ import { setupPage } from "./setup-page";
 import setupClient from "./setup-client.txt";
 import {
   projectConfig,
+  maintain,
   workspaceConfig,
   provision,
   googleOwner,
@@ -495,6 +496,8 @@ async function route(
     });
     check(allowed.success, 429, "Too many requests. Try again shortly.");
   }
+  // Keep exact shared quotas: the per-location edge limiter cannot enforce a
+  // service-wide daily budget. Unchanged polls still consume these counters.
   if (env.KOMO_HOSTED === "true")
     await limit(env, "service:requests", 100000, 86400);
   if (
@@ -813,24 +816,7 @@ async function route(
       403,
       "A Google-authenticated owner must finish workspace setup first."
     );
-  // Cleanup runs without delaying requests and never contains user content in logs.
-  if (request.method !== "GET")
-    ctx.waitUntil(
-      env.DB.batch([
-        env.DB.prepare("DELETE FROM rate_limits WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM sessions WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM project_invites WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM oauth_states WHERE expires_at<?").bind(
-          Date.now()
-        ),
-      ]).then(() => undefined)
-    );
+  if (env.KOMO_HOSTED !== "true") ctx.waitUntil(maintain(env.DB));
   if (url.pathname === "/config" && request.method === "GET")
     return json({
       repo: config.repo,
@@ -1077,6 +1063,18 @@ async function route(
     )
       .bind(...ids)
       .all<{ comment_id: string; user_id: string; emoji: string }>();
+    const commentsByThread = new Map<string, CommentRow[]>();
+    for (const comment of comments.results) {
+      const group = commentsByThread.get(comment.thread_id) ?? [];
+      group.push(comment);
+      commentsByThread.set(comment.thread_id, group);
+    }
+    const reactionsByComment = new Map<string, Comment["reactions"]>();
+    for (const reaction of reactions.results) {
+      const group = reactionsByComment.get(reaction.comment_id) ?? {};
+      (group[reaction.emoji] ??= []).push(reaction.user_id);
+      reactionsByComment.set(reaction.comment_id, group);
+    }
     const threads: Thread[] = rows.results.map((row) => ({
       id: row.id,
       page: pagePath(row.page),
@@ -1091,30 +1089,38 @@ async function route(
         : null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      comments: comments.results
-        .filter((c) => c.thread_id === row.id)
-        .map((c) => {
-          const grouped: Comment["reactions"] = {};
-          for (const r of reactions.results.filter(
-            (r) => r.comment_id === c.id
-          ))
-            (grouped[r.emoji] ??= []).push(r.user_id);
-          return {
-            id: c.id,
-            body: c.body,
-            author: {
-              id: c.user_id,
-              name: c.name,
-              verified: !!c.verified,
-              avatarUrl: c.avatar_url || undefined,
-              accentColor: c.accent_color || undefined,
-            },
-            createdAt: c.created_at,
-            editedAt: c.edited_at,
-            reactions: grouped,
-          };
-        }),
+      comments: (commentsByThread.get(row.id) ?? []).map((c) => ({
+        id: c.id,
+        body: c.body,
+        author: {
+          id: c.user_id,
+          name: c.name,
+          verified: !!c.verified,
+          avatarUrl: c.avatar_url || undefined,
+          accentColor: c.accent_color || undefined,
+        },
+        createdAt: c.created_at,
+        editedAt: c.edited_at,
+        reactions: reactionsByComment.get(c.id) ?? {},
+      })),
     }));
+    if (url.searchParams.get("authors") === "1") {
+      const authors: Record<string, Identity> = Object.create(null);
+      const authorId = (author: Identity) => {
+        authors[author.id] = { ...authors[author.id], ...author };
+        return author.id;
+      };
+      return json({
+        threads: threads.map(thread => ({
+          ...thread,
+          resolvedBy: thread.resolvedBy ? authorId(thread.resolvedBy) : null,
+          comments: thread.comments.map(comment => ({ ...comment, author: authorId(comment.author) })),
+        })),
+        authors,
+        next: ids.length === 50 ? offset + 50 : null,
+        revision,
+      });
+    }
     return json({
       threads,
       next: ids.length === 50 ? offset + 50 : null,
@@ -1304,28 +1310,7 @@ async function route(
 }
 export default {
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(
-      env.DB.batch([
-        env.DB.prepare("DELETE FROM rate_limits WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM sessions WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM project_invites WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM oauth_states WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM setup_requests WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare(
-          "DELETE FROM users WHERE id LIKE 'guest:%' AND id NOT IN (SELECT user_id FROM sessions) AND id NOT IN (SELECT user_id FROM comments) AND id NOT IN (SELECT user_id FROM project_members)"
-        ),
-      ]).then(() => undefined)
-    );
+    ctx.waitUntil(maintain(env.DB, true));
   },
   async fetch(request, env, ctx) {
     let response: Response;

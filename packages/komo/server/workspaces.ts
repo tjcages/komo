@@ -20,21 +20,23 @@ export function retainReviewerComments(
   limit: number | undefined
 ): D1PreparedStatement[] {
   if (!limit || !Number.isInteger(limit) || limit < 1) return [];
+  // Remove only this reviewer's threads that would become empty. Do this before
+  // pruning their comments so candidate IDs remain available; delete triggers
+  // preserve quota/revision accounting. Newest retained comments are untouched.
   return [
-    db
-      .prepare(
-        `DELETE FROM comments WHERE user_id=?
+    db.prepare(`WITH kept AS MATERIALIZED (
+      SELECT c.id FROM comments c JOIN threads t ON t.id=c.thread_id
+      WHERE c.user_id=? AND t.project=? ORDER BY c.created_at DESC,c.rowid DESC LIMIT ?
+    ) DELETE FROM threads WHERE project=?
+      AND id IN (SELECT thread_id FROM comments WHERE user_id=?)
+      AND NOT EXISTS (SELECT 1 FROM comments c WHERE c.thread_id=threads.id
+        AND (c.user_id<>? OR c.id IN (SELECT id FROM kept)))`)
+      .bind(user, project, limit, project, user, user),
+    db.prepare(`DELETE FROM comments WHERE user_id=?
       AND thread_id IN (SELECT id FROM threads WHERE project=?)
       AND id NOT IN (SELECT c.id FROM comments c JOIN threads t ON t.id=c.thread_id
-        WHERE c.user_id=? AND t.project=? ORDER BY c.created_at DESC,c.rowid DESC LIMIT ?)`
-      )
+        WHERE c.user_id=? AND t.project=? ORDER BY c.created_at DESC,c.rowid DESC LIMIT ?)`)
       .bind(user, project, user, project, limit),
-    db
-      .prepare(
-        `DELETE FROM threads WHERE project=?
-      AND NOT EXISTS (SELECT 1 FROM comments WHERE thread_id=threads.id)`
-      )
-      .bind(project),
   ];
 }
 export async function projectConfig(
@@ -142,4 +144,25 @@ export async function provision(
     "Your account has reached three hosted projects."
   );
   return { project: id, repo };
+}
+
+// Cron owns hosted cleanup. Self-hosted deployments without cron get one attempt
+// per database/isolate/hour; concurrent requests share the same deadline.
+const nextCleanup = new WeakMap<D1Database, number>();
+export async function maintain(db: D1Database, scheduled = false) {
+  const now = Date.now();
+  if (!scheduled && now < (nextCleanup.get(db) ?? 0)) return;
+  nextCleanup.set(db, now + 3600000);
+  try {
+    await db.batch([
+      ...["rate_limits", "sessions", "project_invites", "oauth_states", "setup_requests"].map(
+        table => db.prepare(`DELETE FROM ${table} WHERE expires_at<?`).bind(now)
+      ),
+      db.prepare("DELETE FROM users WHERE id LIKE 'guest:%' AND id NOT IN (SELECT user_id FROM sessions) AND id NOT IN (SELECT user_id FROM comments) AND id NOT IN (SELECT user_id FROM project_members)"),
+    ]);
+  } catch (error) {
+    // Retry transient failures after a minute, not on every incoming request.
+    nextCleanup.set(db, now + 60000);
+    throw error;
+  }
 }

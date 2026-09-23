@@ -510,7 +510,19 @@ describe("shared comments against real workerd and SQLite", () => {
       await request("/threads", "GET", undefined, undefined, branch)
     ).json();
     expect(result.threads[0].anchor).toEqual(moved);
+    const compact = await (await request("/threads?authors=1", "GET", undefined, undefined, branch)).json();
+    expect(compact.threads[0].comments[0].author).toBe(owner.user.id);
+    expect(compact.authors[owner.user.id]).toEqual(result.threads[0].comments[0].author);
+    expect(compact.threads.map((thread: any) => ({
+      ...thread,
+      resolvedBy: thread.resolvedBy === null ? null : compact.authors[thread.resolvedBy],
+      comments: thread.comments.map((comment: any) => ({...comment, author: compact.authors[comment.author]})),
+    }))).toEqual(result.threads);
     expect(result.threads[0].resolved).toBe(false);
+    expect((await request(`/threads/${id}`, "PATCH", { resolved: true }, owner.token, branch)).status).toBe(200);
+    const resolvedCompact = await (await request("/threads?authors=1", "GET", undefined, undefined, branch)).json();
+    expect(resolvedCompact.threads[0].resolvedBy).toBe(owner.user.id);
+    expect(resolvedCompact.authors[owner.user.id].name).toBe(owner.user.name);
   });
   it("lets a configured project's owner add and remove any approved site", async () => {
     const sites = async (data?: unknown) =>
