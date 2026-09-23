@@ -93,6 +93,37 @@ function threadList(value: unknown): value is Thread[] {
     )
   );
 }
+// Compact wire/cache records share each author's avatar once. Legacy servers
+// still return inline identities; validate the hydrated result in either case.
+function expandThreads(
+  value: unknown,
+  authors?: Record<string, Identity>,
+): unknown {
+  if (!authors || !Array.isArray(value)) return value;
+  const author = (value: unknown) =>
+    typeof value === "string"
+      ? Object.hasOwn(authors, value)
+        ? authors[value]
+        : undefined
+      : value;
+  return value.map(
+    (thread) =>
+      thread && {
+        ...thread,
+        resolvedBy: author(thread.resolvedBy),
+        comments:
+          Array.isArray(thread.comments) &&
+          thread.comments.map(
+            (comment: Thread["comments"][number]) =>
+              comment && {
+                ...comment,
+                author: author(comment.author),
+              },
+          ),
+      },
+  );
+}
+
 function invalidResponse() {
   return new ApiError(
     0,
@@ -105,6 +136,9 @@ export class CommentsApi {
   user: Identity | null = null;
   private revision: number | undefined;
   private cachedThreads: Thread[] = [];
+  private reads = new AbortController();
+  private persistenceQueued = false;
+  private persistenceBlocked = false;
   private key: string;
   private cookieName: string;
   private cookieDomain: string;
@@ -146,6 +180,11 @@ export class CommentsApi {
       /* The account reloads from the server next time. */
     }
   }
+  // End obsolete GETs without cancelling intentional writes or profile flushes.
+  cancelReads() {
+    this.reads.abort();
+    this.reads = new AbortController();
+  }
   async request<T>(path: string, method = "GET", data?: unknown): Promise<T> {
     const url = new URL(path, this.options.endpoint.replace(/\/?$/, "/"));
     url.searchParams.set("project", this.options.project);
@@ -155,12 +194,14 @@ export class CommentsApi {
     const token = this.token;
     if (token) headers.Authorization = `Bearer ${token}`;
     if (data !== undefined) headers["Content-Type"] = "application/json";
+    const readSignal = method === "GET" ? this.reads.signal : undefined;
+    const timeout = AbortSignal.timeout(15000);
     const response = await fetch(url, {
       method,
       headers,
       body: data === undefined ? undefined : JSON.stringify(data),
       credentials: "omit",
-      signal: AbortSignal.timeout(15000),
+      signal: readSignal ? AbortSignal.any([readSignal, timeout]) : timeout,
     }).catch((error: unknown) => {
       // Browsers hide why a request failed; offline is the one case we can tell.
       if (error instanceof TypeError)
@@ -169,10 +210,12 @@ export class CommentsApi {
           : new ApiError(0, "Can’t connect to comments.", "unreachable");
       throw error;
     });
+    readSignal?.throwIfAborted();
     const result = await response.json().catch(() => {
       if (response.ok) throw invalidResponse();
       return {};
     });
+    readSignal?.throwIfAborted();
     if (
       response.ok &&
       (!result || typeof result !== "object" || Array.isArray(result))
@@ -194,15 +237,16 @@ export class CommentsApi {
     }
     return result as T;
   }
-  // ponytail: last list lives in localStorage so the next page load paints at
-  // once and asks the server "notModified?" instead of refetching every page.
-  // Quota overflow just skips the cache; IndexedDB if projects outgrow ~5MB.
+  // A bounded last-known snapshot paints immediately. Partial snapshots never
+  // carry a revision: the next load must retrieve the omitted threads.
   private get listKey() {
     return `${this.key}:${this.options.repo}:${this.options.branch}:threads`;
   }
   cached(): Thread[] | null {
     try {
       const stored = JSON.parse(localStorage.getItem(this.listKey) ?? "null");
+      if (stored)
+        stored.threads = expandThreads(stored.threads, stored.authors);
       if (
         stored?.token !== (this.token ?? "") ||
         !threadList(stored.threads) ||
@@ -218,33 +262,83 @@ export class CommentsApi {
     }
   }
   private persist() {
-    try {
-      localStorage.setItem(
-        this.listKey,
-        JSON.stringify({
-          token: this.token ?? "",
-          revision: this.revision,
-          threads: this.cachedThreads,
-        }),
-      );
-    } catch {
-      /* Storage full or blocked; the next load fetches normally. */
-    }
+    if (this.persistenceQueued || this.persistenceBlocked) return;
+    this.persistenceQueued = true;
+    queueMicrotask(() => {
+      this.persistenceQueued = false;
+      try {
+        const authors: Record<string, Identity> = Object.create(null);
+        const threads: unknown[] = [];
+        let size = 0;
+        let partial = false;
+        const page = this.options.page?.() ?? location.pathname;
+        // Current-page feedback gets first claim on the 250k-character cache.
+        const ordered = [...this.cachedThreads].sort(
+          (a, b) => Number(b.page === page) - Number(a.page === page),
+        );
+        for (const thread of ordered) {
+          const additions: Record<string, Identity> = Object.create(null);
+          const author = (user: Identity | null) => {
+            if (user && !Object.hasOwn(authors, user.id))
+              additions[user.id] = user;
+            return user?.id ?? null;
+          };
+          const compact = {
+            ...thread,
+            resolvedBy: author(thread.resolvedBy),
+            comments: thread.comments.map((comment) => ({
+              ...comment,
+              author: author(comment.author),
+            })),
+          };
+          const cost =
+            JSON.stringify(compact).length +
+            JSON.stringify(additions).length +
+            2;
+          if (size + cost > 250_000) {
+            partial = true;
+            continue;
+          }
+          size += cost;
+          Object.assign(authors, additions);
+          threads.push(compact);
+        }
+        localStorage.setItem(
+          this.listKey,
+          JSON.stringify({
+            token: this.token ?? "",
+            revision: partial ? undefined : this.revision,
+            threads,
+            authors,
+          }),
+        );
+      } catch {
+        // Do not repeatedly serialize snapshots into a full/disabled store.
+        this.persistenceBlocked = true;
+        try {
+          localStorage.removeItem(this.listKey);
+        } catch {
+          /* Storage disabled. */
+        }
+      }
+    });
   }
   async list(): Promise<Thread[]> {
     const token = this.token;
+    const signal = this.reads.signal;
     const threads: Thread[] = [];
     let offset: number | null = 0;
     let revision: number | undefined;
     while (offset !== null) {
       type ListResponse = {
         threads?: Thread[];
+        authors?: Record<string, Identity>;
         next?: number | null;
         revision?: number;
         notModified?: boolean;
       };
       const result: ListResponse = await this.request<ListResponse>(
-        `threads?offset=${offset}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`,
+        `threads?authors=1&offset=${offset}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`,
       ).catch((error: unknown) => {
         if (
           error instanceof ApiError &&
@@ -257,8 +351,11 @@ export class CommentsApi {
         }
         throw error;
       });
-      // Never apply or persist a response requested by a previous account.
-      if (this.token !== token) return this.list();
+      signal.throwIfAborted();
+      result.threads = expandThreads(
+        result.threads,
+        result.authors,
+      ) as Thread[];
       if (
         result.notModified === true &&
         offset === 0 &&
@@ -284,6 +381,7 @@ export class CommentsApi {
   }
   save(data: { token: string; user: Identity }) {
     if (data.token !== this.token) {
+      this.cancelReads();
       this.revision = undefined;
       this.cachedThreads = [];
     }
@@ -311,6 +409,7 @@ export class CommentsApi {
     }
   }
   clear() {
+    this.cancelReads();
     try {
       localStorage.removeItem(this.listKey);
     } catch {

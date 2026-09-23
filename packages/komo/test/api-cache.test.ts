@@ -187,7 +187,8 @@ it("discards a previous account's in-flight list before caching", async () => {
   const pending = api.list();
   api.clear();
   finish(Response.json({ threads: [thread("private")], revision: 1 }));
-  expect(await pending).toEqual([thread("public")]);
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  expect(await api.list()).toEqual([thread("public")]);
   expect(fetch.mock.calls[1][1].headers.Authorization).toBeUndefined();
   expect(new CommentsApi(options).cached()).toEqual([thread("public")]);
 });
@@ -311,6 +312,123 @@ it("preserves identity on invalid restore and clears only denied thread snapshot
   );
   const current = await api.list();
   finish(Response.json({ error: "Forbidden" }, { status: 403 }));
-  await expect(stale).rejects.toThrow("Forbidden");
+  await expect(stale).rejects.toMatchObject({ name: "AbortError" });
   expect(new CommentsApi(options).cached()).toEqual(current);
+});
+
+it("hydrates compact authors and bounds snapshots without reusing a partial revision", async () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("location", { hostname: "localhost", pathname: "/" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+  });
+  const options = {
+    endpoint: "https://example.com/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  };
+  const author = {
+    id: "u1",
+    name: "Ty",
+    verified: true,
+    avatarUrl: "x".repeat(12000),
+  };
+  const compact = Array.from({ length: 250 }, (_, i) => ({
+    ...thread(String(i)),
+    comments: [
+      { ...thread("x").comments[0], author: "u1", body: "x".repeat(2000) },
+    ],
+  }));
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      Response.json({ threads: compact, authors: { u1: author }, revision: 4 }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const api = new CommentsApi(options);
+  const full = await api.list();
+  expect(full).toHaveLength(250);
+  expect(full[0].comments[0].author).toEqual(author);
+  const serialized = [...store.values()][0];
+  expect(serialized.length).toBeLessThan(251000);
+  const snapshot = JSON.parse(serialized);
+  expect(snapshot.revision).toBeUndefined();
+  expect(Object.keys(snapshot.authors)).toEqual(["u1"]);
+  const reloaded = new CommentsApi(options);
+  expect(reloaded.cached()!.length).toBeGreaterThan(0);
+  expect(reloaded.cached()!.length).toBeLessThan(250);
+  fetch.mockResolvedValueOnce(Response.json({ threads: [], revision: 5 }));
+  await reloaded.list();
+  expect(fetch.mock.calls[1][0].searchParams.has("revision")).toBe(false);
+});
+
+it("cancels paginated reads without cancelling writes or persisting obsolete results", async () => {
+  vi.stubGlobal("location", { hostname: "localhost" });
+  vi.stubGlobal("document", { cookie: "" });
+  const setItem = vi.fn();
+  vi.stubGlobal("localStorage", { getItem: () => null, setItem });
+  const api = new CommentsApi({
+    endpoint: "https://example.com/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  });
+  let finish!: (response: Response) => void;
+  const fetch = vi.fn().mockImplementation(
+    () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const pending = api.list();
+  const signal = fetch.mock.calls[0][1].signal as AbortSignal;
+  api.cancelReads();
+  expect(signal.aborted).toBe(true);
+  finish(
+    Response.json({ threads: [thread("obsolete")], next: 50, revision: 1 }),
+  );
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(setItem).not.toHaveBeenCalled();
+  const write = api.request("threads", "POST", {});
+  const writeSignal = fetch.mock.calls[1][1].signal as AbortSignal;
+  api.cancelReads();
+  expect(writeSignal.aborted).toBe(false);
+  finish(Response.json({ ok: true }));
+  await expect(write).resolves.toEqual({ ok: true });
+});
+
+it("stops retrying cache writes after a storage quota failure", async () => {
+  vi.stubGlobal("location", { hostname: "localhost" });
+  vi.stubGlobal("document", { cookie: "" });
+  const setItem = vi.fn(() => {
+    throw new DOMException("Full", "QuotaExceededError");
+  });
+  vi.stubGlobal("localStorage", {
+    getItem: () => null,
+    setItem,
+    removeItem: vi.fn(),
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockImplementation(async () =>
+        Response.json({ threads: [thread("first")], revision: 1 }),
+      ),
+  );
+  const api = new CommentsApi({
+    endpoint: "https://example.com/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  });
+  await api.list();
+  await api.list();
+  expect(setItem).toHaveBeenCalledTimes(1);
 });
