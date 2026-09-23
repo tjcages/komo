@@ -81,8 +81,8 @@
     "react-colorful": "^5.8.1",
     "terser": "5.44.0",
     "typescript": "^6.0.0",
-    "vitest": "4.1.9",
-    "wrangler": "^4.105.0",
+    "vitest": "4.1.11",
+    "wrangler": "4.136.3",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
@@ -93,7 +93,7 @@
     "komo": "./cli/index.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "homepage": "https://komo.offbr.co",
   "bugs": {
