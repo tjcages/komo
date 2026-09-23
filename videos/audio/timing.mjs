@@ -131,6 +131,11 @@ export function validateMix(mix, videoDuration, songDuration) {
     ].every((value) => Number.isFinite(value) && value > 0)
   )
     throw Error("Could not determine media duration.");
+  for (const key of ["musicSpeed", "effectsSpeed"]) {
+    const speed = mix[key] ?? 1;
+    if (!Number.isFinite(speed) || speed < 0.5 || speed > 2)
+      throw Error("Audio speed must be between 0.5× and 2×.");
+  }
   if (![1, 2].includes(mix.version)) throw Error("Unsupported mix version.");
   for (const key of ["start", "duration", "volume", "fadeIn", "fadeOut"]) {
     if (!Number.isFinite(mix[key]) || mix[key] < 0)
@@ -148,7 +153,7 @@ export function validateMix(mix, videoDuration, songDuration) {
     );
   if (
     mix.musicEnabled !== false &&
-    mix.start + mix.duration > songDuration + 0.025
+    mix.start + mix.duration * (mix.musicSpeed ?? 1) > songDuration + 0.025
   )
     throw Error("The song is too short for this excerpt.");
   return mix;

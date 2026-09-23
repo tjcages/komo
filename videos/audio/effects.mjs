@@ -120,6 +120,21 @@ export function renderSoundtrack(
   musicStart = mix.start,
 ) {
   if (mix.version === 2) validateEffects(mix);
+  const musicSpeed = mix.musicSpeed ?? 1,
+    effectsSpeed = mix.effectsSpeed ?? 1;
+  if (
+    ![musicSpeed, effectsSpeed].every(
+      (speed) => Number.isFinite(speed) && speed >= 0.5 && speed <= 2,
+    )
+  )
+    throw Error("Audio speed must be between 0.5× and 2×.");
+  const sample = (data, position) => {
+    const index = Math.floor(position),
+      fraction = position - index;
+    return (
+      (data[index] ?? 0) * (1 - fraction) + (data[index + 1] ?? 0) * fraction
+    );
+  };
   const length = Math.round(mix.duration * rate);
   if (!Number.isFinite(length) || length < 1 || length > rate * 600)
     throw Error("Invalid soundtrack length.");
@@ -130,10 +145,10 @@ export function renderSoundtrack(
     const start = Math.round(musicStart * rate);
     for (let i = 0; i < length; i++) {
       const volume = gainAt(i / rate, mix);
-      channels[0][i] = (musicChannels[0][start + i] || 0) * volume;
+      const position = start + i * musicSpeed;
+      channels[0][i] = sample(musicChannels[0], position) * volume;
       channels[1][i] =
-        (musicChannels[1]?.[start + i] ?? musicChannels[0][start + i] ?? 0) *
-        volume;
+        sample(musicChannels[1] ?? musicChannels[0], position) * volume;
     }
   }
   if (mix.effectsEnabled) {
@@ -143,8 +158,13 @@ export function renderSoundtrack(
         cache.set(cue.sound, synthesize(cue.sound, rate));
       const sound = cache.get(cue.sound),
         start = Math.round((cue.frame / mix.fps) * rate);
-      for (let i = 0; i < sound.length && start + i < length; i++) {
-        const value = sound[i] * cue.volume * mix.effectsVolume;
+      for (
+        let i = 0;
+        i * effectsSpeed < sound.length && start + i < length;
+        i++
+      ) {
+        const value =
+          sample(sound, i * effectsSpeed) * cue.volume * mix.effectsVolume;
         channels[0][start + i] += value;
         channels[1][start + i] += value;
       }

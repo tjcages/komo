@@ -13,109 +13,174 @@ export function createEffectsEditor({
   const $ = (id) => document.getElementById(id);
   let cues = [],
     edit,
-    sheet;
+    sheet,
+    selected;
   const fields = () => ({
     fps: 30,
     effects: cues.map((c) => ({ ...c })),
     effectsEnabled: $("effectsEnabled").checked,
     effectsVolume: Number($("effectsVolume").value),
+    effectsSpeed: Number($("effectsSpeed").value),
   });
+  const button = (text, action, label) => {
+    const b = document.createElement("button");
+    b.textContent = text;
+    b.onclick = action;
+    if (label) b.setAttribute("aria-label", label);
+    return b;
+  };
+  function select(cue, seek = true) {
+    selected = cue.id;
+    $("effectsTab").click();
+    if (seek) {
+      changed();
+      video.currentTime = cue.frame / 30;
+    }
+    draw();
+  }
+  function inspect(cue) {
+    const panel = $("cueInspector");
+    panel.replaceChildren();
+    if (!cue) {
+      panel.textContent = "Select a sound on the timeline to edit it.";
+      return;
+    }
+    const title = document.createElement("div");
+    title.className = "cue-title";
+    title.textContent = "Selected sound";
+    panel.append(title);
+    function field(text, input) {
+      const label = document.createElement("label");
+      label.textContent = text;
+      label.append(input);
+      panel.append(label);
+      return input;
+    }
+    const name = field("Action", document.createElement("input"));
+    name.type = "text";
+    name.value = cue.label;
+    name.maxLength = 120;
+    name.onchange = () => {
+      cue.label = name.value;
+      changed();
+      draw();
+    };
+    const sound = field("Cuelume sound", document.createElement("select"));
+    Object.keys(SOUNDS).forEach((n) => sound.add(new Option(n, n)));
+    sound.value = cue.sound;
+    sound.onchange = () => {
+      cue.sound = sound.value;
+      changed();
+      draw();
+    };
+    const frame = field(
+      "Frame · 30 frames = 1 second",
+      document.createElement("input"),
+    );
+    frame.type = "number";
+    frame.min = 0;
+    frame.max = Math.max(0, Math.ceil(getDuration() * 30) - 1);
+    frame.step = 1;
+    frame.value = cue.frame;
+    frame.onchange = () => {
+      if (!frame.reportValidity()) {
+        frame.value = cue.frame;
+        return;
+      }
+      cue.frame = Number(frame.value);
+      changed();
+      draw();
+    };
+    const volume = field("Sound volume", document.createElement("input"));
+    volume.type = "range";
+    volume.min = 0;
+    volume.max = 1;
+    volume.step = 0.01;
+    volume.value = cue.volume;
+    volume.oninput = () => {
+      cue.volume = Number(volume.value);
+      changed();
+    };
+    const actions = document.createElement("div");
+    actions.className = "cue-actions";
+    actions.append(
+      button(
+        "▷ Listen",
+        async () => {
+          changed();
+          const ctx = getContext();
+          await ctx.resume();
+          const pcm = synthesize(cue.sound, ctx.sampleRate),
+            buffer = ctx.createBuffer(1, pcm.length, ctx.sampleRate);
+          buffer.copyToChannel(pcm, 0);
+          const node = ctx.createBufferSource(),
+            gain = ctx.createGain();
+          node.buffer = buffer;
+          node.playbackRate.value = Number($("effectsSpeed").value);
+          gain.gain.value = cue.volume * Number($("effectsVolume").value);
+          node.connect(gain).connect(ctx.destination);
+          node.start();
+          node.onended = () => {
+            node.disconnect();
+            gain.disconnect();
+          };
+        },
+        `Hear ${cue.label}`,
+      ),
+      button(
+        "Remove",
+        () => {
+          cues = cues.filter((c) => c.id !== cue.id);
+          selected = undefined;
+          changed();
+          draw();
+        },
+        `Remove ${cue.label}`,
+      ),
+    );
+    panel.append(actions);
+  }
   function draw() {
     $("cueList").replaceChildren();
-    $("cueCount").textContent = `${cues.length} animation cues`;
     $("cueTrack").replaceChildren();
-    for (const cue of cues) {
-      const row = document.createElement("div");
-      row.className = "cue-row";
-      const label = document.createElement("input");
-      label.value = cue.label;
-      label.maxLength = 120;
-      label.setAttribute("aria-label", `Label for ${cue.id}`);
-      const sound = document.createElement("select");
-      sound.setAttribute("aria-label", `Sound for ${cue.label}`);
-      for (const name of Object.keys(SOUNDS)) {
-        const o = new Option(name, name);
-        sound.add(o);
+    $("cueCount").textContent = `${cues.length} cues`;
+    $("trackCueCount").textContent = `${cues.length} sounds`;
+    const duration =
+      getDuration() ||
+      edit?.cuts.reduce((n, c) => n + c.out - c.in, 0) / 30 ||
+      1;
+    const query = $("cueSearch").value.trim().toLowerCase();
+    const ends = [0, 0, 0, 0, 0];
+    for (const cue of [...cues].sort((a, b) => a.frame - b.frame)) {
+      if ((cue.label + " " + cue.sound).toLowerCase().includes(query)) {
+        const item = button("", () => select(cue));
+        item.className = "cue-item";
+        item.setAttribute("aria-pressed", String(selected === cue.id));
+        const label = document.createElement("span");
+        label.textContent = cue.label;
+        const at = document.createElement("small");
+        at.textContent = (cue.frame / 30).toFixed(2) + "s";
+        item.append(label, at);
+        $("cueList").append(item);
       }
-      sound.value = cue.sound;
-      const frame = document.createElement("input");
-      frame.type = "number";
-      frame.min = 0;
-      frame.max = Math.max(0, Math.ceil(getDuration() * 30) - 1);
-      frame.step = 1;
-      frame.value = cue.frame;
-      frame.setAttribute("aria-label", `Frame for ${cue.label}`);
-      const volume = document.createElement("input");
-      volume.type = "range";
-      volume.min = 0;
-      volume.max = 1;
-      volume.step = 0.01;
-      volume.value = cue.volume;
-      volume.setAttribute("aria-label", `Volume for ${cue.label}`);
-      const audition = document.createElement("button");
-      audition.textContent = "Hear";
-      audition.setAttribute("aria-label", `Hear ${cue.label}`);
-      audition.onclick = async () => {
-        changed();
-        const ctx = getContext();
-        await ctx.resume();
-        const pcm = synthesize(cue.sound, ctx.sampleRate);
-        const buffer = ctx.createBuffer(1, pcm.length, ctx.sampleRate);
-        buffer.copyToChannel(pcm, 0);
-        const node = ctx.createBufferSource(),
-          gain = ctx.createGain();
-        gain.gain.value = cue.volume * Number($("effectsVolume").value);
-        node.buffer = buffer;
-        node.connect(gain).connect(ctx.destination);
-        node.start();
-        node.onended = () => {
-          node.disconnect();
-          gain.disconnect();
-        };
-      };
-      const remove = document.createElement("button");
-      remove.textContent = "×";
-      remove.setAttribute("aria-label", `Remove ${cue.label}`);
-      remove.onclick = () => {
-        cues = cues.filter((c) => c.id !== cue.id);
-        changed();
-        draw();
-      };
-      label.onchange = () => {
-        cue.label = label.value;
-        changed();
-        draw();
-      };
-      sound.onchange = () => {
-        cue.sound = sound.value;
-        changed();
-      };
-      frame.onchange = () => {
-        if (!frame.reportValidity()) {
-          frame.value = cue.frame;
-          return;
-        }
-        cue.frame = Number(frame.value);
-        changed();
-        draw();
-      };
-      volume.oninput = () => {
-        cue.volume = Number(volume.value);
-        changed();
-      };
-      row.append(label, sound, frame, volume, audition, remove);
-      $("cueList").append(row);
-      const marker = document.createElement("button");
+      const at = cue.frame / 30,
+        length =
+          synthesize(cue.sound).length /
+          48000 /
+          Number($("effectsSpeed").value);
+      let lane = ends.findIndex((end) => end <= at);
+      if (lane < 0) lane = ends.indexOf(Math.min(...ends));
+      ends[lane] = at + Math.max(0.12, length);
+      const marker = button("", () => select(cue), `Edit ${cue.label}`);
       marker.className = "cue-marker";
-      marker.style.left = `${Math.min(99, (cue.frame / 30 / getDuration()) * 100)}%`;
-      marker.title = `${cue.label} · ${(cue.frame / 30).toFixed(3)}s`;
-      marker.setAttribute("aria-label", `Seek ${cue.label}`);
-      marker.onclick = () => {
-        changed();
-        video.currentTime = cue.frame / 30;
-      };
+      marker.style.left = `${(at / duration) * 100}%`;
+      marker.style.width = `${Math.max(0.35, (Math.min(length, duration - at) / duration) * 100)}%`;
+      marker.style.top = `${5 + lane * 14}px`;
+      marker.title = `${cue.label} · ${at.toFixed(2)}s`;
+      marker.setAttribute("aria-pressed", String(selected === cue.id));
       $("cueTrack").append(marker);
     }
+    inspect(cues.find((c) => c.id === selected));
   }
   function loadSheet(data) {
     if (!edit) throw Error("A scene cue sheet needs the matching film edit.");
@@ -129,23 +194,25 @@ export function createEffectsEditor({
     });
     sheet = data;
     cues = next;
+    selected = undefined;
     changed();
     draw();
   }
   $("addCue").onclick = () => {
     if (!getDuration()) return;
-    cues.push({
+    const cue = {
       id: crypto.randomUUID(),
-      label: "Click",
+      label: "New sound",
       sound: "press",
       frame: Math.min(
         Math.ceil(getDuration() * 30) - 1,
         Math.round(video.currentTime * 30),
       ),
       volume: 0.5,
-    });
+    };
+    cues.push(cue);
     changed();
-    draw();
+    select(cue, false);
   };
   $("restoreCues").onclick = () => {
     if (sheet && edit) loadSheet(sheet);
@@ -161,21 +228,23 @@ export function createEffectsEditor({
       $("status").textContent = error.message;
     }
   };
+  $("cueSearch").oninput = draw;
   $("effectsEnabled").onchange = changed;
   $("effectsVolume").oninput = changed;
   draw();
   return {
     fields,
+    draw,
+    loadSheet,
     setEdit(value) {
       edit = value;
       if (!edit) {
         cues = [];
         sheet = null;
+        selected = undefined;
         draw();
         changed();
       }
     },
-    loadSheet,
-    draw,
   };
 }

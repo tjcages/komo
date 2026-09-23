@@ -56,6 +56,9 @@ test("mix prevents short songs, stale video timing, and unsafe filter values", (
   assert.throws(() => validateMix(mix, 20, 21));
   assert.throws(() => validateMix({ ...mix, start: "1,amovie=x" }, 20, 30));
   assert.throws(() => validateMix({ ...mix, fadeIn: 30 }, 20, 40));
+  assert.throws(() => validateMix({ ...mix, musicSpeed: 2 }, 20, 30));
+  assert.doesNotThrow(() => validateMix({ ...mix, musicSpeed: 0.5 }, 20, 12));
+  assert.throws(() => validateMix({ ...mix, effectsSpeed: Infinity }, 20, 22));
   assert.equal(gainAt(0, mix), 0);
   assert.equal(gainAt(10, mix), 0.8);
   assert.equal(gainAt(20, mix), 0);

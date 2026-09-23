@@ -53,6 +53,7 @@ const settings = () => ({
   ...effects.fields(),
   song: song?.name,
   start: number("start"),
+  musicSpeed: number("musicSpeed"),
   duration,
   volume: number("volume"),
   fadeIn: number("fadeIn"),
@@ -126,6 +127,12 @@ function update() {
   $("clock").textContent =
     `${time(video.currentTime || 0)} / ${time(duration)}`;
   $("scrub").value = video.currentTime || 0;
+  document
+    .querySelector(".timeline-grid")
+    .style.setProperty(
+      "--playhead",
+      `${duration ? (video.currentTime / duration) * 100 : 0}%`,
+    );
   sync();
   if (!video.paused) playbackFrame = requestAnimationFrame(update);
 }
@@ -156,7 +163,7 @@ function draw() {
   const peaks =
     song?.peaks ||
     Array.from({ length: 800 }, (_, i) => 0.06 + 0.035 * Math.sin(i * 0.12));
-  ctx.fillStyle = song ? "#a693b9" : "#51445e";
+  ctx.fillStyle = song ? "#4d9c82" : "#c8dcd4";
   peaks.forEach((p, i) =>
     ctx.fillRect(
       (i * w) / peaks.length,
@@ -165,6 +172,7 @@ function draw() {
       Math.max(4, p * h * 0.9),
     ),
   );
+  drawMusicTrack();
   if (!song) return;
   const start = number("start");
   const bpm = number("bpm"),
@@ -176,7 +184,7 @@ function draw() {
     first >= 0 &&
     first <= song.duration
   ) {
-    ctx.strokeStyle = "#c6a3ed66";
+    ctx.strokeStyle = "#47967933";
     for (let beat = first; beat < song.duration; beat += 60 / bpm) {
       const x = (beat / song.duration) * w;
       ctx.beginPath();
@@ -186,14 +194,19 @@ function draw() {
     }
   }
   for (const cut of timeline?.cuts || []) {
-    ctx.fillStyle = "#f7eeff";
-    ctx.fillRect(((start + cut.at) / song.duration) * w, 0, 2, 24);
+    ctx.fillStyle = "#3166e7";
+    ctx.fillRect(
+      ((start + cut.at * number("musicSpeed")) / song.duration) * w,
+      0,
+      2,
+      24,
+    );
   }
   $("selection").style.left = `${(start / song.duration) * 100}%`;
   $("selection").style.width =
-    `${(Math.min(duration, song.duration) / song.duration) * 100}%`;
+    `${(Math.min(duration * number("musicSpeed"), song.duration) / song.duration) * 100}%`;
   $("range").textContent =
-    `${time(start)} → ${time(start + duration)} · ${duration.toFixed(2)}s`;
+    `${time(start)} → ${time(start + duration * number("musicSpeed"))} · ${duration.toFixed(2)}s`;
 }
 function setStart(value) {
   stop();
@@ -208,17 +221,23 @@ function setStart(value) {
   draw();
 }
 function refresh() {
-  const fits = !!song && song.duration + 0.025 >= duration && duration > 0;
-  $("controls").disabled = !fits;
+  const fits =
+    !!song &&
+    song.duration + 0.025 >= duration * number("musicSpeed") &&
+    duration > 0;
+  $("controls").disabled = !song;
+  $("snap").disabled = !fits;
   $("save").disabled = !duration || (!!song && !fits);
   $("export").disabled = $("save").disabled;
   $("start").disabled = !fits;
   $("startNumber").disabled = !fits;
   $("start").max = $("startNumber").max = song
-    ? Math.max(0, song.duration - duration)
+    ? Math.max(0, song.duration - duration * number("musicSpeed"))
     : 0;
   if (song && duration > 0 && !fits)
-    status("This song is shorter than the film. Choose a longer track.");
+    status(
+      "Not enough audio at this speed. Slow down the music or choose a longer track.",
+    );
   setStart(number("start"));
 }
 function showCuts() {
@@ -226,7 +245,12 @@ function showCuts() {
   selectedCut = 0;
   for (const [i, cut] of (timeline?.cuts || []).entries()) {
     const b = document.createElement("button");
-    b.textContent = `${cut.name} · ${cut.at.toFixed(2)}s`;
+    const label = document.createElement("span");
+    label.textContent = cut.name;
+    b.append(label);
+    b.title = `${cut.name} · ${cut.at.toFixed(2)}s`;
+    b.style.flex = String(cut.duration);
+    b.dataset.at = cut.at;
     b.setAttribute("aria-pressed", String(i === 0));
     b.onclick = () => {
       selectedCut = i;
@@ -238,6 +262,7 @@ function showCuts() {
     };
     $("cutList").append(b);
   }
+  drawRuler();
   const tempo = timeline && suggestTempo(timeline.cuts);
   $("tempo").textContent = tempo
     ? `Suggested cut rhythm ${tempo.bpm} BPM · estimate`
@@ -259,6 +284,9 @@ video.onloadedmetadata = () => {
     `${duration.toFixed(2)} seconds${timeline ? ` · ${timeline.cuts.length} scenes` : ""}`;
   refresh();
   effects.draw();
+  drawRuler();
+  if (!timeline) showSingleClip();
+  makeThumbnails();
   update();
 };
 video.onerror = () => {
@@ -341,6 +369,10 @@ async function loadSong(file) {
     invalidatePreview();
     song = { ...result, name: file.name, duration: decoded.duration };
     $("songName").textContent = file.name;
+    $("trackSongName").textContent = file.name;
+    if ($("musicHint"))
+      $("musicHint").textContent =
+        `${decoded.duration.toFixed(1)}s source · drag the excerpt to choose a part.`;
     $("bpm").value = result.bpm || 120;
     $("firstBeat").value = result.firstBeat.toFixed(3);
     $("firstBeat").max = song.duration;
@@ -383,7 +415,7 @@ $("snap").onclick = () => {
   const cut = timeline?.cuts[selectedCut]?.at || 0;
   const start = snapStart(
     number("start"),
-    cut,
+    cut * number("musicSpeed"),
     number("bpm"),
     number("firstBeat"),
     Number($("start").max),
@@ -407,7 +439,7 @@ $("save").onclick = () => {
     status(
       "Mix settings saved. Use the export command below to create your MP4.",
     );
-    document.querySelector("details").open = true;
+    $("exportHelp").showModal();
   } catch (e) {
     status(e.message);
   }
@@ -474,6 +506,179 @@ $("demo").onclick = async () => {
   await loadSong(file);
   download(buffer, file.name, file.type);
 };
+
+function selectTrack(name) {
+  for (const track of ["music", "effects"]) {
+    $(track + "Panel").hidden = track !== name;
+    $(track + "Tab").setAttribute("aria-selected", String(track === name));
+  }
+}
+for (const name of ["music", "effects"]) {
+  $(name + "Tab").onclick = () => selectTrack(name);
+  $(name + "Track").onclick = () => selectTrack(name);
+  $(name + "Tab").onkeydown = (event) => {
+    if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
+      event.preventDefault();
+      const next = name === "music" ? "effects" : "music";
+      selectTrack(next);
+      $(next + "Tab").focus();
+    }
+  };
+}
+$("help").onclick = () => $("exportHelp").showModal();
+$("closeHelp").onclick = () => $("exportHelp").close();
+$("back").onclick = () => {
+  stop();
+  video.currentTime = 0;
+  update();
+};
+for (const id of ["musicSpeed", "effectsSpeed"]) {
+  const change = () => {
+    $(id + "Text").textContent = number(id).toFixed(2) + "×";
+    for (const button of document.querySelectorAll(
+      `[data-speed="${id}"] button`,
+    ))
+      button.setAttribute(
+        "aria-pressed",
+        String(Number(button.dataset.value) === number(id)),
+      );
+    stop();
+    invalidatePreview();
+    refresh();
+    effects.draw();
+    status(
+      id === "musicSpeed"
+        ? `Music speed ${number(id).toFixed(2)}×. Preview and export use this speed.`
+        : `Effects speed ${number(id).toFixed(2)}×. Cue frames stay fixed.`,
+    );
+    if (song && song.duration + 0.025 < duration * number("musicSpeed"))
+      status(
+        "Not enough audio at this speed. Slow down the music or choose a longer track.",
+      );
+  };
+  $(id).oninput = change;
+  for (const button of document.querySelectorAll(`[data-speed="${id}"] button`))
+    button.onclick = () => {
+      $(id).value = button.dataset.value;
+      change();
+    };
+}
+function drawRuler() {
+  $("ruler").replaceChildren();
+  const length = duration || timeline?.duration || 0;
+  for (let i = 0; i <= 6; i++) {
+    const label = document.createElement("span");
+    label.textContent = time((length * i) / 6);
+    $("ruler").append(label);
+  }
+}
+function drawMusicTrack() {
+  const canvas = $("musicWave"),
+    ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  $("musicEmpty").hidden = !!song;
+  if (!song) return;
+  const start = number("start"),
+    speed = number("musicSpeed");
+  ctx.fillStyle = "#60a68e";
+  for (let x = 0; x < canvas.width; x += 3) {
+    const t = start + (x / canvas.width) * duration * speed;
+    const p =
+      song.peaks[Math.floor((t / song.duration) * song.peaks.length)] || 0;
+    const height = Math.max(2, p * canvas.height * 0.9);
+    ctx.fillRect(x, (canvas.height - height) / 2, 1.7, height);
+  }
+}
+document.querySelector(".music-lane").onclick = (event) => {
+  selectTrack("music");
+  if (!song) {
+    $("songFile").click();
+    return;
+  }
+  stop();
+  const box = event.currentTarget.getBoundingClientRect();
+  video.currentTime = Math.max(
+    0,
+    Math.min(duration, ((event.clientX - box.left) / box.width) * duration),
+  );
+  update();
+};
+function showSingleClip() {
+  $("cutList").replaceChildren();
+  const button = document.createElement("button");
+  const label = document.createElement("span");
+  label.textContent = videoFile?.name || "Video";
+  button.append(label);
+  button.style.flex = "1";
+  button.dataset.at = "0";
+  button.onclick = () => {
+    stop();
+    video.currentTime = 0;
+    update();
+  };
+  $("cutList").append(button);
+}
+let thumbnailGeneration = 0;
+async function makeThumbnails() {
+  const token = ++thumbnailGeneration,
+    source = video.currentSrc;
+  if (!source) return;
+  const probe = document.createElement("video");
+  probe.muted = true;
+  probe.preload = "auto";
+  const wait = (event) =>
+    new Promise((resolve, reject) => {
+      const timeout = setTimeout(
+        () => finish(Error("Thumbnail timeout")),
+        8000,
+      );
+      const done = () => finish(),
+        error = () => finish(Error("Thumbnail unavailable"));
+      function finish(failure) {
+        clearTimeout(timeout);
+        probe.removeEventListener(event, done);
+        probe.removeEventListener("error", error);
+        failure ? reject(failure) : resolve();
+      }
+      probe.addEventListener(event, done, { once: true });
+      probe.addEventListener("error", error, { once: true });
+    });
+  try {
+    const ready = wait("loadedmetadata");
+    probe.src = source;
+    await ready;
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 144;
+    const ctx = canvas.getContext("2d");
+    for (const button of $("cutList").children) {
+      if (token !== thumbnailGeneration) break;
+      const ready = wait("seeked");
+      probe.currentTime = Math.min(
+        duration - 0.01,
+        Number(button.dataset.at) + 0.35,
+      );
+      await ready;
+      if (token !== thumbnailGeneration) break;
+      ctx.drawImage(probe, 0, 0, 256, 144);
+      button.style.backgroundImage = `url(${canvas.toDataURL("image/jpeg", 0.7)})`;
+    }
+  } catch {
+    /* Scene labels remain usable if thumbnails cannot be decoded. */
+  } finally {
+    probe.removeAttribute("src");
+    probe.load();
+  }
+}
+document.addEventListener("keydown", (event) => {
+  if (
+    event.code === "Space" &&
+    !event.target.closest("input,select,textarea,button,summary,dialog")
+  ) {
+    event.preventDefault();
+    play();
+  }
+});
 try {
   const response = await fetch("edit.json");
   if (!response.ok) throw Error("Cut map unavailable");
@@ -523,7 +728,7 @@ try {
 } catch {
   /* Static preview uses the documented local command. */
 }
-if (!localExport) $("export").textContent = "Export MP4 locally ↗";
+if (!localExport) $("export").title = "Save mix for local MP4 export";
 $("export").onclick = async () => {
   try {
     const mix = validateMix(settings(), duration, song?.duration);

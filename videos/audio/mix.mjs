@@ -70,7 +70,7 @@ if (mix.musicEnabled !== false) {
       "-ss",
       String(mix.start),
       "-t",
-      String(mix.duration),
+      String(mix.duration * (mix.musicSpeed ?? 1)),
       "-map",
       "0:a:0",
       "-ar",

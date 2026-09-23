@@ -162,3 +162,38 @@ test("all 17 Cuelume samples are finite, audible and shared with legacy cue name
   assert.equal(synthesize("pop"), synthesize("droplet"));
   assert.equal(synthesize("whoosh"), synthesize("page"));
 });
+
+test("track speeds change source duration without shifting effect trigger frames", () => {
+  const rate = 48000,
+    music = new Float32Array(rate * 4);
+  music[rate / 2] = 0.4;
+  music[rate / 2 + 1] = 0.4;
+  for (const speed of [0.5, 1, 2]) {
+    const rendered = renderSoundtrack(
+      {
+        ...base,
+        musicEnabled: true,
+        effectsEnabled: false,
+        volume: 1,
+        musicSpeed: speed,
+      },
+      [music],
+      rate,
+    ).channels[0];
+    const index = rate / 2 / speed;
+    if (index < rendered.length) assert.equal(rendered[index], music[rate / 2]);
+  }
+  const cue = {
+    id: "cue",
+    label: "Press",
+    sound: "press",
+    frame: 15,
+    volume: 1,
+  };
+  const normal = renderSoundtrack({ ...base, effects: [cue] }).channels[0];
+  const fast = renderSoundtrack({ ...base, effects: [cue], effectsSpeed: 2 })
+    .channels[0];
+  assert.ok(fast.slice(0, 24000).every((v) => v === 0));
+  assert.equal(fast[24000 + 100], normal[24000 + 200]);
+  assert.throws(() => renderSoundtrack({ ...base, musicSpeed: 0 }));
+});

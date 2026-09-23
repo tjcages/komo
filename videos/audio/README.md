@@ -109,3 +109,19 @@ pnpm audio:test
 These checks additionally cover scene-trim resolution, known animation click frames, sample-exact onset placement, stereo summation, deterministic sounds, overlapping cue headroom, effect muting, and malformed cue validation.
 
 The preview staging command accepts an optional third positional path to an already-exported demo MP4; when supplied it adds a **Watch exported demo** link. Generated media remains outside Git.
+
+## Visual editor and speed
+
+The preview uses a video filmstrip, music waveform, and stacked sound-effect clips on a shared timeline. Click a scene to seek and choose a beat-alignment target. Select a sound to edit it in the right inspector; search the cue list to find crowded events. Space plays/pauses outside text fields.
+
+Music and effects have independent 0.5×–2× speed sliders and presets. Speed changes pitch. Music consumes `duration × musicSpeed` seconds of source audio; changing speed clamps the excerpt start and rejects a source that is too short. Effects change duration but remain anchored to their original trigger frames. Saved v2 recipes include `musicSpeed` and `effectsSpeed`; omitted values in older recipes mean 1×. Preview, audition and native MP4 export apply the same speed behavior.
+
+## Stable PR review URL
+
+For PR #32, always update and share **https://pr-32-komo-site.off-brand.workers.dev/audio/**. After the normal site build and `preview.mjs` staging, upload to the existing Worker with:
+
+```sh
+pnpm exec wrangler versions upload --config packages/komo-site/wrangler.jsonc --preview-alias pr-32
+```
+
+This alias stays constant across revisions. Use it for the PR description and handoff rather than a version-specific URL. Preview deployments do not change production traffic.
