@@ -289,7 +289,7 @@ async function anchorFile(flags, cwd) {
   return JSON.parse(await smallFile(resolve(cwd, flags["anchor-file"]), 16000));
 }
 function id(value, label = "thread") {
-  if (!value || !/^[\w-]+$/.test(value))
+  if (!value || !/^[\w:-]{1,100}$/.test(value))
     throw Error(`Supply a valid ${label} ID.`);
   return value;
 }
@@ -456,7 +456,7 @@ export async function runAgent(
     path = credentialPath(config, env);
   const token = await readToken(path, env),
     request = apiClient(config, token);
-  if (config.repo === config.project) {
+  if (command !== "logout" && config.repo === config.project) {
     const metadata = await request("config");
     if (metadata.repo) config.repo = metadata.repo;
   }
@@ -472,7 +472,7 @@ export async function runAgent(
       try {
         await request("me", "DELETE");
       } catch (error) {
-        if (error.status !== 401) throw error;
+        if (error.status !== 401 && error.status !== 404) throw error;
       }
       await rm(path, { force: true });
       data = { signedOut: true };

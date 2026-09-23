@@ -1659,6 +1659,10 @@ describe("owner management and private projects", () => {
     expect(result.threads[0].comments[0].author.verified).toBe(false);
     const imported = result.threads[0];
     expect(imported.id).toMatch(/^import:/);
+    const cliRead = await promisify(execFile)(process.execPath,
+      [join(root, "packages/komo/cli/index.mjs"), "comments", "get", imported.id],
+      {cwd: directory, env: {...process.env, KOMO_ENDPOINT: `http://localhost:${port}`, KOMO_PROJECT: "destination", KOMO_REPO: "owner/site", KOMO_BRANCH: "shared", KOMO_ORIGIN: origin, KOMO_TOKEN: "destination-owner"}});
+    expect(JSON.parse(cliRead.stdout).data.id).toBe(imported.id);
     const mutateImported = (path: string, method: string, data: unknown) =>
       call(path, method, data, "destination-owner", "destination");
     expect((await mutateImported(`/threads/${imported.id}`, "PATCH", {resolved: false})).status).toBe(200);
