@@ -80,7 +80,8 @@ export interface CommentsOptions {
    * draggable sidebar that parks off and peeks from the viewport edge while
    * closed. "background" frames the site and shows the sidebar in the scaled
    * review sheet. Users can switch Floating and Frame from the Account panel;
-   * that choice is remembered per project.
+   * that choice is remembered per project. Compact viewports always use a bottom
+   * Drawer, retaining the desktop preference when the viewport grows.
    */
   sidebar?: "background" | "edge";
   /** Hide the drawer away from the pointer. Defaults to true. */

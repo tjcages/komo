@@ -13,30 +13,29 @@ describe("review viewport layout", () => {
       const layout = reviewLayout(width, height, true);
       expect(layout.mobile).toBe(true);
       expect(height - layout.sheetTop).toBeGreaterThanOrEqual(height / 2);
-      expect(layout.top + layout.height).toBeLessThan(layout.sheetTop);
-      expect(layout.left).toBeGreaterThanOrEqual(0);
-      expect(layout.left + layout.visibleWidth).toBeLessThanOrEqual(width);
-      expect(layout.scale).toBeLessThan(1);
-      expect(layout.height / layout.scale).toBeCloseTo(height);
-      expect(layout.top).toBeLessThan(0);
-      expect(layout.visibleTop).toBe(0);
-      expect(layout.visibleHeight).toBeCloseTo(layout.sheetTop - 12);
-    }
+      expect(layout.framed).toBe(false);
+      expect(layout.left).toBe(0);
+      expect(layout.visibleWidth).toBe(width);
+      expect(layout.scale).toBe(1);
+      expect(layout.height).toBe(height);
+      expect(layout.top).toBe(0);
+    },
   );
-  it("keeps the frame full-height when the keyboard reduces visible space", () => {
+  it("keeps the page unscaled when the keyboard reduces visible space", () => {
     const layout = reviewLayout(390, 450, true, 844);
     expect(layout.height / layout.scale).toBeCloseTo(844);
-    expect(layout.top + layout.height).toBeCloseTo(layout.sheetTop - 12);
+    expect(layout.scale).toBe(1);
+    expect(layout.top).toBe(0);
   });
   it.each([844, 450])(
     "gives mobile accounts the visible viewport at height %i",
     (height) => {
       const layout = reviewLayout(390, height, true, 844, true);
       expect(layout.sheetTop).toBe(0);
-      expect(layout.visibleHeight).toBe(0);
-      expect(layout.top + layout.height).toBe(-12);
+      expect(layout.framed).toBe(false);
+      expect(layout.top).toBe(0);
       expect(reviewLayout(1280, 800, true, 800, true).right).toBe(404);
-    }
+    },
   );
   it("restores the full page when closed", () => {
     const layout = reviewLayout(390, 844, false);
@@ -59,12 +58,12 @@ describe("mobile composer", () => {
     [420, 0],
     [420, 180],
   ])(
-    "docks above the visible bottom at height %i and offset %i",
+    "centers in the visible viewport at height %i and offset %i",
     (height, top) => {
       const position = mobileComposerPosition(390, height, top, 354, 120);
       expect(position.x).toBe(18);
-      expect(position.y + 120).toBe(top + height - 12);
+      expect(position.y + 60).toBe(top + height / 2);
       expect(position.y).toBeGreaterThanOrEqual(top + 12);
-    }
+    },
   );
 });

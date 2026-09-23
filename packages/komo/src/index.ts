@@ -99,16 +99,25 @@ export function initComments(options: CommentsOptions): CommentsController {
   if (typeof document === "undefined" || options.enabled === false) return noop;
   if (!options.endpoint || !options.repo || !options.branch || !options.project)
     throw new Error("Comments require endpoint, repo, branch, and project.");
-  if (options.pageRoot && (options.pageRoot === document.body || !document.body.contains(options.pageRoot)))
+  if (
+    options.pageRoot &&
+    (options.pageRoot === document.body ||
+      !document.body.contains(options.pageRoot))
+  )
     throw new Error("pageRoot must be mounted inside body.");
   const endpoint = new URL(options.endpoint);
   if (
-    endpoint.username || endpoint.password ||
+    endpoint.username ||
+    endpoint.password ||
     (endpoint.protocol !== "https:" &&
-      !(endpoint.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)))
+      !(
+        endpoint.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)
+      ))
   )
-    throw new Error("Use an HTTPS API endpoint without credentials; HTTP is allowed on localhost.");
+    throw new Error(
+      "Use an HTTPS API endpoint without credentials; HTTP is allowed on localhost.",
+    );
   const scope = JSON.stringify([
     endpoint.href,
     options.project,
@@ -118,15 +127,24 @@ export function initComments(options: CommentsOptions): CommentsController {
   const current = instances.get(document);
   if (current) {
     if (current.scope !== scope)
-      throw new Error("Destroy the current komo instance before changing projects or branches.");
+      throw new Error(
+        "Destroy the current komo instance before changing projects or branches.",
+      );
     return current.controller;
   }
   options = { ...resumeProject(options) };
-  const roots = [...document.body.childNodes].filter(node => node instanceof Element
-    ? !node.matches("script,style,link,meta,template,noscript")
-    : node.nodeType === 3 && node.textContent?.trim());
-  const root = options.pageRoot ?? (roots.length === 1 && roots[0] instanceof HTMLElement ? roots[0] : document.body);
-  const surface = getComputedStyle(root).display === "contents" ? document.body : root;
+  const roots = [...document.body.childNodes].filter((node) =>
+    node instanceof Element
+      ? !node.matches("script,style,link,meta,template,noscript")
+      : node.nodeType === 3 && node.textContent?.trim(),
+  );
+  const root =
+    options.pageRoot ??
+    (roots.length === 1 && roots[0] instanceof HTMLElement
+      ? roots[0]
+      : document.body);
+  const surface =
+    getComputedStyle(root).display === "contents" ? document.body : root;
   const canFrame = surface !== document.body;
   const sidebarModeKey = `branch-comments:sidebar-mode:${options.project}:${options.repo}`;
   let sidebarMode: "background" | "edge" = (() => {
@@ -139,7 +157,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     return options.sidebar === "background" ? "background" : "edge";
   })();
-  let edgeSidebar = sidebarMode === "edge";
+  let compactSidebar = isCompactReview(window.innerWidth, window.innerHeight);
+  let edgeSidebar = !compactSidebar && sidebarMode === "edge";
   // Development comments use a separate server-backed channel.
   const localSite = ["localhost", "127.0.0.1", "[::1]"].includes(
     location.hostname,
@@ -218,7 +237,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     const client = api;
     const token = api.token;
     const session = sessionRevision;
-    const obsolete = () => destroyed || api !== client || session !== sessionRevision || api.token !== token;
+    const obsolete = () =>
+      destroyed ||
+      api !== client ||
+      session !== sessionRevision ||
+      api.token !== token;
     try {
       await optimistic.submit(change, async (resolve) => {
         if (obsolete()) throw new DOMException("Session changed", "AbortError");
@@ -411,7 +434,11 @@ export function initComments(options: CommentsOptions): CommentsController {
   const replies = new Map<string, string>();
   const host = el("div");
   host.dataset.branchComments = "";
-  host.dataset.sidebar = edgeSidebar ? "edge" : "background";
+  host.dataset.sidebar = compactSidebar
+    ? "mobile"
+    : edgeSidebar
+      ? "edge"
+      : "background";
   Object.assign(host.style, {
     position: "fixed",
     inset: "0",
@@ -507,10 +534,6 @@ export function initComments(options: CommentsOptions): CommentsController {
     live,
   );
   document.body.append(host);
-  const draftScrollSpace = el("div");
-  draftScrollSpace.setAttribute("aria-hidden", "true");
-  draftScrollSpace.style.pointerEvents = "none";
-  const pagePaddingBottom = getComputedStyle(surface).paddingBottom;
   const savedStyle = {
     width: surface.style.width,
     boxSizing: surface.style.boxSizing,
@@ -546,9 +569,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       (color) => color !== "rgba(0, 0, 0, 0)",
     ) ?? "#fff";
   let framed = false;
-  let nativeReviewScroll = false;
   let accountOpenTimer = 0;
-  let framedAccount = false;
   let pageMotion: ReturnType<typeof animate> | undefined;
   let keyboardAction = false;
   // True while reopening a remembered sidebar on load: skip the open motion.
@@ -632,7 +653,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     applySidebarSize();
   }
   function positionSidebar() {
-    if (!edgeSidebar) return;
+    if (compactSidebar || !edgeSidebar) return;
     applySidebarSize();
     const height =
       sidebar.offsetHeight ||
@@ -674,7 +695,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
   }
   function syncEdgeMode() {
-    host.dataset.sidebar = edgeSidebar ? "edge" : "background";
+    host.dataset.sidebar = compactSidebar
+      ? "mobile"
+      : edgeSidebar
+        ? "edge"
+        : "background";
     sidebar.classList.toggle("edge-sidebar", edgeSidebar);
     sidebar.style.transition = "none";
     // Clear, don't zero: any translate makes the sidebar the containing block
@@ -699,10 +724,16 @@ export function initComments(options: CommentsOptions): CommentsController {
     for (const motion of layoutMotions) motion.cancel();
     layoutMotions = [];
     pageTransitioning = false;
-    pins.style.opacity = "1";
+    pins.style.opacity = "";
   }
   function setSidebarMode(mode: "background" | "edge") {
-    if (mode === sidebarMode || destroyed || (!canFrame && mode === "background")) return;
+    if (
+      compactSidebar ||
+      mode === sidebarMode ||
+      destroyed ||
+      (!canFrame && mode === "background")
+    )
+      return;
     // Read the visible, possibly interrupted positions before settling layout.
     const nodes = () => [
       surface,
@@ -765,7 +796,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (destroyed || motions !== layoutMotions) return;
         layoutMotions = [];
         pageTransitioning = false;
-        pins.style.opacity = "1";
+        pins.style.opacity = "";
         geometry();
       })
       .catch(() => {});
@@ -787,7 +818,16 @@ export function initComments(options: CommentsOptions): CommentsController {
     return field;
   }
   function sidebarSetting() {
-    if (!canFrame) return el("p", "muted", "Floating sidebar · Set pageRoot for Frame.");
+    if (compactSidebar)
+      return selectSetting(
+        "sidebar",
+        "Sidebar",
+        [["mobile", "Floating sidebar"]],
+        "mobile",
+        () => {},
+      );
+    if (!canFrame)
+      return el("p", "muted", "Floating sidebar · Set pageRoot for Frame.");
     return selectSetting(
       "sidebar",
       "Sidebar",
@@ -1199,7 +1239,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
   }
   function fail(reason: unknown) {
-    if (destroyed || (reason instanceof DOMException && reason.name === "AbortError")) return;
+    if (
+      destroyed ||
+      (reason instanceof DOMException && reason.name === "AbortError")
+    )
+      return;
     error =
       reason instanceof Error
         ? reason.message
@@ -1353,8 +1397,38 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     render();
   }
+  let mobileEnterFrame = 0;
+  function syncResponsiveSidebar() {
+    const next = isCompactReview(window.innerWidth, window.innerHeight);
+    if (next === compactSidebar) return;
+    shadow.append(sidebar);
+    stopLayoutMotion();
+    stopEdgeMotion(true);
+    clearEdgeRows();
+    undockEdgeTabs();
+    compactSidebar = next;
+    if (!next) toolbar.style.translate = "";
+    edgeSidebar = !next && sidebarMode === "edge";
+    sidebar.removeAttribute("style");
+    syncEdgeMode();
+    appliedViewport = "";
+    render();
+  }
   let appliedScale = 1;
   let appliedViewport = "";
+  const mobileViewportBottom = () =>
+    (window.visualViewport?.offsetTop ?? 0) +
+    Math.min(window.innerHeight, window.visualViewport?.height ?? window.innerHeight) -
+    window.innerHeight;
+  function setMobilePanelOrigin() {
+    const panelHeight = Math.max(1, Math.min(window.innerHeight, window.visualViewport?.height ?? window.innerHeight) * 0.9);
+    const bottom = mobileViewportBottom();
+    const pill = drawerShell().getBoundingClientRect();
+    host.style.setProperty("--mobile-pill-x", `${pill.left + pill.width / 2 - window.innerWidth / 2}px`);
+    host.style.setProperty("--mobile-pill-y", `${pill.bottom - (window.innerHeight + bottom - 6)}px`);
+    host.style.setProperty("--mobile-pill-scale-x", String(Math.max(0.01, pill.width / Math.max(1, window.innerWidth - 24))));
+    host.style.setProperty("--mobile-pill-scale-y", String(Math.max(0.01, pill.height / panelHeight)));
+  }
   function scalePage() {
     const zoom = htmlZoom();
     const viewportHeight = isCompactReview(
@@ -1368,18 +1442,14 @@ export function initComments(options: CommentsOptions): CommentsController {
       : window.innerHeight;
     const viewportKey = `${window.innerWidth}:${window.innerHeight}:${viewportHeight}:${zoom}:${expanded}:${account}:${sidebarMode}:${window.visualViewport?.offsetTop ?? 0}`;
     if (appliedViewport === viewportKey) return;
-    stopLayoutMotion();
+    if (!compactSidebar) stopLayoutMotion();
     appliedViewport = viewportKey;
-    if (edgeSidebar) {
+    if (edgeSidebar || compactSidebar) {
       // The edge sidebar floats over the live page: never frame or zoom it.
       pageMotion?.stop();
       pageTransitioning = false;
-      pins.style.opacity = "1";
-      const scroll = framed
-        ? nativeReviewScroll
-          ? window.scrollY / appliedScale
-          : surface.scrollTop * zoom
-        : null;
+      pins.style.opacity = "";
+      const scroll = framed ? surface.scrollTop * zoom : null;
       if (framed) {
         for (const [header, styles] of fixedHeaders)
           Object.assign(header.style, styles);
@@ -1394,14 +1464,16 @@ export function initComments(options: CommentsOptions): CommentsController {
         window.scrollTo({ top: scroll, behavior: "instant" });
       host.style.zoom = String(1 / zoom);
       host.style.width = `${window.innerWidth}px`;
-      host.style.height = `${viewportHeight}px`;
-      host.style.top = isCompactReview(window.innerWidth, window.innerHeight)
-        ? `${window.visualViewport?.offsetTop ?? 0}px`
-        : "";
+      host.style.height = `${compactSidebar ? window.innerHeight : viewportHeight}px`;
+      host.style.top = "";
+      if (compactSidebar) {
+        const bottom = mobileViewportBottom();
+        toolbar.style.translate = `0 ${bottom}px`;
+        host.style.setProperty("--mobile-panel-height", `${Math.max(1, viewportHeight * 0.9)}px`);
+        host.style.setProperty("--mobile-panel-bottom", `${-bottom}px`);
+      }
       host.classList.toggle("review-open", expanded);
       framed = false;
-      nativeReviewScroll = false;
-      framedAccount = account;
       pins.style.clipPath = "";
       Object.assign(catcher.style, {
         left: "",
@@ -1411,18 +1483,16 @@ export function initComments(options: CommentsOptions): CommentsController {
       });
       return;
     }
-    const scroll =
-      framed && !nativeReviewScroll
-        ? surface.scrollTop
-        : window.scrollY / (zoom * appliedScale);
+    const scroll = framed
+      ? surface.scrollTop
+      : window.scrollY / (zoom * appliedScale);
     const wasFramed = framed;
-    const accountChanged = framedAccount !== account;
     const before = framed
       ? pageFrameBounds()
       : { left: 0, top: 0, width: window.innerWidth };
     pageMotion?.stop();
     pageTransitioning = false;
-    pins.style.opacity = "1";
+    pins.style.opacity = "";
     const layout = reviewLayout(
       window.innerWidth,
       viewportHeight,
@@ -1431,33 +1501,27 @@ export function initComments(options: CommentsOptions): CommentsController {
       account,
     );
     const useFrame = layout.framed;
-    host.style.setProperty("--review-sheet-top", `${layout.sheetTop}px`);
     host.style.setProperty("--review-viewport-height", `${viewportHeight}px`);
     host.style.zoom = String(1 / zoom);
     host.style.width = `${window.innerWidth}px`;
     host.style.height = `${viewportHeight}px`;
-    host.style.top = layout.mobile
-      ? `${window.visualViewport?.offsetTop ?? 0}px`
-      : "";
+    host.style.top = "";
     host.classList.toggle("review-open", expanded);
-    const useWindowScroll = useFrame && layout.mobile;
     if (useFrame) {
       appliedScale = layout.scale;
       const effective = appliedScale * zoom;
       Object.assign(surface.style, {
-        position: useWindowScroll ? "relative" : "fixed",
+        position: "fixed",
         transform: "translate(0, 0)",
         transformOrigin: "top left",
         left: `${layout.left / effective}px`,
         top: `${layout.top / effective}px`,
         width: `${window.innerWidth / zoom}px`,
         boxSizing: "border-box",
-        height: useWindowScroll ? "auto" : `${layout.height / effective}px`,
-        paddingBottom: useWindowScroll
-          ? `calc(${pagePaddingBottom} + ${Math.max(0, viewportHeight - layout.height) / effective}px)`
-          : savedStyle.paddingBottom,
+        height: `${layout.height / effective}px`,
+        paddingBottom: savedStyle.paddingBottom,
         zoom: String(appliedScale),
-        overflow: useWindowScroll ? "visible" : "hidden auto",
+        overflow: "hidden auto",
         borderRadius: `${12 / effective}px`,
         background: pageBackground,
       });
@@ -1474,18 +1538,11 @@ export function initComments(options: CommentsOptions): CommentsController {
           header.style.marginBottom = `-${header.offsetHeight}px`;
         }
       }
-      document.documentElement.style.overflow = useWindowScroll
-        ? savedHtmlOverflow
-        : "hidden";
-      document.body.style.overflow = useWindowScroll
-        ? savedBody.overflow
-        : "hidden";
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
       document.body.style.background = "#080808";
       document.documentElement.style.background = "#080808";
-      if (useWindowScroll) {
-        if (!wasFramed || !nativeReviewScroll)
-          window.scrollTo({ top: scroll * effective, behavior: "instant" });
-      } else surface.scrollTop = scroll;
+      surface.scrollTop = scroll;
     } else {
       for (const [header, styles] of fixedHeaders)
         Object.assign(header.style, styles);
@@ -1498,8 +1555,6 @@ export function initComments(options: CommentsOptions): CommentsController {
       appliedScale = 1;
     }
     framed = useFrame;
-    nativeReviewScroll = useWindowScroll;
-    framedAccount = account;
     if (!useFrame && options.drawerContainer?.isConnected) {
       const rect = options.drawerContainer.getBoundingClientRect();
       drawerContainerCenter = rect.width
@@ -1507,7 +1562,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         : undefined;
     }
     if (
-      (useFrame !== wasFramed || (layout.mobile && accountChanged)) &&
+      useFrame !== wasFramed &&
       !keyboardAction &&
       !switchingSidebar &&
       !restoring &&
@@ -1548,7 +1603,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           document.body.style.background = savedBody.background;
           document.documentElement.style.background = savedHtmlBackground;
         }
-        pins.style.opacity = "1";
+        pins.style.opacity = "";
         geometry();
       });
     }
@@ -1568,10 +1623,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
   }
   function pageFrameBounds() {
-    const rect = surface.getBoundingClientRect();
-    return nativeReviewScroll
-      ? { left: rect.left, top: rect.top + window.scrollY, width: rect.width }
-      : rect;
+    return surface.getBoundingClientRect();
   }
   function dockEdgeTabs() {
     if (toolbar.dataset.edgeTabs !== "true") {
@@ -1903,6 +1955,23 @@ export function initComments(options: CommentsOptions): CommentsController {
       accountOpenTimer = 0;
       account = false;
     }
+    if (compactSidebar) {
+      cancelAnimationFrame(mobileEnterFrame);
+      setMobilePanelOrigin();
+      if (opening && !restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches)
+        host.dataset.mobileEntering = "";
+      else delete host.dataset.mobileEntering;
+      hidden = false;
+      scalePage();
+      render();
+      presence.show();
+      presence.update();
+      if (host.dataset.mobileEntering !== undefined)
+        mobileEnterFrame = requestAnimationFrame(() => {
+          delete host.dataset.mobileEntering;
+        });
+      return;
+    }
     if (edgeSidebar) {
       const interrupted = edgeMorphing;
       const openingPill = value ? drawerShell().getBoundingClientRect() : null;
@@ -1986,13 +2055,19 @@ export function initComments(options: CommentsOptions): CommentsController {
     editing = null;
     error = "";
     mode = false;
+    const fromMobileSidebar = compactSidebar && expanded;
+    if (fromMobileSidebar) toggleExpanded(false);
     const rect = locateAnchor(thread.anchor);
-    if (!openingPreview)
-      (framed && !nativeReviewScroll ? surface : window).scrollBy({
+    if (!openingPreview && (fromMobileSidebar || !compactSidebar))
+      (framed ? surface : window).scrollBy({
         top:
-          (rect.y - window.innerHeight * 0.35) /
-          (framed && !nativeReviewScroll ? appliedScale * htmlZoom() : 1),
-        behavior: "instant",
+          (rect.y - (fromMobileSidebar
+            ? Math.min(window.innerHeight, window.visualViewport?.height ?? window.innerHeight)
+            : window.innerHeight) * 0.35) /
+          (framed ? appliedScale * htmlZoom() : 1),
+        behavior: fromMobileSidebar && !matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "smooth"
+          : "instant",
       });
     render();
   }
@@ -2019,7 +2094,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       window.innerHeight,
       expanded,
     );
-    if (edgeSidebar) {
+    if (compactSidebar) {
+      undockEdgeTabs();
+      Object.assign(toolbar.style, {
+        left: "50%",
+        top: "auto",
+        bottom: "calc(16px + env(safe-area-inset-bottom,0px))",
+        transform: "translateX(-50%)",
+      });
+    } else if (edgeSidebar) {
       // The drawer owns its placement at the edge; the background dock spring
       // does not apply in edge mode. Skip while a morph owns left/top/size.
       if (!edgeMorphing) {
@@ -2182,10 +2265,6 @@ export function initComments(options: CommentsOptions): CommentsController {
   let pinSnapshot = "";
   let pinsScrolling = false;
   let pinScrollTimer = 0;
-  const scrollSamples = new WeakMap<
-    EventTarget,
-    { x: number; y: number; time: number }
-  >();
   function renderPins(force = false) {
     if (movingThread || (pinsScrolling && !force)) return;
     if (hidden) {
@@ -2310,7 +2389,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         pinPreview.hidden = false;
         const point = indicatorPoint(pin, rect);
         const right =
-          expanded && !isCompactReview(window.innerWidth, window.innerHeight)
+          expanded && !compactSidebar
             ? 396
             : 12;
         const left =
@@ -2638,7 +2717,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       return;
     }
     // Keep outgoing rows intact for the collapse animation; refresh them on open.
-    if (!expanded && edgeSidebar) return;
+    if (!expanded && (edgeSidebar || compactSidebar)) return;
     const existingList = sidebar.querySelector(".list");
     const scroll = existingList?.scrollTop ?? 0;
     const focusedSearch =
@@ -2646,7 +2725,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     const searchCaret = focusedSearch
       ? (shadow.activeElement as HTMLInputElement).selectionStart
       : null;
-    if (!expanded && !edgeSidebar) {
+    if (!expanded && !edgeSidebar && !compactSidebar) {
       disposeHeaderTip?.();
       sidebar.replaceChildren();
       return;
@@ -2724,7 +2803,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           "icon sidebar-search-trigger",
           "search",
         ),
-        button("Close sidebar", () => toggleExpanded(false), "icon", "expand"),
+        button("Close sidebar", () => toggleExpanded(false), "icon", "close"),
       );
       const selector = el("div", "sidebar-selector");
       selector.append(filterSlot, el("div", "scope-slot"));
@@ -2910,11 +2989,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       );
     }
     const animateRows =
-      !restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+      !compactSidebar &&
+      !restoring &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches;
     const previous = new Map<string | undefined, number>();
     if (animateRows && existingList) {
       const bounds = existingList.getBoundingClientRect();
-      for (const card of existingList.querySelectorAll<HTMLElement>("[data-thread]")) {
+      for (const card of existingList.querySelectorAll<HTMLElement>(
+        "[data-thread]",
+      )) {
         const box = card.getBoundingClientRect();
         if (box.bottom >= bounds.top && box.top <= bounds.bottom)
           previous.set(card.dataset.thread, box.top);
@@ -3584,7 +3667,12 @@ export function initComments(options: CommentsOptions): CommentsController {
       );
       // Auth and composing pause capture, but do not end an explicitly chosen mode.
       // A later Browse/Escape or another selection wins over this pending post.
-      if (commentMode && !draft && !account && selected === optimistic.id(item.id)) {
+      if (
+        commentMode &&
+        !draft &&
+        !account &&
+        selected === optimistic.id(item.id)
+      ) {
         selected = null;
         if (expanded) toggleExpanded(false);
         mode = true;
@@ -4252,7 +4340,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
     const dialog = dialogs.firstElementChild as HTMLElement | null;
     if (!dialog || account) return;
-    if (draft && isCompactReview(window.innerWidth, window.innerHeight)) {
+    if (compactSidebar && dialog.querySelector("textarea:focus")) {
       const viewport = window.visualViewport;
       const top = viewport?.offsetTop ?? 0;
       dialog.style.maxHeight = `${Math.max(0, availableHeight - 24)}px`;
@@ -4263,12 +4351,9 @@ export function initComments(options: CommentsOptions): CommentsController {
         dialog.offsetWidth,
         dialog.offsetHeight,
       );
-      cardFollow.place(dialogKey, dialog, position.x, position.y, false);
-      dialog.style.setProperty("top", `${position.y}px`, "important");
+      cardFollow.place(dialogKey, dialog, position.x, position.y, true);
       dialog.style.bottom = "auto";
       dialog.style.transformOrigin = "bottom center";
-      draftScrollSpace.style.height = `${Math.max(0, window.innerHeight - availableHeight) + dialog.offsetHeight + 24}px`;
-      if (!draftScrollSpace.isConnected) surface.append(draftScrollSpace);
       positionNotice();
       return;
     }
@@ -4316,7 +4401,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       y = pin.y - 28;
     }
     const right =
-      expanded && !isCompactReview(window.innerWidth, window.innerHeight)
+      expanded && !compactSidebar
         ? 396
         : 12;
     if (pin && x + dialog.offsetWidth > window.innerWidth - right)
@@ -4331,31 +4416,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     updateOrigin();
     positionNotice();
   }
-  function revealDraftTarget() {
-    if (
-      !draft ||
-      account ||
-      !isCompactReview(window.innerWidth, window.innerHeight)
-    )
-      return;
-    positionDialog();
-    const dialog = dialogs.firstElementChild as HTMLElement | null;
-    if (!dialog) return;
-    const top = (window.visualViewport?.offsetTop ?? 0) + 12;
-    const bottom = dialog.getBoundingClientRect().top - 16;
-    if (bottom <= top) return;
-    const point = locateAnchor(draft);
-    if (point.y < top || point.y > bottom)
-      window.scrollBy({
-        top: point.y - (top + bottom) / 2,
-        behavior: "instant",
-      });
-  }
   function openAccount() {
     clearTimeout(accountOpenTimer);
     profileDraft = null;
     mode = false;
-    const mobile = isCompactReview(window.innerWidth, window.innerHeight);
+    const mobile = compactSidebar;
     const revealPanel = mobile && !expanded;
     if (revealPanel) toggleExpanded(true);
     const show = () => {
@@ -4365,13 +4430,12 @@ export function initComments(options: CommentsOptions): CommentsController {
       render();
       focusAccount();
     };
-    if (revealPanel) accountOpenTimer = window.setTimeout(show, 750);
-    else show();
+    show();
   }
   function focusAccount() {
     queueMicrotask(() => {
       if (!account) return;
-      const mobile = isCompactReview(window.innerWidth, window.innerHeight);
+      const mobile = compactSidebar;
       const target = mobile
         ? dialogs.querySelector<HTMLElement>(".account-dialog")
         : dialogs.querySelector<HTMLElement>("input,button");
@@ -4596,8 +4660,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       !account &&
       isCompactReview(window.innerWidth, window.innerHeight);
     host.classList.toggle("mobile-composing", composingMobile);
-    if (!composingMobile) draftScrollSpace.remove();
-    sidebar.inert = edgeSidebar ? !expanded : account;
+    sidebar.inert = compactSidebar
+      ? !expanded || account
+      : edgeSidebar
+        ? !expanded
+        : account;
     if (selected || draft || mode || hidden || account) hidePreview(true);
     catcher.hidden = !mode;
     updateHover();
@@ -4665,7 +4732,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     shadow
       .querySelector<HTMLTextAreaElement>('[data-focus-key="body"]')
       ?.focus({ preventScroll: true });
-    revealDraftTarget();
+    positionDialog();
   }
   catcher.addEventListener("pointerup", (event) => {
     if (!drag) return;
@@ -4718,22 +4785,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       hidePreview();
       const target = event.target;
       // Sidebar and comment text scrolling do not move the page anchors.
-      if (target === host || !target) return;
+      if (target === host || !target ||
+        (target instanceof Node && target.getRootNode() === shadow)) return;
       const scroller = target === document ? document.scrollingElement : target;
       if (!(scroller instanceof Element)) return;
-      const now = performance.now();
-      const previous = scrollSamples.get(target);
-      const x = scroller.scrollLeft,
-        y = scroller.scrollTop;
-      const distance = previous
-        ? Math.hypot(x - previous.x, y - previous.y)
-        : 2;
-      const speed = previous ? distance / Math.max(1, now - previous.time) : 1;
-      scrollSamples.set(target, { x, y, time: now });
-      if (!movingThread && (pinsScrolling || distance >= 2 || speed > 0.1)) {
-        if (!pinsScrolling)
-          for (const pin of pins.querySelectorAll<HTMLElement>(".pin"))
-            pin.getAnimations().forEach((animation) => animation.cancel());
+      if (!movingThread) {
         pinsScrolling = true;
         pins.dataset.scrolling = "true";
         clearTimeout(pinScrollTimer);
@@ -4743,16 +4799,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           renderPins(true);
           pinsScrolling = false;
           delete pins.dataset.scrolling;
-          if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
-            for (const pin of pins.querySelectorAll<HTMLElement>(".pin"))
-              pin.animate(
-                [
-                  { transform: "translate(var(--pin-x), -28px) scale(0)" },
-                  { transform: "translate(var(--pin-x), -28px) scale(1)" },
-                ],
-                { duration: 250, easing: "cubic-bezier(.22,1.25,.36,1)" },
-              );
-        }, 140);
+        }, 180);
       }
       geometry();
     },
@@ -4762,16 +4809,16 @@ export function initComments(options: CommentsOptions): CommentsController {
       signal: abort.signal,
     },
   );
+  for (const type of ["focusin", "focusout"])
+    dialogs.addEventListener(type, () => requestAnimationFrame(positionDialog), {
+      signal: abort.signal,
+    });
   window.visualViewport?.addEventListener(
     "scroll",
     () => {
-      if (
-        (account || draft) &&
-        isCompactReview(window.innerWidth, window.innerHeight)
-      ) {
-        scalePage();
-        geometry();
-      }
+      if (!isCompactReview(window.innerWidth, window.innerHeight)) return;
+      scalePage();
+      if (account || draft || selected) geometry();
     },
     { signal: abort.signal },
   );
@@ -4780,8 +4827,6 @@ export function initComments(options: CommentsOptions): CommentsController {
     () => {
       if (!isCompactReview(window.innerWidth, window.innerHeight)) return;
       scalePage();
-      renderToolbar();
-      revealDraftTarget();
       geometry();
     },
     { signal: abort.signal },
@@ -4789,8 +4834,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   window.addEventListener(
     "resize",
     () => {
+      syncResponsiveSidebar();
       scalePage();
-      renderToolbar();
+      if (!compactSidebar) renderToolbar();
       geometry();
     },
     { signal: abort.signal },
@@ -4803,23 +4849,34 @@ export function initComments(options: CommentsOptions): CommentsController {
         keyboardAction = false;
       });
       const target = event.composedPath()[0];
-      if (account && event.key === "Tab") {
+      if ((account || (compactSidebar && expanded)) && event.key === "Tab") {
         const controls = [
-          ...dialogs.querySelectorAll<HTMLElement>(
+          ...(account ? dialogs : shadow).querySelectorAll<HTMLElement>(
             "button:not(:disabled),input:not(:disabled):not([type=hidden]),select:not(:disabled),textarea:not(:disabled),summary,a[href],[tabindex]",
           ),
         ].filter(
           (control) =>
             control.tabIndex >= 0 &&
             control.getClientRects().length > 0 &&
-            !control.closest("[inert]"),
+            !control.closest("[inert]") &&
+            (account ||
+              !compactSidebar ||
+              !!control.closest(".panel,.toolbar")),
         );
         const first = controls[0],
           last = controls.at(-1);
-        if (event.shiftKey && shadow.activeElement === first) {
+        if (
+          event.shiftKey &&
+          (shadow.activeElement === first ||
+            !controls.includes(shadow.activeElement as HTMLElement))
+        ) {
           event.preventDefault();
           last?.focus();
-        } else if (!event.shiftKey && shadow.activeElement === last) {
+        } else if (
+          !event.shiftKey &&
+          (shadow.activeElement === last ||
+            !controls.includes(shadow.activeElement as HTMLElement))
+        ) {
           event.preventDefault();
           first?.focus();
         }
@@ -4925,7 +4982,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   });
   function syncSession() {
     const next = new CommentsApi(options);
-    if (next.token === api.token || (api.transient && !next.token)) return false;
+    if (next.token === api.token || (api.transient && !next.token))
+      return false;
     api.cancelReads();
     api = next;
     projectLoaded = false;
@@ -4944,12 +5002,27 @@ export function initComments(options: CommentsOptions): CommentsController {
     run(loadProject);
     return true;
   }
-  window.addEventListener("storage", (event) => {
-    if (event.storageArea === localStorage && event.key === api.sessionKey && event.newValue !== api.token) syncSession();
-  }, { signal: abort.signal });
-  window.addEventListener("focus", () => { if (!syncSession()) polling?.wake(); }, {
-    signal: abort.signal,
-  });
+  window.addEventListener(
+    "storage",
+    (event) => {
+      if (
+        event.storageArea === localStorage &&
+        event.key === api.sessionKey &&
+        event.newValue !== api.token
+      )
+        syncSession();
+    },
+    { signal: abort.signal },
+  );
+  window.addEventListener(
+    "focus",
+    () => {
+      if (!syncSession()) polling?.wake();
+    },
+    {
+      signal: abort.signal,
+    },
+  );
   // Frame mode: a click on the framed site closes the sidebar, like a scrim.
   // Armed on pointerdown so a press that only dismisses a draft or selection
   // keeps the sidebar open; click (not pointerdown) so scrolling never closes.
@@ -5030,6 +5103,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       api.cancelReads();
       stopLayoutMotion();
       disposeHeaderTip?.();
+      cancelAnimationFrame(mobileEnterFrame);
       clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
       clearTimeout(accountOpenTimer);
@@ -5058,11 +5132,9 @@ export function initComments(options: CommentsOptions): CommentsController {
       hidePreview();
       observer.disconnect();
       mutations.disconnect();
-      draftScrollSpace.remove();
-      const scroll =
-        framed && !nativeReviewScroll
-          ? surface.scrollTop * htmlZoom()
-          : window.scrollY / appliedScale;
+      const scroll = framed
+        ? surface.scrollTop * htmlZoom()
+        : window.scrollY / appliedScale;
       for (const [header, styles] of fixedHeaders)
         Object.assign(header.style, styles);
       fixedHeaders.clear();

@@ -17,7 +17,7 @@ import {
   type ReactNode,
 } from "react";
 import { animate } from "motion";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   drawerCollapse,
   drawerExpandCompress as compress,
@@ -388,31 +388,9 @@ export function MorphingMenu({
       Boolean(item.children?.some((child) => child.id === selected));
     const swapping = !inBar && item.keepOpenOnSelect;
     const swap = (content: ReactNode, icon = false) => (
-      <AnimatePresence initial={false}>
-        <motion.span
-          key={item.label}
-          style={{ gridArea: "1 / 1", display: "flex", alignItems: "center" }}
-          initial={{
-            opacity: 0,
-            scale: icon ? 0.7 : 1,
-            y: icon ? 0 : 4,
-            filter: "blur(2px)",
-          }}
-          animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-          exit={{
-            opacity: 0,
-            scale: icon ? 0.7 : 1,
-            y: icon ? 0 : -4,
-            filter: "blur(2px)",
-          }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.2,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-        >
-          {content}
-        </motion.span>
-      </AnimatePresence>
+      <SwappingLabel label={item.label} icon={icon} reduced={!!reducedMotion}>
+        {content}
+      </SwappingLabel>
     );
     const glyph = active && item.activeIcon ? item.activeIcon : item.icon;
     const content = (
@@ -646,4 +624,66 @@ export function MorphingMenu({
 
 function Chevron() {
   return <ChevronRight className="morphing-menu__chevron" aria-hidden="true" />;
+}
+
+// Keep the existing label crossfade without mounting a presence tree per row.
+function SwappingLabel({
+  label,
+  icon,
+  reduced,
+  children,
+}: {
+  label: string;
+  icon: boolean;
+  reduced: boolean;
+  children: ReactNode;
+}) {
+  const root = useRef<HTMLSpanElement>(null);
+  const previous = useRef<{ label: string; node: HTMLElement } | null>(null);
+  useLayoutEffect(() => {
+    const node = root.current!;
+    const prior = previous.current;
+    previous.current = { label, node: node.cloneNode(true) as HTMLElement };
+    if (!prior || prior.label === label || reduced) return;
+    const outgoing = prior.node;
+    outgoing.setAttribute("aria-hidden", "true");
+    node.parentElement!.append(outgoing);
+    const options = { duration: 200, easing: "cubic-bezier(.22,1,.36,1)" };
+    const entering = node.animate(
+      [
+        {
+          opacity: 0,
+          transform: icon ? "scale(.7)" : "translateY(4px)",
+          filter: "blur(2px)",
+        },
+        { opacity: 1, transform: "none", filter: "blur(0px)" },
+      ],
+      options,
+    );
+    const leaving = outgoing.animate(
+      [
+        { opacity: 1, transform: "none", filter: "blur(0px)" },
+        {
+          opacity: 0,
+          transform: icon ? "scale(.7)" : "translateY(-4px)",
+          filter: "blur(2px)",
+        },
+      ],
+      options,
+    );
+    void leaving.finished.then(() => outgoing.remove()).catch(() => {});
+    return () => {
+      entering.cancel();
+      leaving.cancel();
+      outgoing.remove();
+    };
+  }, [label, icon, reduced]);
+  return (
+    <span
+      ref={root}
+      style={{ gridArea: "1 / 1", display: "flex", alignItems: "center" }}
+    >
+      {children}
+    </span>
+  );
 }

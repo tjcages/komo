@@ -86,6 +86,32 @@ document.addEventListener("focusin", (event) => {
   )
     setNavigation(false);
 });
+navigation?.addEventListener("click", (event) => {
+  if (
+    !compactNav.matches ||
+    !document.body.classList.contains("nav-open") ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  )
+    return;
+  const link = (event.target as Element).closest<HTMLAnchorElement>("a[href]");
+  if (!link || link.target === "_blank" || link.hasAttribute("download"))
+    return;
+  const url = new URL(link.href);
+  const path = (value: string) => value.replace(/\/+$/, "") || "/";
+  if (
+    url.origin === location.origin &&
+    path(url.pathname) === path(location.pathname) &&
+    url.search === location.search &&
+    url.hash === location.hash
+  ) {
+    event.preventDefault();
+    setNavigation(false, true);
+  }
+});
 compactNav.addEventListener("change", () => setNavigation(false));
 setNavigation(false);
 
