@@ -2066,7 +2066,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     mode = false;
     if (compactSidebar && expanded) toggleExpanded(false);
     const rect = locateAnchor(thread.anchor);
-    if (!openingPreview)
+    if (!openingPreview && !compactSidebar)
       (framed ? surface : window).scrollBy({
         top:
           (rect.y - window.innerHeight * 0.35) /
@@ -4830,7 +4830,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         : 2;
       const speed = previous ? distance / Math.max(1, now - previous.time) : 1;
       scrollSamples.set(target, { x, y, time: now });
-      if (!movingThread && (pinsScrolling || distance >= 2 || speed > 0.1)) {
+      if (!compactSidebar && !movingThread && (pinsScrolling || distance >= 2 || speed > 0.1)) {
         if (!pinsScrolling)
           for (const pin of pins.querySelectorAll<HTMLElement>(".pin"))
             pin.getAnimations().forEach((animation) => animation.cancel());

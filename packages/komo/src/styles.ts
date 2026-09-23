@@ -457,7 +457,6 @@ small {
   }
   .dialog {
     left: 12px !important;
-    top: 100px !important;
     width: calc(100vw - 24px);
     max-height: calc(100vh - 190px);
   }
@@ -800,8 +799,7 @@ ${morphingMenuStyles}
   .dialog {
     width: calc(100vw - 32px);
     left: 16px !important;
-    top: auto !important;
-    bottom: 88px;
+    bottom: auto;
     max-height: 65vh;
   }
   .dialog .messages {
