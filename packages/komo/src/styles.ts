@@ -797,14 +797,6 @@ ${morphingMenuStyles}
 }
 @media (max-width: 760px) {
   :host(.mobile-composing) .toolbar { opacity:0; pointer-events:none; visibility:hidden; }
- :host(.review-open) .panel {
-    top: 0;
-    height: 100%;
-    padding: 24px 12px 88px;
-    background: #080808;
-    width: 100%;
-    border-radius: 0;
-  }
   .dialog {
     width: calc(100vw - 32px);
     left: 16px !important;
@@ -965,13 +957,6 @@ ${morphingMenuStyles}
   box-shadow:
     0 0 0 2px #fff,
     0 3px 10px #0003;
-}
-@media (max-width: 760px) {
-  :host(.review-open) .panel {
-    top: 0;
-    height: 100%;
-    padding: 24px 16px 88px;
-  }
 }
 
 /* Charcoal action surfaces, with the same row rhythm as the review dock. */
@@ -2133,17 +2118,7 @@ textarea {
 .account-usage-status, .account-usage-note { font-size: 11px; line-height: 1.5; color: #909090; }
 
 @media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
- :host(.review-open) .panel {
-   top:var(--review-sheet-top,42%); left:0; right:0; width:100%;
-   height:calc(100% - var(--review-sheet-top,42%));
-   padding:24px 16px 0; border-radius:24px 24px 0 0;
-   background:#111; box-shadow:0 -1px 0 #ffffff12;
-   overscroll-behavior:contain;
-   animation:komo-sheet-in 250ms cubic-bezier(.32,.72,0,1);
-   transition:top 250ms cubic-bezier(.32,.72,0,1),height 250ms cubic-bezier(.32,.72,0,1);
- }
- :host(.review-open) .panel::before { content:""; position:absolute; top:9px; left:calc(50% - 16px); width:32px; height:4px; border-radius:4px; background:#ffffff24; }
- :host(.review-open) .panel .list { overscroll-behavior:contain; padding-bottom:calc(100px + env(safe-area-inset-bottom,0px)); }
+
  :host(.review-open) .toolbar { bottom:calc(16px + env(safe-area-inset-bottom,0px)); }
  :host(.review-open) .account-layer { position:absolute; top:var(--review-sheet-top,42%); bottom:0; width:100%; padding:calc(24px + env(safe-area-inset-top,0px)) 12px calc(24px + env(safe-area-inset-bottom,0px)); border-radius:24px 24px 0 0; overflow:hidden; }
  .account-layer .account-dialog { max-height:100%; min-height:0; overscroll-behavior:contain; }
@@ -2153,7 +2128,6 @@ textarea {
  :host :is(input, textarea, select) { font-size:16px !important; }
  :host(.review-open) .panel .sidebar-search-field input { font-size:16px; }
 }
-@keyframes komo-sheet-in { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
 @media(prefers-reduced-motion:reduce) { :host(.review-open) .panel { animation:none; transition:none; } }
 
 /* Edge sidebar: a floating, draggable sidebar that parks off and peeks from a
@@ -2448,20 +2422,6 @@ textarea {
   :host([data-sidebar="edge"]) .edge-sidebar { transition: none; }
   .toolbar[data-hidden="true"] > .morphing-menu { translate: none; scale: 1; filter: none; }
 }
-@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
-  :host([data-sidebar="edge"]) .edge-sidebar { width: min(380px, calc(100dvw - 32px)); }
-  :host([data-sidebar="edge"]) .edge-sidebar .panel {
-    top: auto; left: auto; right: auto; bottom: auto;
-    width: 100%; height: 100%;
-    padding: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    animation: none;
-    transition: none;
-  }
-  :host([data-sidebar="edge"]) .edge-sidebar .panel::before { display: none; }
-}
 .sidebar-tooltip {
   position: fixed;
   z-index: 30;
@@ -2510,4 +2470,36 @@ textarea {
 [data-tips-restored] .sidebar-tip { animation: none; transition: none; }
 @media (hover: none) { .sidebar-tip[data-tip="shortcut"] { display: none; } }
 @media (prefers-reduced-motion: reduce) { .sidebar-tooltip, .sidebar-tip { transition: none; animation: none; } }
+
+/* Mobile owns a bottom sheet, never a shrunken desktop sidebar. */
+:host([data-sidebar="drawer"]) .sidebar-tip { display:none !important; }
+:host([data-sidebar="drawer"]) .mobile-drawer {
+  position:absolute; inset:auto 0 0; height: min(82%, 820px); max-height:100%;
+  display:flex; flex-direction:column; min-height:0; pointer-events:auto;
+  background:#0d0d0d; color:#e9e6e1; border-radius:24px 24px 0 0;
+  box-shadow:0 -1px 0 #ffffff24,0 -12px 48px #0003; outline:none;
+  z-index:8; overscroll-behavior:contain; touch-action:pan-y;
+
+}
+.mobile-drawer[hidden] { display:none !important; }
+.mobile-drawer-backdrop { position:absolute; inset:0; background:#0005; border:0; border-radius:0; pointer-events:auto; z-index:7; touch-action:none; }
+.mobile-drawer-backdrop[hidden] { display:none; }
+.mobile-drawer-head { position:relative; height:36px; flex:none; display:flex; align-items:center; justify-content:center; }
+.mobile-drawer-head .mobile-drawer-handle { width:72px; height:32px; display:flex; align-items:center; justify-content:center; touch-action:none; cursor:grab; }
+.mobile-drawer-head .mobile-drawer-handle::before { content:""; width:36px; height:4px; background:currentColor; opacity:.3; border-radius:4px; }
+.mobile-drawer-head > button { position:absolute; right:8px; top:0; width:36px; height:36px; font-size:24px; }
+.mobile-drawer-slot { flex:1; min-height:0; display:flex; overflow:hidden; }
+.mobile-drawer-slot > div { flex:1; min-height:0; display:flex; flex-direction:column; }
+:host([data-sidebar="drawer"]) .panel {
+  position:relative; inset:auto; width:100%; height:100%; min-height:0; flex:1;
+  padding:0 12px; display:flex; flex-direction:column; border-radius:0;
+  background:transparent; box-shadow:none; animation:none; transition:none;
+}
+:host([data-sidebar="drawer"]) .panel::before { display:none; }
+:host([data-sidebar="drawer"]) .panel .list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; padding-bottom:calc(88px + env(safe-area-inset-bottom,0px)); }
+:host([data-sidebar="drawer"]) .toolbar { z-index:10; }
+:host([data-sidebar="drawer"]) .account-layer { top:0; height:100%; z-index:11; }
+:host([data-sidebar="drawer"]):not(.review-open) .panel { display:none; }
+:host([data-sidebar="drawer"]) > :not(.mobile-drawer-mount) > .panel { position:absolute; inset:18% 0 0; height:82%; background:#0d0d0d; }
+:host([data-sidebar="drawer"]) [aria-label="Close sidebar"] { display:none; }
 `;

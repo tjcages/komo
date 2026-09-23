@@ -99,16 +99,25 @@ export function initComments(options: CommentsOptions): CommentsController {
   if (typeof document === "undefined" || options.enabled === false) return noop;
   if (!options.endpoint || !options.repo || !options.branch || !options.project)
     throw new Error("Comments require endpoint, repo, branch, and project.");
-  if (options.pageRoot && (options.pageRoot === document.body || !document.body.contains(options.pageRoot)))
+  if (
+    options.pageRoot &&
+    (options.pageRoot === document.body ||
+      !document.body.contains(options.pageRoot))
+  )
     throw new Error("pageRoot must be mounted inside body.");
   const endpoint = new URL(options.endpoint);
   if (
-    endpoint.username || endpoint.password ||
+    endpoint.username ||
+    endpoint.password ||
     (endpoint.protocol !== "https:" &&
-      !(endpoint.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)))
+      !(
+        endpoint.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)
+      ))
   )
-    throw new Error("Use an HTTPS API endpoint without credentials; HTTP is allowed on localhost.");
+    throw new Error(
+      "Use an HTTPS API endpoint without credentials; HTTP is allowed on localhost.",
+    );
   const scope = JSON.stringify([
     endpoint.href,
     options.project,
@@ -118,15 +127,24 @@ export function initComments(options: CommentsOptions): CommentsController {
   const current = instances.get(document);
   if (current) {
     if (current.scope !== scope)
-      throw new Error("Destroy the current komo instance before changing projects or branches.");
+      throw new Error(
+        "Destroy the current komo instance before changing projects or branches.",
+      );
     return current.controller;
   }
   options = { ...resumeProject(options) };
-  const roots = [...document.body.childNodes].filter(node => node instanceof Element
-    ? !node.matches("script,style,link,meta,template,noscript")
-    : node.nodeType === 3 && node.textContent?.trim());
-  const root = options.pageRoot ?? (roots.length === 1 && roots[0] instanceof HTMLElement ? roots[0] : document.body);
-  const surface = getComputedStyle(root).display === "contents" ? document.body : root;
+  const roots = [...document.body.childNodes].filter((node) =>
+    node instanceof Element
+      ? !node.matches("script,style,link,meta,template,noscript")
+      : node.nodeType === 3 && node.textContent?.trim(),
+  );
+  const root =
+    options.pageRoot ??
+    (roots.length === 1 && roots[0] instanceof HTMLElement
+      ? roots[0]
+      : document.body);
+  const surface =
+    getComputedStyle(root).display === "contents" ? document.body : root;
   const canFrame = surface !== document.body;
   const sidebarModeKey = `branch-comments:sidebar-mode:${options.project}:${options.repo}`;
   let sidebarMode: "background" | "edge" = (() => {
@@ -139,7 +157,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     return options.sidebar === "background" ? "background" : "edge";
   })();
-  let edgeSidebar = sidebarMode === "edge";
+  let compactSidebar = isCompactReview(window.innerWidth, window.innerHeight);
+  let edgeSidebar = !compactSidebar && sidebarMode === "edge";
   // Development comments use a separate server-backed channel.
   const localSite = ["localhost", "127.0.0.1", "[::1]"].includes(
     location.hostname,
@@ -218,7 +237,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     const client = api;
     const token = api.token;
     const session = sessionRevision;
-    const obsolete = () => destroyed || api !== client || session !== sessionRevision || api.token !== token;
+    const obsolete = () =>
+      destroyed ||
+      api !== client ||
+      session !== sessionRevision ||
+      api.token !== token;
     try {
       await optimistic.submit(change, async (resolve) => {
         if (obsolete()) throw new DOMException("Session changed", "AbortError");
@@ -411,7 +434,11 @@ export function initComments(options: CommentsOptions): CommentsController {
   const replies = new Map<string, string>();
   const host = el("div");
   host.dataset.branchComments = "";
-  host.dataset.sidebar = edgeSidebar ? "edge" : "background";
+  host.dataset.sidebar = compactSidebar
+    ? "drawer"
+    : edgeSidebar
+      ? "edge"
+      : "background";
   Object.assign(host.style, {
     position: "fixed",
     inset: "0",
@@ -510,7 +537,6 @@ export function initComments(options: CommentsOptions): CommentsController {
   const draftScrollSpace = el("div");
   draftScrollSpace.setAttribute("aria-hidden", "true");
   draftScrollSpace.style.pointerEvents = "none";
-  const pagePaddingBottom = getComputedStyle(surface).paddingBottom;
   const savedStyle = {
     width: surface.style.width,
     boxSizing: surface.style.boxSizing,
@@ -546,9 +572,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       (color) => color !== "rgba(0, 0, 0, 0)",
     ) ?? "#fff";
   let framed = false;
-  let nativeReviewScroll = false;
   let accountOpenTimer = 0;
-  let framedAccount = false;
   let pageMotion: ReturnType<typeof animate> | undefined;
   let keyboardAction = false;
   // True while reopening a remembered sidebar on load: skip the open motion.
@@ -632,7 +656,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     applySidebarSize();
   }
   function positionSidebar() {
-    if (!edgeSidebar) return;
+    if (compactSidebar || !edgeSidebar) return;
     applySidebarSize();
     const height =
       sidebar.offsetHeight ||
@@ -674,7 +698,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
   }
   function syncEdgeMode() {
-    host.dataset.sidebar = edgeSidebar ? "edge" : "background";
+    host.dataset.sidebar = compactSidebar
+      ? "drawer"
+      : edgeSidebar
+        ? "edge"
+        : "background";
     sidebar.classList.toggle("edge-sidebar", edgeSidebar);
     sidebar.style.transition = "none";
     // Clear, don't zero: any translate makes the sidebar the containing block
@@ -702,7 +730,13 @@ export function initComments(options: CommentsOptions): CommentsController {
     pins.style.opacity = "1";
   }
   function setSidebarMode(mode: "background" | "edge") {
-    if (mode === sidebarMode || destroyed || (!canFrame && mode === "background")) return;
+    if (
+      compactSidebar ||
+      mode === sidebarMode ||
+      destroyed ||
+      (!canFrame && mode === "background")
+    )
+      return;
     // Read the visible, possibly interrupted positions before settling layout.
     const nodes = () => [
       surface,
@@ -787,7 +821,16 @@ export function initComments(options: CommentsOptions): CommentsController {
     return field;
   }
   function sidebarSetting() {
-    if (!canFrame) return el("p", "muted", "Floating sidebar · Set pageRoot for Frame.");
+    if (compactSidebar)
+      return selectSetting(
+        "sidebar",
+        "Sidebar",
+        [["drawer", "Drawer"]],
+        "drawer",
+        () => {},
+      );
+    if (!canFrame)
+      return el("p", "muted", "Floating sidebar · Set pageRoot for Frame.");
     return selectSetting(
       "sidebar",
       "Sidebar",
@@ -1199,7 +1242,11 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
   }
   function fail(reason: unknown) {
-    if (destroyed || (reason instanceof DOMException && reason.name === "AbortError")) return;
+    if (
+      destroyed ||
+      (reason instanceof DOMException && reason.name === "AbortError")
+    )
+      return;
     error =
       reason instanceof Error
         ? reason.message
@@ -1353,6 +1400,54 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
     render();
   }
+  let mobileSheet:
+    | ReturnType<typeof import("./mobile-drawer.js").mobileDrawer>
+    | undefined;
+  let mobileLoading = false;
+  let mobileRestore = false;
+  function syncMobileDrawer() {
+    if (!compactSidebar || destroyed) return;
+    mobileRestore ||= restoring && expanded;
+    if (mobileSheet) {
+      mobileSheet.update(expanded && !account, mobileRestore, expanded);
+      mobileRestore = false;
+      return;
+    }
+    if (mobileLoading) return;
+    mobileLoading = true;
+    void import("./mobile-drawer.js")
+      .then(({ mobileDrawer }) => {
+        if (destroyed || !compactSidebar) return;
+        const mount = el("div", "mobile-drawer-mount");
+        shadow.append(mount);
+        mobileSheet = mobileDrawer(mount, sidebar, () => toggleExpanded(false));
+        mobileSheet.update(expanded && !account, mobileRestore, expanded);
+        mobileRestore = false;
+      })
+      .catch(() => {
+        // Keep the responsive CSS sheet usable if a split chunk is unavailable.
+      })
+      .finally(() => {
+        mobileLoading = false;
+      });
+  }
+  function syncResponsiveSidebar() {
+    const next = isCompactReview(window.innerWidth, window.innerHeight);
+    if (next === compactSidebar) return;
+    mobileSheet?.destroy();
+    mobileSheet = undefined;
+    shadow.append(sidebar);
+    stopLayoutMotion();
+    stopEdgeMotion(true);
+    clearEdgeRows();
+    undockEdgeTabs();
+    compactSidebar = next;
+    edgeSidebar = !next && sidebarMode === "edge";
+    sidebar.removeAttribute("style");
+    syncEdgeMode();
+    appliedViewport = "";
+    render();
+  }
   let appliedScale = 1;
   let appliedViewport = "";
   function scalePage() {
@@ -1370,16 +1465,12 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (appliedViewport === viewportKey) return;
     stopLayoutMotion();
     appliedViewport = viewportKey;
-    if (edgeSidebar) {
+    if (edgeSidebar || compactSidebar) {
       // The edge sidebar floats over the live page: never frame or zoom it.
       pageMotion?.stop();
       pageTransitioning = false;
       pins.style.opacity = "1";
-      const scroll = framed
-        ? nativeReviewScroll
-          ? window.scrollY / appliedScale
-          : surface.scrollTop * zoom
-        : null;
+      const scroll = framed ? surface.scrollTop * zoom : null;
       if (framed) {
         for (const [header, styles] of fixedHeaders)
           Object.assign(header.style, styles);
@@ -1400,8 +1491,6 @@ export function initComments(options: CommentsOptions): CommentsController {
         : "";
       host.classList.toggle("review-open", expanded);
       framed = false;
-      nativeReviewScroll = false;
-      framedAccount = account;
       pins.style.clipPath = "";
       Object.assign(catcher.style, {
         left: "",
@@ -1411,12 +1500,10 @@ export function initComments(options: CommentsOptions): CommentsController {
       });
       return;
     }
-    const scroll =
-      framed && !nativeReviewScroll
-        ? surface.scrollTop
-        : window.scrollY / (zoom * appliedScale);
+    const scroll = framed
+      ? surface.scrollTop
+      : window.scrollY / (zoom * appliedScale);
     const wasFramed = framed;
-    const accountChanged = framedAccount !== account;
     const before = framed
       ? pageFrameBounds()
       : { left: 0, top: 0, width: window.innerWidth };
@@ -1431,33 +1518,27 @@ export function initComments(options: CommentsOptions): CommentsController {
       account,
     );
     const useFrame = layout.framed;
-    host.style.setProperty("--review-sheet-top", `${layout.sheetTop}px`);
     host.style.setProperty("--review-viewport-height", `${viewportHeight}px`);
     host.style.zoom = String(1 / zoom);
     host.style.width = `${window.innerWidth}px`;
     host.style.height = `${viewportHeight}px`;
-    host.style.top = layout.mobile
-      ? `${window.visualViewport?.offsetTop ?? 0}px`
-      : "";
+    host.style.top = "";
     host.classList.toggle("review-open", expanded);
-    const useWindowScroll = useFrame && layout.mobile;
     if (useFrame) {
       appliedScale = layout.scale;
       const effective = appliedScale * zoom;
       Object.assign(surface.style, {
-        position: useWindowScroll ? "relative" : "fixed",
+        position: "fixed",
         transform: "translate(0, 0)",
         transformOrigin: "top left",
         left: `${layout.left / effective}px`,
         top: `${layout.top / effective}px`,
         width: `${window.innerWidth / zoom}px`,
         boxSizing: "border-box",
-        height: useWindowScroll ? "auto" : `${layout.height / effective}px`,
-        paddingBottom: useWindowScroll
-          ? `calc(${pagePaddingBottom} + ${Math.max(0, viewportHeight - layout.height) / effective}px)`
-          : savedStyle.paddingBottom,
+        height: `${layout.height / effective}px`,
+        paddingBottom: savedStyle.paddingBottom,
         zoom: String(appliedScale),
-        overflow: useWindowScroll ? "visible" : "hidden auto",
+        overflow: "hidden auto",
         borderRadius: `${12 / effective}px`,
         background: pageBackground,
       });
@@ -1474,18 +1555,11 @@ export function initComments(options: CommentsOptions): CommentsController {
           header.style.marginBottom = `-${header.offsetHeight}px`;
         }
       }
-      document.documentElement.style.overflow = useWindowScroll
-        ? savedHtmlOverflow
-        : "hidden";
-      document.body.style.overflow = useWindowScroll
-        ? savedBody.overflow
-        : "hidden";
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
       document.body.style.background = "#080808";
       document.documentElement.style.background = "#080808";
-      if (useWindowScroll) {
-        if (!wasFramed || !nativeReviewScroll)
-          window.scrollTo({ top: scroll * effective, behavior: "instant" });
-      } else surface.scrollTop = scroll;
+      surface.scrollTop = scroll;
     } else {
       for (const [header, styles] of fixedHeaders)
         Object.assign(header.style, styles);
@@ -1498,8 +1572,6 @@ export function initComments(options: CommentsOptions): CommentsController {
       appliedScale = 1;
     }
     framed = useFrame;
-    nativeReviewScroll = useWindowScroll;
-    framedAccount = account;
     if (!useFrame && options.drawerContainer?.isConnected) {
       const rect = options.drawerContainer.getBoundingClientRect();
       drawerContainerCenter = rect.width
@@ -1507,7 +1579,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         : undefined;
     }
     if (
-      (useFrame !== wasFramed || (layout.mobile && accountChanged)) &&
+      useFrame !== wasFramed &&
       !keyboardAction &&
       !switchingSidebar &&
       !restoring &&
@@ -1568,10 +1640,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
   }
   function pageFrameBounds() {
-    const rect = surface.getBoundingClientRect();
-    return nativeReviewScroll
-      ? { left: rect.left, top: rect.top + window.scrollY, width: rect.width }
-      : rect;
+    return surface.getBoundingClientRect();
   }
   function dockEdgeTabs() {
     if (toolbar.dataset.edgeTabs !== "true") {
@@ -1903,6 +1972,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       accountOpenTimer = 0;
       account = false;
     }
+    if (compactSidebar) {
+      hidden = false;
+      scalePage();
+      render();
+      syncMobileDrawer();
+      presence.show();
+      presence.update();
+      return;
+    }
     if (edgeSidebar) {
       const interrupted = edgeMorphing;
       const openingPill = value ? drawerShell().getBoundingClientRect() : null;
@@ -1986,12 +2064,13 @@ export function initComments(options: CommentsOptions): CommentsController {
     editing = null;
     error = "";
     mode = false;
+    if (compactSidebar && expanded) toggleExpanded(false);
     const rect = locateAnchor(thread.anchor);
     if (!openingPreview)
-      (framed && !nativeReviewScroll ? surface : window).scrollBy({
+      (framed ? surface : window).scrollBy({
         top:
           (rect.y - window.innerHeight * 0.35) /
-          (framed && !nativeReviewScroll ? appliedScale * htmlZoom() : 1),
+          (framed ? appliedScale * htmlZoom() : 1),
         behavior: "instant",
       });
     render();
@@ -2019,7 +2098,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       window.innerHeight,
       expanded,
     );
-    if (edgeSidebar) {
+    if (compactSidebar) {
+      undockEdgeTabs();
+      Object.assign(toolbar.style, {
+        left: "50%",
+        top: "auto",
+        bottom: "calc(16px + env(safe-area-inset-bottom,0px))",
+        transform: "translateX(-50%)",
+      });
+    } else if (edgeSidebar) {
       // The drawer owns its placement at the edge; the background dock spring
       // does not apply in edge mode. Skip while a morph owns left/top/size.
       if (!edgeMorphing) {
@@ -2638,7 +2725,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       return;
     }
     // Keep outgoing rows intact for the collapse animation; refresh them on open.
-    if (!expanded && edgeSidebar) return;
+    if (!expanded && (edgeSidebar || compactSidebar)) return;
     const existingList = sidebar.querySelector(".list");
     const scroll = existingList?.scrollTop ?? 0;
     const focusedSearch =
@@ -2646,7 +2733,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     const searchCaret = focusedSearch
       ? (shadow.activeElement as HTMLInputElement).selectionStart
       : null;
-    if (!expanded && !edgeSidebar) {
+    if (!expanded && !edgeSidebar && !compactSidebar) {
       disposeHeaderTip?.();
       sidebar.replaceChildren();
       return;
@@ -2910,11 +2997,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       );
     }
     const animateRows =
-      !restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+      !compactSidebar &&
+      !restoring &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches;
     const previous = new Map<string | undefined, number>();
     if (animateRows && existingList) {
       const bounds = existingList.getBoundingClientRect();
-      for (const card of existingList.querySelectorAll<HTMLElement>("[data-thread]")) {
+      for (const card of existingList.querySelectorAll<HTMLElement>(
+        "[data-thread]",
+      )) {
         const box = card.getBoundingClientRect();
         if (box.bottom >= bounds.top && box.top <= bounds.bottom)
           previous.set(card.dataset.thread, box.top);
@@ -3584,7 +3675,12 @@ export function initComments(options: CommentsOptions): CommentsController {
       );
       // Auth and composing pause capture, but do not end an explicitly chosen mode.
       // A later Browse/Escape or another selection wins over this pending post.
-      if (commentMode && !draft && !account && selected === optimistic.id(item.id)) {
+      if (
+        commentMode &&
+        !draft &&
+        !account &&
+        selected === optimistic.id(item.id)
+      ) {
         selected = null;
         if (expanded) toggleExpanded(false);
         mode = true;
@@ -4365,8 +4461,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       render();
       focusAccount();
     };
-    if (revealPanel) accountOpenTimer = window.setTimeout(show, 750);
-    else show();
+    show();
   }
   function focusAccount() {
     queueMicrotask(() => {
@@ -4597,7 +4692,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       isCompactReview(window.innerWidth, window.innerHeight);
     host.classList.toggle("mobile-composing", composingMobile);
     if (!composingMobile) draftScrollSpace.remove();
-    sidebar.inert = edgeSidebar ? !expanded : account;
+    sidebar.inert = compactSidebar
+      ? !expanded || account
+      : edgeSidebar
+        ? !expanded
+        : account;
     if (selected || draft || mode || hidden || account) hidePreview(true);
     catcher.hidden = !mode;
     updateHover();
@@ -4608,6 +4707,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     renderList();
     renderDialog();
     placeEdgeAccount();
+    syncMobileDrawer();
   }
   let drag: {
     x: number;
@@ -4789,6 +4889,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   window.addEventListener(
     "resize",
     () => {
+      syncResponsiveSidebar();
       scalePage();
       renderToolbar();
       geometry();
@@ -4803,23 +4904,34 @@ export function initComments(options: CommentsOptions): CommentsController {
         keyboardAction = false;
       });
       const target = event.composedPath()[0];
-      if (account && event.key === "Tab") {
+      if ((account || (compactSidebar && expanded)) && event.key === "Tab") {
         const controls = [
-          ...dialogs.querySelectorAll<HTMLElement>(
+          ...(account ? dialogs : shadow).querySelectorAll<HTMLElement>(
             "button:not(:disabled),input:not(:disabled):not([type=hidden]),select:not(:disabled),textarea:not(:disabled),summary,a[href],[tabindex]",
           ),
         ].filter(
           (control) =>
             control.tabIndex >= 0 &&
             control.getClientRects().length > 0 &&
-            !control.closest("[inert]"),
+            !control.closest("[inert]") &&
+            (account ||
+              !compactSidebar ||
+              !!control.closest(".mobile-drawer,.toolbar")),
         );
         const first = controls[0],
           last = controls.at(-1);
-        if (event.shiftKey && shadow.activeElement === first) {
+        if (
+          event.shiftKey &&
+          (shadow.activeElement === first ||
+            !controls.includes(shadow.activeElement as HTMLElement))
+        ) {
           event.preventDefault();
           last?.focus();
-        } else if (!event.shiftKey && shadow.activeElement === last) {
+        } else if (
+          !event.shiftKey &&
+          (shadow.activeElement === last ||
+            !controls.includes(shadow.activeElement as HTMLElement))
+        ) {
           event.preventDefault();
           first?.focus();
         }
@@ -4925,7 +5037,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   });
   function syncSession() {
     const next = new CommentsApi(options);
-    if (next.token === api.token || (api.transient && !next.token)) return false;
+    if (next.token === api.token || (api.transient && !next.token))
+      return false;
     api.cancelReads();
     api = next;
     projectLoaded = false;
@@ -4944,12 +5057,27 @@ export function initComments(options: CommentsOptions): CommentsController {
     run(loadProject);
     return true;
   }
-  window.addEventListener("storage", (event) => {
-    if (event.storageArea === localStorage && event.key === api.sessionKey && event.newValue !== api.token) syncSession();
-  }, { signal: abort.signal });
-  window.addEventListener("focus", () => { if (!syncSession()) polling?.wake(); }, {
-    signal: abort.signal,
-  });
+  window.addEventListener(
+    "storage",
+    (event) => {
+      if (
+        event.storageArea === localStorage &&
+        event.key === api.sessionKey &&
+        event.newValue !== api.token
+      )
+        syncSession();
+    },
+    { signal: abort.signal },
+  );
+  window.addEventListener(
+    "focus",
+    () => {
+      if (!syncSession()) polling?.wake();
+    },
+    {
+      signal: abort.signal,
+    },
+  );
   // Frame mode: a click on the framed site closes the sidebar, like a scrim.
   // Armed on pointerdown so a press that only dismisses a draft or selection
   // keeps the sidebar open; click (not pointerdown) so scrolling never closes.
@@ -5030,6 +5158,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       api.cancelReads();
       stopLayoutMotion();
       disposeHeaderTip?.();
+      mobileSheet?.destroy();
+      mobileSheet = undefined;
       clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
       clearTimeout(accountOpenTimer);
@@ -5059,10 +5189,9 @@ export function initComments(options: CommentsOptions): CommentsController {
       observer.disconnect();
       mutations.disconnect();
       draftScrollSpace.remove();
-      const scroll =
-        framed && !nativeReviewScroll
-          ? surface.scrollTop * htmlZoom()
-          : window.scrollY / appliedScale;
+      const scroll = framed
+        ? surface.scrollTop * htmlZoom()
+        : window.scrollY / appliedScale;
       for (const [header, styles] of fixedHeaders)
         Object.assign(header.style, styles);
       fixedHeaders.clear();
