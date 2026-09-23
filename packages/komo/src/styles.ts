@@ -2401,9 +2401,9 @@ textarea {
    visible viewport. Only the panel moves; the page keeps its own colors. */
 :host([data-sidebar="mobile"]) .sidebar-tip { display:none !important; }
 :host([data-sidebar="mobile"]) .panel {
-  position:fixed; inset:auto 12px calc(var(--mobile-panel-bottom,0px) + 12px);
+  position:fixed; inset:auto 12px calc(var(--mobile-panel-bottom,0px) + 6px);
   width:auto; height:var(--mobile-panel-height,90vh); min-height:0;
-  padding:20px 12px 0; display:flex; flex-direction:column;
+  padding:20px 20px 10px; display:flex; flex-direction:column;
   background:#0d0d0d; color:#e9e6e1; border-radius:24px;
   box-shadow:0 -1px 0 #ffffff24; overflow:hidden;
   pointer-events:none; visibility:hidden; opacity:0;
@@ -2425,7 +2425,7 @@ textarea {
 :host([data-sidebar="mobile"]) .panel::before { display:none; }
 :host([data-sidebar="mobile"]) .panel .list {
   flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain;
-  touch-action:pan-y; padding-bottom:calc(88px + env(safe-area-inset-bottom,0px));
+  touch-action:pan-y; margin-inline:0; padding-bottom:calc(88px + env(safe-area-inset-bottom,0px));
   -webkit-mask-image:none; mask-image:none; scrollbar-gutter:auto;
 }
 :host([data-sidebar="mobile"]) .toolbar { position:absolute; z-index:10; }

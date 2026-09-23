@@ -1425,7 +1425,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     const bottom = mobileViewportBottom();
     const pill = drawerShell().getBoundingClientRect();
     host.style.setProperty("--mobile-pill-x", `${pill.left + pill.width / 2 - window.innerWidth / 2}px`);
-    host.style.setProperty("--mobile-pill-y", `${pill.bottom - (window.innerHeight + bottom - 12)}px`);
+    host.style.setProperty("--mobile-pill-y", `${pill.bottom - (window.innerHeight + bottom - 6)}px`);
     host.style.setProperty("--mobile-pill-scale-x", String(Math.max(0.01, pill.width / Math.max(1, window.innerWidth - 24))));
     host.style.setProperty("--mobile-pill-scale-y", String(Math.max(0.01, pill.height / panelHeight)));
   }
@@ -2798,7 +2798,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           "icon sidebar-search-trigger",
           "search",
         ),
-        button("Close sidebar", () => toggleExpanded(false), "icon", "expand"),
+        button("Close sidebar", () => toggleExpanded(false), "icon", "close"),
       );
       const selector = el("div", "sidebar-selector");
       selector.append(filterSlot, el("div", "scope-slot"));
