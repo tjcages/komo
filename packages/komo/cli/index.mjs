@@ -10,6 +10,7 @@ import { branchName, clientModule, gitValue, repository } from "./config.mjs";
 import { installAgentWorkflow } from "./workflow.mjs";
 import { agentCommands, agentHelp, runAgent } from "./agent.mjs";
 
+const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cwd = process.cwd();
 const args = process.argv.slice(2);
 const command = args[0];
@@ -282,7 +283,6 @@ async function init() {
       const key = randomBytes(32).toString("hex");
       const dir = resolve(cwd, ".komo");
       await mkdir(dir, { recursive: true });
-      const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
       await cp(
         join(packageRoot, "server/migrations"),
         join(dir, "migrations"),

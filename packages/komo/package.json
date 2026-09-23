@@ -23,7 +23,8 @@
     "server/setup-client.txt",
     "server/project-management.ts",
     "server/import-project.ts",
-    "server/digest.ts"
+    "server/digest.ts",
+    "server/project-sites.ts"
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -57,7 +58,8 @@
     "deploy:api": "pnpm run build:setup && wrangler deploy --config server/wrangler.jsonc",
     "build:setup": "esbuild src/setup-browser.ts --bundle --format=esm --minify --outfile=server/setup-client.txt",
     "size": "node scripts/measure.mjs",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "test:package": "pnpm run build && node scripts/check-package.mjs"
   },
   "repository": {
     "type": "git",

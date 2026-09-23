@@ -1,6 +1,17 @@
 const params = new URLSearchParams(location.search),
   mode = params.get("mode") || "after",
-  count = Number(params.get("comments") ?? 250);
+  count = Number(params.get("comments") ?? 250),
+  sidebar = params.get("sidebar") === "background" ? "background" : "edge";
+if (!Number.isInteger(count) || count < 0 || count > 5000)
+  throw new Error("comments must be an integer between 0 and 5000");
+// Every run starts with the requested workload, never a previous benchmark cache.
+for (const key of Object.keys(localStorage)) {
+  if (
+    key.startsWith(`branch-comments:${location.origin}/api/:perf`) ||
+    (key.startsWith("branch-comments:") && key.endsWith(":perf:perf"))
+  )
+    localStorage.removeItem(key);
+}
 const content = document.querySelector("#content"),
   stats = document.querySelector("#stats");
 for (let i = 0; i < 5000; i++) {
@@ -32,11 +43,13 @@ const threads = Array.from({ length: count }, (_, i) => ({
   createdAt: 1,
   updatedAt: 1,
   resolved: false,
+  resolvedBy: null,
   comments: [
     {
       id: `comment-${i}`,
       body: "Review this component. ".repeat(90),
       createdAt: 1,
+      editedAt: null,
       author: { id: `user-${i}`, name: `Reviewer ${i}`, verified: true },
       reactions: {},
     },
@@ -48,14 +61,19 @@ window.fetch = async (url, ...args) =>
     ? Response.json(
         String(url).includes("threads")
           ? { threads, revision: 1, next: null }
-          : { user: null }
+          : { user: null },
       )
     : realFetch(url, ...args);
 let measuring = false;
-const calls = { rect: 0, query: 0, hit: 0 };
+const calls = { rect: 0, query: 0, queryAll: 0, hit: 0 };
 for (const [proto, key, metric] of [
   [Element.prototype, "getBoundingClientRect", "rect"],
   [Document.prototype, "querySelector", "query"],
+  [Element.prototype, "querySelector", "query"],
+  [Document.prototype, "querySelectorAll", "queryAll"],
+  [Element.prototype, "querySelectorAll", "queryAll"],
+  [DocumentFragment.prototype, "querySelector", "query"],
+  [DocumentFragment.prototype, "querySelectorAll", "queryAll"],
   [Document.prototype, "elementFromPoint", "hit"],
   [Document.prototype, "elementsFromPoint", "hit"],
 ]) {
@@ -75,11 +93,29 @@ if (mode !== "none") {
     branch: "main",
     page: () => "/",
     pageRoot: content,
+    sidebar,
     autoHideDrawer: false,
     pollInterval: 60000,
   });
 }
+controller?.open();
 await new Promise((resolve) => setTimeout(resolve, 2000));
+const shadow = [...document.querySelectorAll("*")]
+  .map((node) => node.shadowRoot)
+  .find((root) => root?.querySelector(".toolbar"));
+const loadedCount =
+  shadow?.querySelectorAll(".list > [data-thread]").length ?? 0;
+if (
+  mode !== "none" &&
+  (!shadow ||
+    loadedCount !== count ||
+    /Comments didn.t load|Could not read comments/.test(shadow.textContent))
+) {
+  controller?.destroy();
+  stats.dataset.error = "true";
+  stats.textContent = `Invalid workload: expected ${count} threads, loaded ${loadedCount}.`;
+  throw new Error(stats.textContent);
+}
 let frames = 0,
   last = performance.now();
 const intervals = [];
@@ -95,7 +131,9 @@ function step(now) {
     measuring = false;
     const result = {
       mode,
+      sidebar,
       comments: count,
+      loadedCount,
       frames,
       calls,
       meanFrameMs: intervals.reduce((a, b) => a + b, 0) / intervals.length,
@@ -103,7 +141,7 @@ function step(now) {
     };
     controller?.destroy();
     result.cleanedUp = ![...document.querySelectorAll("*")].some((node) =>
-      node.shadowRoot?.querySelector(".toolbar")
+      node.shadowRoot?.querySelector(".toolbar"),
     );
     stats.textContent = JSON.stringify(result, null, 2);
     stats.dataset.complete = "true";
