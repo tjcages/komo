@@ -2401,10 +2401,10 @@ textarea {
    visible viewport. Only the panel moves; the page keeps its own colors. */
 :host([data-sidebar="mobile"]) .sidebar-tip { display:none !important; }
 :host([data-sidebar="mobile"]) .panel {
-  position:fixed; inset:auto 0 var(--mobile-panel-bottom,0px);
-  width:100%; height:var(--mobile-panel-height,90vh); min-height:0;
-  padding:0 12px; display:flex; flex-direction:column;
-  background:#0d0d0d; color:#e9e6e1; border-radius:24px 24px 0 0;
+  position:fixed; inset:auto 12px calc(var(--mobile-panel-bottom,0px) + 12px);
+  width:auto; height:var(--mobile-panel-height,90vh); min-height:0;
+  padding:20px 12px 0; display:flex; flex-direction:column;
+  background:#0d0d0d; color:#e9e6e1; border-radius:24px;
   box-shadow:0 -1px 0 #ffffff24; overflow:hidden;
   pointer-events:none; visibility:hidden; opacity:0;
   transform-origin:bottom center;

@@ -1425,8 +1425,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     const bottom = mobileViewportBottom();
     const pill = drawerShell().getBoundingClientRect();
     host.style.setProperty("--mobile-pill-x", `${pill.left + pill.width / 2 - window.innerWidth / 2}px`);
-    host.style.setProperty("--mobile-pill-y", `${pill.bottom - (window.innerHeight + bottom)}px`);
-    host.style.setProperty("--mobile-pill-scale-x", String(Math.max(0.01, pill.width / window.innerWidth)));
+    host.style.setProperty("--mobile-pill-y", `${pill.bottom - (window.innerHeight + bottom - 12)}px`);
+    host.style.setProperty("--mobile-pill-scale-x", String(Math.max(0.01, pill.width / Math.max(1, window.innerWidth - 24))));
     host.style.setProperty("--mobile-pill-scale-y", String(Math.max(0.01, pill.height / panelHeight)));
   }
   function scalePage() {
