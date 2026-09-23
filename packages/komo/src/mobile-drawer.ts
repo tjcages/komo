@@ -33,18 +33,18 @@ export function mobileDrawer(
   let motion: Animation | undefined;
   let shade: Animation | undefined;
   let drag:
-    | { id: number; y: number; start: number; distance: number }
+    | { id: number; y: number; start: number; distance: number; height: number }
     | undefined;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   function settle(value: boolean, restored = false) {
     const dim = backdrop.hidden ? "0" : getComputedStyle(backdrop).opacity;
     const from = sheet.hidden
-      ? "translateY(105%)"
+      ? "translate3d(0,105%,0)"
       : getComputedStyle(sheet).transform;
     motion?.cancel();
     shade?.cancel();
     motion = undefined;
-    sheet.style.transform = value ? "translateY(0)" : "translateY(105%)";
+    sheet.style.transform = value ? "translate3d(0,0,0)" : "translate3d(0,105%,0)";
     if (value) sheet.hidden = false;
     sheet.inert = !value;
     backdrop.hidden = false;
@@ -52,7 +52,7 @@ export function mobileDrawer(
     if (!reduced.matches && !restored && !sheet.hidden) {
       const next = sheet.animate(
         [
-          { transform: from === "none" ? "translateY(105%)" : from },
+          { transform: from === "none" ? "translate3d(0,105%,0)" : from },
           { transform: sheet.style.transform },
         ],
         { duration: 260, easing: "cubic-bezier(.22,1,.36,1)" },
@@ -84,6 +84,7 @@ export function mobileDrawer(
       if (!open || event.button !== 0 || (event.target as Element).closest("button")) return;
       const transform = getComputedStyle(sheet).transform;
       const offset = new DOMMatrix(transform).m42;
+      const height = sheet.offsetHeight;
       motion?.cancel();
       shade?.cancel();
       sheet.style.transform = transform;
@@ -93,6 +94,7 @@ export function mobileDrawer(
         y: event.clientY - offset,
         start: performance.now(),
         distance: 0,
+        height,
       };
       head.setPointerCapture(event.pointerId);
       event.preventDefault();
@@ -102,19 +104,19 @@ export function mobileDrawer(
   const move = (distance: number) => {
     if (!drag) return;
     drag.distance = Math.max(0, distance);
-    sheet.style.transform = `translateY(${drag.distance}px)`;
-    backdrop.style.opacity = String(1 - Math.min(1, drag.distance / sheet.offsetHeight));
+    sheet.style.transform = `translate3d(0,${drag.distance}px,0)`;
+    backdrop.style.opacity = String(1 - Math.min(1, drag.distance / drag.height));
   };
   head.addEventListener("pointermove", event => {
     if (drag?.id === event.pointerId) move(event.clientY - drag.y);
   }, { signal: abort.signal });
   const end = (cancelled: boolean) => {
     if (!drag) return;
-    const { distance, start } = drag;
+    const { distance, start, height } = drag;
     drag = undefined;
     if (
       !cancelled &&
-      (distance > sheet.offsetHeight * 0.28 ||
+      (distance > height * 0.28 ||
         (distance > 40 &&
           distance / Math.max(1, performance.now() - start) > 0.6))
     )
@@ -129,30 +131,41 @@ export function mobileDrawer(
     });
   // Let the list scroll natively; a downward pull at its top dismisses.
   let touchY: number | undefined;
+  const touchMove = (event: TouchEvent) => {
+    if (touchY === undefined) return;
+    const distance = event.touches[0].clientY - touchY;
+    if (distance < 0 && !drag) {
+      touchY = undefined;
+      slot.removeEventListener("touchmove", touchMove);
+      return;
+    }
+    if (!event.cancelable) return;
+    event.preventDefault();
+    if (!drag) {
+      const height = sheet.offsetHeight;
+      motion?.cancel();
+      shade?.cancel();
+      drag = { id: -1, y: touchY, start: performance.now(), distance: 0, height };
+    }
+    move(distance);
+  };
   slot.addEventListener("touchstart", (event) => {
+    slot.removeEventListener("touchmove", touchMove);
     const target = event.target as Element;
     touchY = event.touches.length === 1 &&
       !target.closest("button:not(.thread-card),input,textarea,select") &&
       !(content.querySelector(".list")?.scrollTop)
       ? event.touches[0].clientY : undefined;
+    if (touchY !== undefined)
+      slot.addEventListener("touchmove", touchMove, { passive: false, signal: abort.signal });
   }, { passive: true, signal: abort.signal });
-  slot.addEventListener("touchmove", (event) => {
-    if (touchY === undefined) return;
-    const distance = event.touches[0].clientY - touchY;
-    if (distance < 0 && !drag) { touchY = undefined; return; }
-    if (!event.cancelable) return;
-    event.preventDefault();
-    motion?.cancel();
-    shade?.cancel();
-    drag ??= { id: -1, y: touchY, start: performance.now(), distance: 0 };
-    move(distance);
-  }, { passive: false, signal: abort.signal });
   for (const type of ["touchend", "touchcancel"])
     slot.addEventListener(type, () => {
+      slot.removeEventListener("touchmove", touchMove);
       touchY = undefined;
       if (drag?.id === -1) end(type !== "touchend");
     }, { signal: abort.signal });
-  sheet.style.transform = "translateY(105%)";
+  sheet.style.transform = "translate3d(0,105%,0)";
   sheet.hidden = backdrop.hidden = true;
   sheet.inert = true;
   return {

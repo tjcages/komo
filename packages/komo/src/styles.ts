@@ -2408,7 +2408,7 @@ textarea {
 
 }
 .mobile-drawer[hidden] { display:none !important; }
-.mobile-drawer-backdrop { position:absolute; inset:0; background:#0005; pointer-events:auto; z-index:7; touch-action:none; }
+.mobile-drawer-backdrop { position:absolute; inset:0; background:#0005; pointer-events:auto; z-index:7; touch-action:none; will-change:opacity; }
 .mobile-drawer-backdrop[hidden] { display:none; }
 .mobile-drawer-head { touch-action:none; position:relative; height:36px; flex:none; display:flex; align-items:center; justify-content:center; }
 .mobile-drawer-handle { width:72px; height:32px; display:flex; align-items:center; justify-content:center; }

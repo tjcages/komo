@@ -80,7 +80,8 @@ it("dismisses a downward pull at list start without stealing a scrolled list", (
   list.append(card);
   content.append(list);
   const sheet = shadow.querySelector(".mobile-drawer") as HTMLElement;
-  Object.defineProperty(sheet, "offsetHeight", { value: 600 });
+  let heightReads = 0;
+  Object.defineProperty(sheet, "offsetHeight", { get() { heightReads++; return 600; } });
   const touch = (type: string, y: number) => {
     const event = new Event(type, { bubbles: true, cancelable: true });
     Object.assign(event, { touches: [{ clientY: y }] });
@@ -95,10 +96,14 @@ it("dismisses a downward pull at list start without stealing a scrolled list", (
   expect(sheet.hidden).toBe(false);
   list.scrollTop = 0;
   touch("touchstart", 300);
-  expect(touch("touchmove", 500).defaultPrevented).toBe(true);
+  expect(touch("touchmove", 350).defaultPrevented).toBe(true);
+  const reads = heightReads;
+  touch("touchmove", 500);
+  expect(heightReads).toBe(reads);
+  expect(sheet.style.transform).toBe("translate3d(0,200px,0)");
   touch("touchcancel", 500);
   expect(sheet.hidden).toBe(false);
-  expect(sheet.style.transform).toBe("translateY(0)");
+  expect(sheet.style.transform).toBe("translate3d(0,0,0)");
   touch("touchstart", 300);
   touch("touchmove", 500);
   touch("touchend", 500);
