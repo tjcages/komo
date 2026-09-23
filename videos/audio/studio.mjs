@@ -757,15 +757,17 @@ async function makeThumbnails() {
     probe.load();
   }
 }
-document.addEventListener("keydown", (event) => {
-  if (
-    event.code === "Space" &&
-    !event.target.closest("input,select,textarea,button,summary,dialog")
-  ) {
-    event.preventDefault();
-    play();
-  }
-});
+window.addEventListener("keydown", (event) => {
+  if (event.code !== "Space") return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (!event.repeat && !exporting) void play();
+}, true);
+window.addEventListener("keyup", (event) => {
+  if (event.code !== "Space") return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
 mountEditor({ effects, getDuration: () => duration });
 $("panelRoot").inert = true;
 let savedProject;

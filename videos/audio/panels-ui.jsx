@@ -188,7 +188,7 @@ export function mountEditor({ effects, getDuration }) {
                 <Island node={islands.timeline} />
                 <div className="timeline-bottom">
                   <span>Click a scene to seek · select a cue to edit</span>
-                  <span>Space to play</span>
+                  <span>Space to play / pause</span>
                 </div>
               </div>
             </section>
