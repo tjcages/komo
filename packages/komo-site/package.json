@@ -9,11 +9,16 @@
     "typecheck": "wrangler types worker/worker-configuration.d.ts && tsc -p tsconfig.json && tsc -p worker/tsconfig.json"
   },
   "dependencies": {
-    "@tjcages/komo": "workspace:*"
+    "@tjcages/komo": "workspace:*",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "vaul": "1.1.2"
   },
   "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "esbuild": "^0.25.0",
-    "wrangler": "4.136.3",
-    "typescript": "^6.0.0"
+    "typescript": "^6.0.0",
+    "wrangler": "4.136.3"
   }
 }

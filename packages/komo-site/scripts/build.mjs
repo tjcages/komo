@@ -63,7 +63,7 @@ const navIcons = {
 const logoSvg = await readFile(new URL("../src/logo.svg", import.meta.url), "utf8");
 const logo = (id) => `<span class="komo-logo" data-motion="soft" aria-hidden="true"><img class="komo-symbol" src="/favicon.svg" width="24" height="24" alt="">${logoSvg.replaceAll("komo-mask", `komo-mask-${id}`).replace('class="wordmark"', 'class="komo-wordmark"').replace('role="img" aria-label="komo"', 'aria-hidden="true"')}</span>`;
 const head = (title, description, path) =>
-  `<meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#1b1b1e" media="(prefers-color-scheme: dark)"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${escape(title)} — komo</title><meta name="description" content="${escape(description)}"><link rel="canonical" href="https://komo.offbr.co${path}"><meta property="og:title" content="${escape(title)} — komo"><meta property="og:description" content="${escape(description)}"><meta property="og:type" content="website"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/app-icon.png"><link rel="stylesheet" href="/assets/site.css"><script type="module" src="/assets/site.js"></script>`;
+  `<meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${escape(title)} — komo</title><meta name="description" content="${escape(description)}"><link rel="canonical" href="https://komo.offbr.co${path}"><meta property="og:title" content="${escape(title)} — komo"><meta property="og:description" content="${escape(description)}"><meta property="og:type" content="website"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/app-icon.png"><link rel="stylesheet" href="/assets/site.css"><script type="module" src="/assets/site.js"></script>`;
 for (const page of pages) {
   const html = `<!doctype html><html lang="en"><head>${head(page.title, page.description, page.path)}</head><body class="${page.path === "/" ? "home" : "docs"}"><a class="skip" href="#main">Skip to content</a><div id="site-content"><header class="mobile-header"><a class="brand" href="/" aria-label="komo home">${logo("mobile")}</a><button class="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="navigation"><span class="nav-menu-icon">${icons.menu}</span></button></header><header class="home-header"><a class="home-brand" href="/" aria-label="komo home">${logo("header")} <span>by Off brand</span></a><nav aria-label="Resources"><a href="/install/">Docs</a><a href="https://www.npmjs.com/package/@tjcages/komo">npm ${icons.arrow}</a></nav></header><div class="layout"><aside id="navigation" class="navigation"><a class="brand" href="/" aria-label="komo home">${logo("navigation")}</a><nav aria-label="Main navigation">${nav.map((p) => `<a href="${p.path}" ${p.path === page.path ? 'aria-current="page"' : ""}>${icons[navIcons[p.path]]}<span>${p.label}</span></a>`).join("")}</nav><a class="offbrand-link" href="https://offbr.co"><strong>Off brand</strong></a><a class="version" href="https://www.npmjs.com/package/@tjcages/komo">npm · @tjcages/komo</a><button class="mobile-nav-close" data-nav-close>${icons.close}<span>Close menu</span></button></aside><main id="main" class="document ${page.path === "/" ? "overview" : ""}">${decorate(page.body)}<footer><span>© ${new Date().getFullYear()} Off brand</span><div><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="mailto:ty@offbr.co">Contact</a></div></footer></main></div></div><template id="play-icon">${icons.play}</template><template id="check-icon">${icons.check}</template><div id="copy-status" class="sr-only" role="status"></div></body></html>`;
   const dir = new URL(`.${page.path}`, out);
@@ -124,4 +124,29 @@ for (const path of [
       .replaceAll("/assets/site.css", assetUrl(scriptOutput.cssBundle))
   );
 }
+await mkdir(new URL("drawer-lab/", out), { recursive: true });
+await cp(new URL("../node_modules/vaul/style.css", import.meta.url), new URL("assets/vaul.css", out));
+await cp(new URL("../node_modules/vaul/LICENSE.md", import.meta.url), new URL("drawer-lab/LICENSE.txt", out));
+await build({
+  entryPoints: [new URL("../src/drawer-lab.ts", import.meta.url).pathname],
+  outfile: new URL("assets/drawer-lab.js", out).pathname,
+  bundle: true,
+  format: "esm",
+  minify: true,
+  target: "es2022",
+  define: { "process.env.NODE_ENV": '"production"' },
+});
+await writeFile(new URL("drawer-lab/index.html", out), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Drawer comparison — komo</title><link rel="stylesheet" href="/assets/vaul.css"><style id="drawer-lab-style">
+body { margin:0; background:#f7f7f9; color:#1d1d1f; font:16px/1.5 system-ui,sans-serif; }
+main { max-width:560px; margin:auto; padding:48px 24px; }
+h1 { font-size:24px; line-height:1.2; }
+.lab-trigger { display:block; width:100%; margin:14px 0; padding:16px; border:0; border-radius:12px; background:#27272a; color:#fff; font:inherit; text-align:left; touch-action:manipulation; }
+.lab-overlay { position:fixed; inset:0; background:#0005; pointer-events:auto; }
+.lab-sheet { position:fixed; inset:auto 0 0; height:min(82vh,820px); padding:12px 16px 0; display:flex; flex-direction:column; background:#0d0d0d; color:#e9e6e1; border-radius:24px 24px 0 0; pointer-events:auto; }
+.lab-handle { margin:8px auto 20px; }
+.lab-title { font-size:18px; margin:0 0 8px; }
+.lab-description { font-size:13px; color:#aaa; margin:0 0 12px; }
+.lab-list { min-height:0; flex:1; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
+.lab-list p { padding:14px 0; margin:0; border-bottom:1px solid #ffffff16; }
+</style><script type="module" src="/assets/drawer-lab.js"></script></head><body><main><h1>Drawer motion comparison</h1><p>Both buttons use the actual Vaul package and the same 40 comment rows. The second places Vaul inside a fixed Shadow DOM overlay like komo.</p><div id="lab"></div></main></body></html>`);
 console.log(`Built ${pages.length} pages with the shared komo demo.`);
