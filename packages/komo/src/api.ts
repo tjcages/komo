@@ -343,17 +343,19 @@ export class CommentsApi {
     const signal = this.reads.signal;
     const threads: Thread[] = [];
     let offset: number | null = 0;
+    let cursor: string | undefined;
     let revision: number | undefined;
     while (offset !== null) {
       type ListResponse = {
         threads?: Thread[];
         authors?: Record<string, Identity>;
         next?: number | null;
+        nextCursor?: string | null;
         revision?: number;
         notModified?: boolean;
       };
       const result: ListResponse = await this.request<ListResponse>(
-        `threads?authors=1&offset=${offset}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`,
+        `threads?authors=1&offset=${offset}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}${offset === 0 && this.revision !== undefined ? `&revision=${this.revision}` : ""}`,
       ).catch((error: unknown) => {
         if (
           error instanceof ApiError &&
@@ -379,6 +381,7 @@ export class CommentsApi {
         return this.cachedThreads;
       if (
         !threadList(result.threads) ||
+        (result.nextCursor != null && (typeof result.nextCursor !== "string" || result.nextCursor.length > 200 || result.nextCursor === cursor)) ||
         (result.revision !== undefined &&
           (!Number.isSafeInteger(result.revision) || result.revision < 0)) ||
         (result.next != null &&
@@ -387,6 +390,7 @@ export class CommentsApi {
         throw invalidResponse();
       if (offset === 0) revision = result.revision;
       threads.push(...(result.threads ?? []));
+      cursor = result.nextCursor ?? undefined;
       offset = result.next ?? null;
     }
     this.revision = revision;

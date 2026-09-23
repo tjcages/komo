@@ -486,3 +486,20 @@ it("does not turn an oversized thread into an empty project or lose shared autho
     author,
   );
 });
+
+it("prefers cursor continuation and falls back to legacy offsets", async () => {
+  vi.stubGlobal("location", {hostname: "localhost"});
+  vi.stubGlobal("document", {cookie: ""});
+  vi.stubGlobal("localStorage", {getItem: () => null, setItem: vi.fn()});
+  for (const cursor of ['[100,"first"]', undefined]) {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({threads: [thread("first")], next: 50, nextCursor: cursor, revision: 1}))
+      .mockResolvedValueOnce(Response.json({threads: [thread("second")], next: null, revision: 1}));
+    vi.stubGlobal("fetch", fetch);
+    const api = new CommentsApi({endpoint: "https://example.com/", project: "test", repo: "test", branch: "main"});
+    expect(await api.list()).toEqual([thread("first"), thread("second")]);
+    const params = fetch.mock.calls[1][0].searchParams;
+    expect(params.get("cursor")).toBe(cursor ?? null);
+    expect(params.get("offset")).toBe("50");
+  }
+});

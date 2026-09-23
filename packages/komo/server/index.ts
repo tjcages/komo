@@ -1028,6 +1028,20 @@ async function route(
       400,
       "Invalid offset."
     );
+    let cursor: [number, string] | undefined;
+    if (url.searchParams.has("cursor")) {
+      try {
+        cursor = JSON.parse(string(url.searchParams.get("cursor"), 200, "cursor"));
+      } catch {
+        throw new HttpError(400, "Invalid cursor.");
+      }
+      check(
+        Array.isArray(cursor) && cursor.length === 2 &&
+        Number.isSafeInteger(cursor[0]) && cursor[0] >= 0 &&
+        typeof cursor[1] === "string" && /^[\w-]{1,100}$/.test(cursor[1]),
+        400, "Invalid cursor."
+      );
+    }
     const revision =
       (
         await env.DB.prepare(
@@ -1036,20 +1050,23 @@ async function route(
           .bind(project, repo, branch)
           .first<{ version: number }>()
       )?.version ?? 0;
-    if (offset === 0 && url.searchParams.get("revision") === String(revision))
+    if (!cursor && offset === 0 && url.searchParams.get("revision") === String(revision))
       return json({ notModified: true, revision });
     const requestedId = url.searchParams.get("id");
     const rows = await env.DB.prepare(
-      `SELECT t.*,u.name AS resolver_name,u.verified AS resolver_verified FROM threads t LEFT JOIN users u ON u.id=t.resolved_by WHERE t.project=? AND t.repo=? AND t.branch=?${requestedId ? " AND t.id=?" : ""} ORDER BY t.created_at,t.id LIMIT 50 OFFSET ?`
+      `SELECT t.*,u.name AS resolver_name,u.verified AS resolver_verified FROM threads t LEFT JOIN users u ON u.id=t.resolved_by WHERE t.project=? AND t.repo=? AND t.branch=?${requestedId ? " AND t.id=?" : ""}${cursor ? " AND (t.created_at,t.id)>(?,?)" : ""} ORDER BY t.created_at,t.id LIMIT 50 OFFSET ?`
     )
       .bind(
         project,
         repo,
         branch,
         ...(requestedId ? [string(requestedId, 100, "thread ID")] : []),
-        offset
+        ...(cursor ?? []),
+        cursor ? 0 : offset
       )
       .all<ThreadRow>();
+    const last = rows.results.at(-1);
+    const nextCursor = rows.results.length === 50 && last ? JSON.stringify([last.created_at, last.id]) : null;
     const ids = rows.results.map((row) => row.id);
     if (!ids.length) return json({ threads: [], next: null, revision });
     const placeholders = ids.map(() => "?").join(",");
@@ -1117,12 +1134,14 @@ async function route(
           comments: thread.comments.map(comment => ({ ...comment, author: authorId(comment.author) })),
         })),
         authors,
+        nextCursor,
         next: ids.length === 50 ? offset + 50 : null,
         revision,
       });
     }
     return json({
       threads,
+      nextCursor,
       next: ids.length === 50 ? offset + 50 : null,
       revision,
     });
