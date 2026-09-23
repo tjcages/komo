@@ -99,6 +99,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   if (typeof document === "undefined" || options.enabled === false) return noop;
   if (!options.endpoint || !options.repo || !options.branch || !options.project)
     throw new Error("Comments require endpoint, repo, branch, and project.");
+  if (options.pageRoot && (options.pageRoot === document.body || !document.body.contains(options.pageRoot)))
+    throw new Error("pageRoot must be mounted inside body.");
   const endpoint = new URL(options.endpoint);
   if (
     endpoint.username || endpoint.password ||
@@ -120,8 +122,14 @@ export function initComments(options: CommentsOptions): CommentsController {
     return current.controller;
   }
   options = { ...resumeProject(options) };
+  const roots = [...document.body.childNodes].filter(node => node instanceof Element
+    ? !node.matches("script,style,link,meta,template,noscript")
+    : node.nodeType === 3 && node.textContent?.trim());
+  const surface = options.pageRoot ?? (roots.length === 1 && roots[0] instanceof HTMLElement ? roots[0] : document.body);
+  const canFrame = surface !== document.body;
   const sidebarModeKey = `branch-comments:sidebar-mode:${options.project}:${options.repo}`;
   let sidebarMode: "background" | "edge" = (() => {
+    if (!canFrame) return "edge";
     try {
       const stored = localStorage.getItem(sidebarModeKey);
       if (stored === "edge" || stored === "background") return stored;
@@ -498,19 +506,6 @@ export function initComments(options: CommentsOptions): CommentsController {
     live,
   );
   document.body.append(host);
-  let pageRoot = options.pageRoot;
-  let ownsWrapper = false;
-  if (!pageRoot) {
-    pageRoot = el("div");
-    pageRoot.dataset.commentsPage = "";
-    ownsWrapper = true;
-    const children = [...document.body.childNodes].filter(
-      (child) => child !== host,
-    );
-    document.body.insertBefore(pageRoot, host);
-    pageRoot.append(...children);
-  }
-  const surface = pageRoot;
   const draftScrollSpace = el("div");
   draftScrollSpace.setAttribute("aria-hidden", "true");
   draftScrollSpace.style.pointerEvents = "none";
@@ -705,7 +700,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     pins.style.opacity = "1";
   }
   function setSidebarMode(mode: "background" | "edge") {
-    if (mode === sidebarMode || destroyed) return;
+    if (mode === sidebarMode || destroyed || (!canFrame && mode === "background")) return;
     // Read the visible, possibly interrupted positions before settling layout.
     const nodes = () => [
       surface,
@@ -790,6 +785,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     return field;
   }
   function sidebarSetting() {
+    if (!canFrame) return el("p", "muted", "Floating sidebar · Set pageRoot for Frame.");
     return selectSetting(
       "sidebar",
       "Sidebar",
@@ -1388,10 +1384,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         fixedHeaders.clear();
         Object.assign(surface.style, savedStyle);
         appliedScale = 1;
+        document.documentElement.style.overflow = savedHtmlOverflow;
+        Object.assign(document.body.style, savedBody);
+        document.documentElement.style.background = savedHtmlBackground;
       }
-      document.documentElement.style.overflow = savedHtmlOverflow;
-      Object.assign(document.body.style, savedBody);
-      document.documentElement.style.background = savedHtmlBackground;
       if (scroll !== null)
         window.scrollTo({ top: scroll, behavior: "instant" });
       host.style.zoom = String(1 / zoom);
@@ -5067,12 +5063,13 @@ export function initComments(options: CommentsOptions): CommentsController {
       for (const [header, styles] of fixedHeaders)
         Object.assign(header.style, styles);
       fixedHeaders.clear();
-      document.documentElement.style.overflow = savedHtmlOverflow;
-      Object.assign(surface.style, savedStyle);
-      Object.assign(document.body.style, savedBody);
-      document.documentElement.style.background = savedHtmlBackground;
-      window.scrollTo({ top: scroll, behavior: "instant" });
-      if (ownsWrapper) surface.replaceWith(...surface.childNodes);
+      if (framed || !edgeSidebar) {
+        document.documentElement.style.overflow = savedHtmlOverflow;
+        Object.assign(surface.style, savedStyle);
+        Object.assign(document.body.style, savedBody);
+        document.documentElement.style.background = savedHtmlBackground;
+        window.scrollTo({ top: scroll, behavior: "instant" });
+      }
       toolbarSize.disconnect();
       toolbarRoot.unmount();
       host.remove();

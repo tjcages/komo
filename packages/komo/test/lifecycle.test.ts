@@ -24,6 +24,10 @@ beforeEach(() => {
     addEventListener() {},
     removeEventListener() {},
   }));
+  Object.defineProperty(Element.prototype, "getAnimations", {
+    configurable: true,
+    value: () => [],
+  });
   Object.defineProperty(document, "elementsFromPoint", {
     configurable: true,
     value: () => [],
@@ -61,8 +65,14 @@ it("rejects another scope and keeps a replacement safe from stale teardown", () 
 });
 
 it("rejects unsafe endpoint schemes and embedded credentials before mounting", () => {
-  for (const endpoint of ["ftp://localhost", "http://public.example.test", "https://user:password@example.test"])
-    expect(() => initComments({ ...options, endpoint })).toThrow("HTTPS API endpoint");
+  for (const endpoint of [
+    "ftp://localhost",
+    "http://public.example.test",
+    "https://user:password@example.test",
+  ])
+    expect(() => initComments({ ...options, endpoint })).toThrow(
+      "HTTPS API endpoint",
+    );
   expect(document.body.children).toHaveLength(0);
 });
 
@@ -144,9 +154,78 @@ it("clears private cached feedback and identity immediately on another tab's log
     shadow.querySelector('[aria-label="Private Reviewer · Account"]'),
   ).toBeNull();
   expect(shadow.querySelector('[aria-label="Enter your name"]')).not.toBeNull();
-  api.save({ token: "another-session", user: { id: "other", name: "Other Reviewer", verified: true } });
+  api.save({
+    token: "another-session",
+    user: { id: "other", name: "Other Reviewer", verified: true },
+  });
   window.dispatchEvent(new Event("focus"));
-  expect(shadow.querySelector('[aria-label="Other Reviewer · Account"]')).not.toBeNull();
+  expect(
+    shadow.querySelector('[aria-label="Other Reviewer · Account"]'),
+  ).not.toBeNull();
   expect(shadow.textContent).not.toContain("Private feedback");
   localStorage.clear();
+});
+
+it("keeps multi-root host layout and framework-owned nodes untouched", () => {
+  const main = document.createElement("main");
+  const aside = document.createElement("aside");
+  document.body.append(main, aside);
+  document.body.style.display = "grid";
+  controller = initComments({ ...options, sidebar: "background" });
+  const host = [...document.body.children].find(
+    (node) => node.shadowRoot,
+  )! as HTMLElement;
+  expect(document.querySelector("body > main")).toBe(main);
+  expect(document.querySelector("body > aside")).toBe(aside);
+  expect(host.dataset.sidebar).toBe("edge");
+  document.body.style.background = "blue";
+  controller.close();
+  controller.destroy();
+  expect([...document.body.children]).toEqual([main, aside]);
+  expect(document.body.style.display).toBe("grid");
+  expect(document.body.style.background).toBe("blue");
+  document.body.removeChild(main); // Framework ownership still matches the mounted tree.
+  document.body.style.cssText = "";
+});
+
+it("frames an existing sole app root without reparenting it", () => {
+  const app = document.createElement("main");
+  document.body.append(app, document.createElement("script"));
+  controller = initComments({ ...options, sidebar: "background" });
+  expect(app.parentElement).toBe(document.body);
+  const host = [...document.body.children].find(
+    (node) => node.shadowRoot,
+  )! as HTMLElement;
+  expect(host.dataset.sidebar).toBe("background");
+  controller.destroy();
+  expect(app.parentElement).toBe(document.body);
+  expect(app.style.transform).toBe("");
+  document.body.append(document.createElement("aside"));
+  controller = initComments({
+    ...options,
+    sidebar: "background",
+    pageRoot: app,
+  });
+  expect(app.parentElement).toBe(document.body);
+  expect(
+    (
+      [...document.body.children].find(
+        (node) => node.shadowRoot,
+      )! as HTMLElement
+    ).dataset.sidebar,
+  ).toBe("background");
+});
+
+it("rejects unsafe page roots before mounting", () => {
+  for (const pageRoot of [
+    document.body,
+    document.documentElement,
+    document.createElement("main"),
+  ])
+    expect(() => initComments({ ...options, pageRoot })).toThrow(
+      "pageRoot must",
+    );
+  expect([...document.body.children].some((node) => node.shadowRoot)).toBe(
+    false,
+  );
 });

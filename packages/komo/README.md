@@ -214,7 +214,7 @@ Pass these to `initKomo(config)` from `@tjcages/komo` or `useKomo(config)` from 
 | `scope` | `"project" \| "branch"` | `"project"` | `"project"` shares comments; `"branch"` separates branches. |
 | `branch` | `string` | Inferred by `komo sync` | Required only for branch scope. |
 | `enabled` | `boolean` | `true` | Set from your build environment to restrict review UI. |
-| `pageRoot` | `HTMLElement` | Body content wrapper | Element to scale when opening the sidebar. Exclude komo itself. |
+| `pageRoot` | `HTMLElement` | Sole existing content root, when present | Mounted element inside body to scale in Frame mode. Body and html are not supported. |
 | `source(element)` | `(element: Element) => string \| undefined` | Anchor metadata | Return a repository-relative source path. |
 | `sourceUrl(source, branch)` | `(source: string, branch: string) => string` | GitHub viewer | Custom source or editor link. |
 | `page()` | `() => string` | `location.pathname` | Canonical page identifier. |
@@ -348,3 +348,5 @@ npx @tjcages/komo project import --file /path/to/comments.json
 Exports include threads, replies, reactions, anchors, and historical profiles across all pages and branches, including resolved feedback. They exclude sessions, credentials, verified emails, and membership. Imports use the destination repository and keep imported authors unverified. Retrying the same export is safe; existing imported records are not overwritten. Destination quotas still apply. Export retries are required if feedback changes while downloading. Keep export files private.
 
 Upgrade self-hosted deployments with `npm install @tjcages/komo@latest` then `npx @tjcages/komo deploy`; the CLI applies bundled database migrations before redeploying. Self-hosted project removal is controlled by your Worker configuration. Account-wide data requests remain available at ty@offbr.co.
+
+komo preserves the host page’s DOM hierarchy. Without `pageRoot`, it uses a sole existing content element for Frame mode; pages with multiple content roots use Floating mode. Pass your existing app container as `pageRoot` to enable Frame on those pages. Script and style elements do not count as content roots.
