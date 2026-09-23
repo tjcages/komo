@@ -19,6 +19,17 @@ export interface Anchor {
   pageY: number;
   viewportWidth: number;
   source?: string;
+  /** Optional public target details; old anchors remain valid without them. */
+  context?: {
+    tag?: string;
+    role?: string;
+    label?: string;
+    nearby?: string;
+    classes?: string;
+    selectedText?: string;
+    styles?: string;
+    scope?: string;
+  };
 }
 
 export interface Comment {
@@ -76,7 +87,7 @@ export interface CommentsOptions {
   autoHideDrawer?: boolean;
   /** Center the default drawer position within this element. */
   drawerContainer?: HTMLElement;
-  /** The site's content wrapper, excluding the comments UI. */
+  /** Mounted content root for Frame. Defaults to a sole body content element; otherwise Floating only. */
   pageRoot?: HTMLElement;
   /** Resolve an anchor to a repository-relative source path. */
   source?: (element: Element) => string | undefined;
@@ -85,8 +96,12 @@ export interface CommentsOptions {
   /** Defaults to location.pathname; query strings are not stored. */
   page?: () => string;
   pollInterval?: number;
-  /** Controlled parent domain shared by preview hosts; never a public suffix. */
+  /** Full emoji JSON URL; fetched only when choosing another emoji. */
+  emojiDataSource?: string;
+  /** Opt-in trusted parent domain. Every sibling host can receive the session. */
   sessionDomain?: string;
+  /** Canonical API identity for trusted gateways to the same service. Defaults to endpoint. */
+  sessionEndpoint?: string;
 }
 
 export interface CommentsController {

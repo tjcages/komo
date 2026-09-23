@@ -8,7 +8,8 @@ export function reactionPicker(
   trigger: HTMLButtonElement,
   onSelect: (emoji: string) => void,
   selected?: string,
-  historyKey = "branch-comments:emoji:guest"
+  historyKey = "branch-comments:emoji:guest",
+  emojiDataSource = "https://cdn.jsdelivr.net/npm/emoji-picker-element-data@1.8.0/en/emojibase/data.json",
 ) {
   const menu = el("div", "emoji-menu t-dropdown");
   menu.dataset.origin = "top-left";
@@ -62,7 +63,7 @@ export function reactionPicker(
     "Choose another emoji",
     async () => {
       if (customPanel) return;
-      customPanel = el("div", "emoji-keyboard t-dropdown");
+      const panel = (customPanel = el("div", "emoji-keyboard t-dropdown"));
       customPanel.setAttribute("role", "dialog");
       customPanel.setAttribute("aria-label", "Choose an emoji");
       const dismiss = button(
@@ -89,8 +90,12 @@ export function reactionPicker(
       try {
         const { default: Picker } =
           await import("emoji-picker-element/picker.js");
-        if (closing || !customPanel) return;
-        const picker = new Picker();
+        if (closing || customPanel !== panel) return;
+        const picker = new Picker({ dataSource: emojiDataSource });
+        picker.i18n = {
+          ...picker.i18n,
+          networkErrorMessage: "Couldn’t load emojis. Close and try again.",
+        };
         picker.classList.add("dark");
         picker.addEventListener("emoji-click", (event) => {
           const emoji = event.detail.unicode;
@@ -115,7 +120,7 @@ export function reactionPicker(
         picker.shadowRoot?.append(styles);
         place();
       } catch {
-        status.textContent = "Couldn’t load emojis. Try again.";
+        status.textContent = "Couldn’t load emojis. Close and try again.";
       }
     },
     "emoji-choice",

@@ -1,4 +1,5 @@
 import { build, transform } from "esbuild";
+import { minify } from "terser";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -17,6 +18,17 @@ const { styles } = await import(
 const css = (
   await transform(styles, { loader: "css", minify: true, target: "es2022" })
 ).code;
+const iconModule = await build({
+  entryPoints: ["src/icon-markup.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  write: false,
+  metafile: true,
+});
+const { iconMarkup } = await import(
+  `data:text/javascript;base64,${Buffer.from(iconModule.outputFiles[0].text).toString("base64")}`
+);
 await rm("dist", { recursive: true, force: true });
 execFileSync("tsc", ["-p", "tsconfig.json", "--emitDeclarationOnly"], {
   stdio: "inherit",
@@ -39,6 +51,15 @@ const result = await build({
   legalComments: "linked",
   plugins: [
     {
+      name: "static-icon-markup",
+      setup(build) {
+        build.onLoad({ filter: /[\\/]src[\\/]icon-markup\.ts$/ }, () => ({
+          contents: `export const iconMarkup = ${JSON.stringify(iconMarkup)}`,
+          loader: "js",
+        }));
+      },
+    },
+    {
       name: "compact-shadow-styles",
       setup(build) {
         build.onLoad({ filter: /[\\/]src[\\/]styles\.ts$/ }, () => ({
@@ -50,9 +71,27 @@ const result = await build({
   ],
   external: ["react", "react-dom", "emoji-regex"],
 });
+// Compress the emitted modules without changing their split boundaries or exports.
+// Preserve framework directives ("use client") and linked license notices.
+await Promise.all(
+  Object.keys(result.metafile.outputs)
+    .filter((path) => path.endsWith(".js"))
+    .map(async (path) => {
+      const { code } = await minify(await readFile(path, "utf8"), {
+        module: true,
+        compress: { passes: 1, directives: false },
+        mangle: true,
+        format: { comments: "some" },
+      });
+      await writeFile(path, code);
+    }),
+);
 const packages = new Set();
 const notices = [];
-for (const input of Object.keys(result.metafile.inputs)) {
+for (const input of Object.keys({
+  ...iconModule.metafile.inputs,
+  ...result.metafile.inputs,
+})) {
   if (!input.includes("node_modules")) continue;
   let dir = dirname(resolve(input));
   while (dir !== dirname(dir)) {

@@ -146,6 +146,9 @@ beforeAll(async () => {
     seed,
     `
     INSERT INTO users(id,name,verified) VALUES('google:fixture','Owner',1),('guest:fixture','Guest',0);
+    WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<65)
+    INSERT INTO threads(id,project,repo,branch,page,anchor,created_at,updated_at)
+    SELECT printf('import:%03d',i),'test','owner/site','pagination','/','${JSON.stringify(anchor)}',100,100 FROM n;
     INSERT INTO project_owners(project,user_id) VALUES('owned','google:fixture');
     INSERT INTO project_members(project,user_id) VALUES('other','google:fixture'),('removed-project','google:fixture');
     INSERT INTO users(id,name,verified) VALUES('google:usage','Usage owner',1);
@@ -449,16 +452,19 @@ describe("shared comments against real workerd and SQLite", () => {
       await request("/auth/guest", "POST", { name: "Other" })
     ).json();
     const branch = "feature/moving";
+    const captured = { ...anchor, context: { tag: "button", label: "Save", scope: "main > form", styles: "display: flex" } };
     const { id } = await (
       await request(
         "/threads",
         "POST",
-        { page: "/", anchor, body: "Move me" },
+        { page: "/", anchor: captured, body: "Move me" },
         owner.token,
         branch
       )
     ).json();
-    const moved = { ...anchor, x: 0.6, y: 0.2, unstacked: true };
+    const initial = await (await request("/threads", "GET", undefined, undefined, branch)).json();
+    expect(initial.threads[0].anchor).toEqual(captured);
+    const moved = { ...captured, x: 0.6, y: 0.2, unstacked: true };
     expect(
       (
         await request(
@@ -507,7 +513,19 @@ describe("shared comments against real workerd and SQLite", () => {
       await request("/threads", "GET", undefined, undefined, branch)
     ).json();
     expect(result.threads[0].anchor).toEqual(moved);
+    const compact = await (await request("/threads?authors=1", "GET", undefined, undefined, branch)).json();
+    expect(compact.threads[0].comments[0].author).toBe(owner.user.id);
+    expect(compact.authors[owner.user.id]).toEqual(result.threads[0].comments[0].author);
+    expect(compact.threads.map((thread: any) => ({
+      ...thread,
+      resolvedBy: thread.resolvedBy === null ? null : compact.authors[thread.resolvedBy],
+      comments: thread.comments.map((comment: any) => ({...comment, author: compact.authors[comment.author]})),
+    }))).toEqual(result.threads);
     expect(result.threads[0].resolved).toBe(false);
+    expect((await request(`/threads/${id}`, "PATCH", { resolved: true }, owner.token, branch)).status).toBe(200);
+    const resolvedCompact = await (await request("/threads?authors=1", "GET", undefined, undefined, branch)).json();
+    expect(resolvedCompact.threads[0].resolvedBy).toBe(owner.user.id);
+    expect(resolvedCompact.authors[owner.user.id].name).toBe(owner.user.name);
   });
   it("lets a configured project's owner add and remove any approved site", async () => {
     const sites = async (data?: unknown) =>
@@ -1639,6 +1657,24 @@ describe("owner management and private projects", () => {
       "New feedback during export",
     ]);
     expect(result.threads[0].comments[0].author.verified).toBe(false);
+    const imported = result.threads[0];
+    expect(imported.id).toMatch(/^import:/);
+    const cliRead = await promisify(execFile)(process.execPath,
+      [join(root, "packages/komo/cli/index.mjs"), "comments", "get", imported.id],
+      {cwd: directory, env: {...process.env, KOMO_ENDPOINT: `http://localhost:${port}`, KOMO_PROJECT: "destination", KOMO_REPO: "owner/site", KOMO_BRANCH: "shared", KOMO_ORIGIN: origin, KOMO_TOKEN: "destination-owner"}});
+    expect(JSON.parse(cliRead.stdout).data.id).toBe(imported.id);
+    const mutateImported = (path: string, method: string, data: unknown) =>
+      call(path, method, data, "destination-owner", "destination");
+    expect((await mutateImported(`/threads/${imported.id}`, "PATCH", {resolved: false})).status).toBe(200);
+    expect((await mutateImported(`/threads/${imported.id}`, "PATCH", {anchor: {...anchor, x: 0.4}})).status).toBe(200);
+    expect((await mutateImported(`/threads/${imported.id}/comments`, "POST", {body: "Reply after import"})).status).toBe(201);
+    const importedComment = `/threads/${imported.id}/comments/${imported.comments[0].id}`;
+    expect((await mutateImported(`${importedComment}/reactions`, "POST", {emoji: "👍", active: true})).status).toBe(200);
+    // Import never grants ownership of the historical author's messages.
+    expect((await mutateImported(importedComment, "PATCH", {body: "Not mine"})).status).toBe(403);
+    expect((await call(`/threads/${imported.id}`, "PATCH", {resolved: true})).status).toBe(404);
+    expect((await request(`/threads/${imported.id}`, "PATCH", {resolved: true}, "destination-owner", "other", "owner/site", "destination")).status).toBe(404);
+
     expect(
       (await call("/project/clear-resolved", "POST", { confirm: "wrong" }))
         .status
@@ -1744,4 +1780,23 @@ describe("owner management and private projects", () => {
     const usage = await (await call("/usage")).json();
     expect(usage.projects.used).toBe(1);
   });
+});
+
+it("paginates tied timestamps with scoped cursors while preserving offset clients", async () => {
+  const read = async (query: string, branch = "pagination") =>
+    (await request(`/threads?${query}`, "GET", undefined, undefined, branch)).json();
+  const first = await read("authors=1");
+  expect(first.threads).toHaveLength(50);
+  expect(JSON.parse(first.nextCursor)).toEqual([100, "import:050"]);
+  const query = `cursor=${encodeURIComponent(first.nextCursor)}`;
+  const next = await read(`${query}&revision=${first.revision}&authors=1`);
+  expect(next.threads).toHaveLength(15);
+  expect(next.nextCursor).toBeNull();
+  const legacy = await read("offset=50&authors=1");
+  expect(next.threads).toEqual(legacy.threads);
+  expect(new Set([...first.threads, ...next.threads].map(t => t.id)).size).toBe(65);
+  expect((await read(query, "no-such-branch")).threads).toEqual([]);
+  expect((await read(`revision=${first.revision}`)).notModified).toBe(true);
+  for (const cursor of ["bad", "[]", '[1,{}]', '[null,"id"]'])
+    expect((await request(`/threads?cursor=${encodeURIComponent(cursor)}`, "GET", undefined, undefined, "pagination")).status).toBe(400);
 });

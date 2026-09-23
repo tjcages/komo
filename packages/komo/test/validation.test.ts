@@ -58,15 +58,15 @@ describe("project and anchor boundaries", () => {
     expect(anchorValue({ ...anchor, unstacked: true }).unstacked).toBe(true);
     expect(anchorValue(anchor).unstacked).toBeUndefined();
     expect(
-      anchorValue({ ...anchor, unstacked: "true" }).unstacked
+      anchorValue({ ...anchor, unstacked: "true" }).unstacked,
     ).toBeUndefined();
   });
   it("drops unsafe source paths", () => {
     expect(
-      anchorValue({ ...anchor, source: "../secret" }).source
+      anchorValue({ ...anchor, source: "../secret" }).source,
     ).toBeUndefined();
     expect(
-      anchorValue({ ...anchor, source: "src/pages/index.astro" }).source
+      anchorValue({ ...anchor, source: "src/pages/index.astro" }).source,
     ).toBe("src/pages/index.astro");
   });
 });
@@ -74,10 +74,10 @@ describe("project and anchor boundaries", () => {
 describe("CLI OAuth return origin", () => {
   it("only permits an exact loopback origin on an unprivileged port", () => {
     expect(cliReturnOrigin(undefined, "https://site.example")).toBe(
-      "https://site.example"
+      "https://site.example",
     );
     expect(
-      cliReturnOrigin("http://127.0.0.1:54321", "https://site.example")
+      cliReturnOrigin("http://127.0.0.1:54321", "https://site.example"),
     ).toBe("http://127.0.0.1:54321");
     for (const value of [
       "https://evil.example",
@@ -106,4 +106,25 @@ it("derives a preview pattern only for Cloudflare Pages projects", () => {
     "http://abc.shop.pages.dev",
   ])
     expect(previewPattern(origin)).toBeUndefined();
+});
+
+it("bounds context fields, rejects malformed values, and drops unknown data", () => {
+  expect(anchorValue(anchor).context).toBeUndefined();
+  expect(
+    anchorValue({
+      ...anchor,
+      context: { tag: "button", privatePayload: "omit" },
+    }).context,
+  ).toEqual({ tag: "button" });
+  for (const context of [
+    null,
+    [],
+    "button",
+    { tag: 1 },
+    { scope: "x".repeat(2001) },
+    { label: "x".repeat(161) },
+  ])
+    expect(() => anchorValue({ ...anchor, context })).toThrow(
+      "Invalid anchor context",
+    );
 });

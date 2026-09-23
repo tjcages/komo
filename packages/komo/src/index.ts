@@ -6,6 +6,7 @@ import {
 } from "./connect-project.js";
 import { resolveConfig, type KomoConfig } from "./config.js";
 export type { KomoConfig } from "./config.js";
+import { adaptivePolling } from "./polling.js";
 import { pinDirection } from "./pin-direction.js";
 import { pinStacks } from "./pin-stacks.js";
 import { OptimisticQueue } from "./optimistic.js";
@@ -46,13 +47,16 @@ import {
   mobileComposerPosition,
   reviewLayout,
 } from "./review-layout.js";
-import { createElement } from "react";
-import { createToolbar } from "./lazy-toolbar.js";
-import type { MenuItem } from "./MorphingMenu.js";
+import { createToolbar, type ToolbarItem } from "./lazy-toolbar.js";
 import { canonicalPage } from "./page.js";
 import { ApiError, CommentsApi } from "./api.js";
 import { connectionIssue, type ConnectionIssue } from "./connection-issue.js";
-import { captureAnchor, locateAnchor as measureAnchor } from "./anchors.js";
+import {
+  captureAnchor,
+  anchorPass,
+  resolveAnchor,
+  locateAnchor as measureAnchor,
+} from "./anchors.js";
 import {
   age,
   avatar,
@@ -73,7 +77,10 @@ import type {
 } from "./types.js";
 export type * from "./types.js";
 
-const instances = new WeakMap<Document, CommentsController>();
+const instances = new WeakMap<
+  Document,
+  { scope: string; controller: CommentsController }
+>();
 
 /** Initialize from inline public project settings. */
 export function initKomo(config: KomoConfig): CommentsController {
@@ -92,16 +99,38 @@ export function initComments(options: CommentsOptions): CommentsController {
   if (typeof document === "undefined" || options.enabled === false) return noop;
   if (!options.endpoint || !options.repo || !options.branch || !options.project)
     throw new Error("Comments require endpoint, repo, branch, and project.");
+  if (options.pageRoot && (options.pageRoot === document.body || !document.body.contains(options.pageRoot)))
+    throw new Error("pageRoot must be mounted inside body.");
   const endpoint = new URL(options.endpoint);
   if (
-    endpoint.protocol !== "https:" &&
-    !["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)
+    endpoint.username || endpoint.password ||
+    (endpoint.protocol !== "https:" &&
+      !(endpoint.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname)))
   )
-    throw new Error("The comments endpoint must use HTTPS.");
-  if (instances.has(document)) return instances.get(document)!;
+    throw new Error("Use an HTTPS API endpoint without credentials; HTTP is allowed on localhost.");
+  const scope = JSON.stringify([
+    endpoint.href,
+    options.project,
+    options.repo,
+    options.branch,
+  ]);
+  const current = instances.get(document);
+  if (current) {
+    if (current.scope !== scope)
+      throw new Error("Destroy the current komo instance before changing projects or branches.");
+    return current.controller;
+  }
   options = { ...resumeProject(options) };
+  const roots = [...document.body.childNodes].filter(node => node instanceof Element
+    ? !node.matches("script,style,link,meta,template,noscript")
+    : node.nodeType === 3 && node.textContent?.trim());
+  const root = options.pageRoot ?? (roots.length === 1 && roots[0] instanceof HTMLElement ? roots[0] : document.body);
+  const surface = getComputedStyle(root).display === "contents" ? document.body : root;
+  const canFrame = surface !== document.body;
   const sidebarModeKey = `branch-comments:sidebar-mode:${options.project}:${options.repo}`;
   let sidebarMode: "background" | "edge" = (() => {
+    if (!canFrame) return "edge";
     try {
       const stored = localStorage.getItem(sidebarModeKey);
       if (stored === "edge" || stored === "background") return stored;
@@ -111,9 +140,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     return options.sidebar === "background" ? "background" : "edge";
   })();
   let edgeSidebar = sidebarMode === "edge";
-  // Localhost starts in a private "local" channel so a new install works
-  // before any site is shared; Shared reads the same comments as deploys.
-  const localSite = ["localhost", "127.0.0.1"].includes(location.hostname);
+  // Development comments use a separate server-backed channel.
+  const localSite = ["localhost", "127.0.0.1", "[::1]"].includes(
+    location.hostname,
+  );
   const sharedBranch = options.branch;
   const channelKey = `branch-comments:channel:${options.project}:${options.repo}`;
   let channel: "local" | "shared" = "local";
@@ -129,10 +159,13 @@ export function initComments(options: CommentsOptions): CommentsController {
   let destroyed = false,
     expanded = !!options.onboarding,
     mode = false,
+    commentMode = false,
     hidden = false,
     account = !!options.onboarding,
     pending = false,
-    refreshing = false;
+    refreshing = false,
+    knownThreads = !!options.onboarding,
+    sessionRevision = 0;
   let threads: Thread[] = [],
     selected: string | null = null,
     draft: Anchor | null = null;
@@ -182,14 +215,17 @@ export function initComments(options: CommentsOptions): CommentsController {
     save: Parameters<typeof optimistic.submit>[1],
     rollback?: () => void,
   ) {
+    const client = api;
     const token = api.token;
+    const session = sessionRevision;
+    const obsolete = () => destroyed || api !== client || session !== sessionRevision || api.token !== token;
     try {
       await optimistic.submit(change, async (resolve) => {
-        if (api.token !== token)
-          throw new Error("Your account changed. Try again.");
+        if (obsolete()) throw new DOMException("Session changed", "AbortError");
         return save(resolve);
       });
     } catch (reason) {
+      if (obsolete()) throw new DOMException("Session changed", "AbortError");
       rollback?.();
       render();
       throw new Error(
@@ -197,6 +233,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         { cause: reason },
       );
     }
+    if (obsolete()) throw new DOMException("Session changed", "AbortError");
     if (!optimistic.busy) run(refresh);
   }
   let filter: "open" | "resolved" | "all" = "open",
@@ -302,8 +339,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   let google = false;
   let movingThread: string | null = null;
   let github = false,
-    guests = !options.onboarding,
-    guestResolve = true;
+    guests = false,
+    guestResolve = false;
   let parkedDraft: { anchor: Anchor; text: string } | null = null;
   const recoveredDrafts: { anchor: Anchor; text: string }[] = [];
   let dialogKey: string | null = null;
@@ -470,25 +507,13 @@ export function initComments(options: CommentsOptions): CommentsController {
     live,
   );
   document.body.append(host);
-  let pageRoot = options.pageRoot;
-  let ownsWrapper = false;
-  if (!pageRoot) {
-    pageRoot = el("div");
-    pageRoot.dataset.commentsPage = "";
-    ownsWrapper = true;
-    const children = [...document.body.childNodes].filter(
-      (child) => child !== host,
-    );
-    document.body.insertBefore(pageRoot, host);
-    pageRoot.append(...children);
-  }
-  const surface = pageRoot;
   const draftScrollSpace = el("div");
   draftScrollSpace.setAttribute("aria-hidden", "true");
   draftScrollSpace.style.pointerEvents = "none";
   const pagePaddingBottom = getComputedStyle(surface).paddingBottom;
   const savedStyle = {
     width: surface.style.width,
+    boxSizing: surface.style.boxSizing,
     zoom: surface.style.zoom,
     transformOrigin: surface.style.transformOrigin,
     transform: surface.style.transform,
@@ -677,7 +702,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     pins.style.opacity = "1";
   }
   function setSidebarMode(mode: "background" | "edge") {
-    if (mode === sidebarMode || destroyed) return;
+    if (mode === sidebarMode || destroyed || (!canFrame && mode === "background")) return;
     // Read the visible, possibly interrupted positions before settling layout.
     const nodes = () => [
       surface,
@@ -762,6 +787,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     return field;
   }
   function sidebarSetting() {
+    if (!canFrame) return el("p", "muted", "Floating sidebar · Set pageRoot for Frame.");
     return selectSetting(
       "sidebar",
       "Sidebar",
@@ -774,37 +800,61 @@ export function initComments(options: CommentsOptions): CommentsController {
     );
   }
   function channelSetting() {
-    return selectSetting(
+    const setting = selectSetting(
       "channel",
       "Comments",
       [
-        ["local", "Local only"],
-        ["shared", "Shared with deploys"],
+        ["local", "Local development"],
+        ["shared", "Site comments"],
       ],
       channel,
       setChannel,
     );
+    setting.append(
+      el("p", "muted", "Separate channels, both saved to this project."),
+    );
+    return setting;
   }
   function setChannel(value: "local" | "shared") {
     if (value === channel || destroyed) return;
+    if (pending || optimistic.busy) {
+      notify("Wait for your changes to save.");
+      return;
+    }
     channel = value;
     try {
       localStorage.setItem(channelKey, value);
     } catch {
       /* Keep the choice in memory when storage is blocked. */
     }
-    const user = api.user;
     options = {
       ...options,
       branch: value === "local" ? "local" : sharedBranch,
     };
+    api.cancelReads();
     api = new CommentsApi(options);
-    api.user = user;
+    refreshing = projectLoaded = false;
+    lastRefresh = undefined;
+    accessError = "";
+    issue = null;
+    connection = "Connecting";
+    google = github = guests = guestResolve = false;
     selected = null;
     draft = null;
     parkedDraft = null;
+    hydrateThreads();
     render();
     retryConnection();
+  }
+  function hydrateThreads() {
+    sessionRevision++;
+    refreshing = false;
+    accessError = "";
+    selected = null;
+    lastRefresh = undefined;
+    const cached = api.cached();
+    knownThreads = cached !== null;
+    optimistic.reset(visibleThreads(cached ?? []));
   }
   const grip = el("div", "edge-sidebar-grip");
   grip.setAttribute("aria-hidden", "true");
@@ -1149,13 +1199,14 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
   }
   function fail(reason: unknown) {
+    if (destroyed || (reason instanceof DOMException && reason.name === "AbortError")) return;
     error =
       reason instanceof Error
         ? reason.message
         : "Something went wrong. Try again.";
     notify(error);
   }
-  function run(action: () => Promise<void>) {
+  function run(action: () => Promise<unknown>) {
     void action().catch(fail);
   }
   // Account panels load with the dialog, keeping them out of the first bundle.
@@ -1203,33 +1254,43 @@ export function initComments(options: CommentsOptions): CommentsController {
         ),
       }))
       .filter((thread) => thread.comments.length > 0);
+  let polling: ReturnType<typeof adaptivePolling> | undefined;
   let lastRefresh: Thread[] | undefined;
   let lastRefreshRevision = -1;
   async function refresh() {
     if (destroyed || refreshing || optimistic.busy || options.onboarding)
       return;
     const revision = optimistic.revision;
+    const client = api;
+    const token = client.token;
+    const session = sessionRevision;
     refreshing = true;
     try {
-      const response = await api.list();
-      if (destroyed || optimistic.busy || revision !== optimistic.revision)
+      const response = await client.list();
+      if (
+        destroyed ||
+        client !== api ||
+        session !== sessionRevision ||
+        token !== client.token ||
+        optimistic.busy ||
+        revision !== optimistic.revision
+      )
         return;
       if (
         response === lastRefresh &&
         revision === lastRefreshRevision &&
         connection === "Live"
       )
-        return;
+        return false;
       lastRefresh = response;
       lastRefreshRevision = revision;
+      knownThreads = true;
       const next = visibleThreads(response);
-      if (destroyed || optimistic.busy || revision !== optimistic.revision)
-        return;
       const changed = JSON.stringify(next) !== JSON.stringify(threads);
       const recovered = connection !== "Live";
       accessError = "";
-      issue = null;
-      connection = "Live";
+      if (projectLoaded) issue = null;
+      connection = issue ? "Offline" : "Live";
       if (selected && !next.some((thread) => thread.id === selected))
         selected = null;
       if (changed) optimistic.replace(next, revision);
@@ -1237,7 +1298,16 @@ export function initComments(options: CommentsOptions): CommentsController {
         renderList();
         renderToolbar();
       }
+      return changed;
     } catch (reason) {
+      if (
+        destroyed ||
+        client !== api ||
+        session !== sessionRevision ||
+        (reason instanceof DOMException && reason.name === "AbortError")
+      )
+        return;
+      if (token !== client.token) hydrateThreads();
       if (
         reason instanceof ApiError &&
         (reason.status === 401 || reason.status === 403) &&
@@ -1254,11 +1324,12 @@ export function initComments(options: CommentsOptions): CommentsController {
       renderToolbar();
       throw reason;
     } finally {
-      refreshing = false;
+      if (client === api && session === sessionRevision) refreshing = false;
     }
   }
   function setMode(value: boolean) {
     if (options.onboarding) return;
+    commentMode = value;
     if (expanded) toggleExpanded(false);
     const restore = value ? (parkedDraft ?? recoveredDrafts.shift()) : null;
     if (restore) {
@@ -1273,6 +1344,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       return;
     }
     mode = value;
+    polling?.wake(false);
     hidden = false;
     account = false;
     if (value) {
@@ -1314,10 +1386,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         fixedHeaders.clear();
         Object.assign(surface.style, savedStyle);
         appliedScale = 1;
+        document.documentElement.style.overflow = savedHtmlOverflow;
+        Object.assign(document.body.style, savedBody);
+        document.documentElement.style.background = savedHtmlBackground;
       }
-      document.documentElement.style.overflow = savedHtmlOverflow;
-      Object.assign(document.body.style, savedBody);
-      document.documentElement.style.background = savedHtmlBackground;
       if (scroll !== null)
         window.scrollTo({ top: scroll, behavior: "instant" });
       host.style.zoom = String(1 / zoom);
@@ -1379,6 +1451,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         left: `${layout.left / effective}px`,
         top: `${layout.top / effective}px`,
         width: `${window.innerWidth / zoom}px`,
+        boxSizing: "border-box",
         height: useWindowScroll ? "auto" : `${layout.height / effective}px`,
         paddingBottom: useWindowScroll
           ? `calc(${pagePaddingBottom} + ${Math.max(0, viewportHeight - layout.height) / effective}px)`
@@ -1812,7 +1885,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   function toggleExpanded(value: boolean) {
     stopLayoutMotion();
+    const opening = value && !expanded;
     expanded = value;
+    if (!restoring) polling?.wake(opening);
     delete sidebar.dataset.tipsReady;
     sidebar.toggleAttribute("data-tips-restored", restoring);
     if (!options.onboarding)
@@ -1872,6 +1947,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     presence.update();
   }
   function dismiss() {
+    commentMode = false;
     clearTimeout(accountOpenTimer);
     accountOpenTimer = 0;
     if (account) {
@@ -1890,6 +1966,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     render();
   }
   function selectThread(thread: Thread) {
+    commentMode = false;
     clearTimeout(accountOpenTimer);
     accountOpenTimer = 0;
     if (thread.page !== page()) {
@@ -1997,9 +2074,8 @@ export function initComments(options: CommentsOptions): CommentsController {
         dockCenter = nextCenter;
       }
     }
-    const glyph = (name: keyof typeof icons) =>
-      createElement(icons[name], { "aria-hidden": true });
-    const items: MenuItem[] = [
+    const glyph = (name: keyof typeof icons) => ({ glyph: name });
+    const items: ToolbarItem[] = [
       {
         id: "browse",
         label: "Browse website · V",
@@ -2010,7 +2086,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         id: "comment",
         label: "Add comment · C",
         icon: glyph("comment"),
-        onSelect: () => setMode(!mode),
+        onSelect: () => setMode(!commentMode),
       },
       {
         id: "comments",
@@ -2032,19 +2108,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           : options.onboarding?.inProject
             ? "Set up komo"
             : "Enter your name",
-        icon: createElement(
-          "span",
-          { className: "review-avatar" },
-          api.user?.avatarUrl
-            ? createElement("img", {
-                src: api.user.avatarUrl,
-                alt: "",
-                referrerPolicy: "no-referrer",
-              })
-            : api.user
-              ? initials(api.user.name)
-              : glyph("person"),
-        ),
+        icon: { user: api.user },
         onSelect: () => {
           if (account || accountOpenTimer) {
             clearTimeout(accountOpenTimer);
@@ -2105,7 +2169,7 @@ export function initComments(options: CommentsOptions): CommentsController {
               : "bottom")),
       activeId: account
         ? "account"
-        : mode
+        : commentMode
           ? "comment"
           : expanded
             ? "comments"
@@ -2134,12 +2198,15 @@ export function initComments(options: CommentsOptions): CommentsController {
     const visible = threads.filter(
       (t) => t.page === currentPage && !t.resolved,
     );
-    const stacks = pinStacks(visible, (thread) => anchorElement(thread.anchor));
+    const anchors = anchorPass();
+    const stacks = pinStacks(visible, (thread) =>
+      anchors.resolve(thread.anchor),
+    );
     const positions = visible.map((thread) => {
-      const rect = locateAnchor(thread.anchor);
+      const rect = anchors.locate(thread.anchor);
       if (rect.y < -rect.height - 40 || rect.y > window.innerHeight + 40)
         return { thread, rect, blocked: false };
-      const target = anchorElement(thread.anchor);
+      const target = anchors.resolve(thread.anchor);
       const hit = siteElementAt(rect.x + 8, rect.y - 10);
       const blocked = !!(
         target &&
@@ -2151,7 +2218,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     });
     const snapshot = JSON.stringify([
       selected,
-      draft && locateAnchor(draft),
+      draft && anchors.locate(draft),
       positions.map(({ thread, rect, blocked }) => [
         thread.id,
         rect,
@@ -2366,8 +2433,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   const dismissedTips = new Set<string>();
   const dismissedTipsKey = "branch-comments:dismissed-tips";
   const tips = [
-    ["copy", "Copy this page’s comments as a prompt for your agent."],
-    ["shortcut", "Press C, then click anything to comment."],
+    ["copy", "Copy comments for your agent."],
+    ["shortcut", "Press C to comment."],
   ] as const;
   // Empty-state coach marks: persistent tooltips pinned to the buttons they
   // describe. They live on the sidebar so they ride along as it parks/peeks.
@@ -2544,6 +2611,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       noticeAnchor,
     );
   }
+  const listItems = new WeakMap<Thread, HTMLElement>();
   function renderList() {
     if (options.onboarding) {
       disposeHeaderTip?.();
@@ -2569,6 +2637,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       }
       return;
     }
+    // Keep outgoing rows intact for the collapse animation; refresh them on open.
+    if (!expanded && edgeSidebar) return;
     const existingList = sidebar.querySelector(".list");
     const scroll = existingList?.scrollTop ?? 0;
     const focusedSearch =
@@ -2638,7 +2708,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       };
       tools.append(
         button(
-          "Copy this page’s comments for agent",
+          "Copy page comments",
           () =>
             filter === "resolved"
               ? confirmResolvedCleanup(
@@ -2789,10 +2859,10 @@ export function initComments(options: CommentsOptions): CommentsController {
       deleting
         ? cleanupOwner
           ? "Delete resolved comments permanently"
-          : "Only the project owner can delete resolved comments"
+          : "Project owner only"
         : copiedPrompt === "page"
           ? "Copied prompt"
-          : "Copy this page’s comments for agent",
+          : "Copy page comments",
     );
     panel.dataset.search = String(searchOpen);
     panel.querySelector<HTMLElement>(".filter-slot")!.inert = searchOpen;
@@ -2839,12 +2909,22 @@ export function initComments(options: CommentsOptions): CommentsController {
         ),
       );
     }
-    const previous = new Map(
-      [...panel.querySelectorAll<HTMLElement>(".list > [data-thread]")].map(
-        (card) => [card.dataset.thread, card.getBoundingClientRect().top],
-      ),
-    );
+    const animateRows =
+      !restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const previous = new Map<string | undefined, number>();
+    if (animateRows && existingList) {
+      const bounds = existingList.getBoundingClientRect();
+      for (const card of existingList.querySelectorAll<HTMLElement>("[data-thread]")) {
+        const box = card.getBoundingClientRect();
+        if (box.bottom >= bounds.top && box.top <= bounds.bottom)
+          previous.set(card.dataset.thread, box.top);
+      }
+    }
     const list = el("div", "list");
+    const rows = filtered();
+    if (rows.length > 40) list.dataset.long = "";
+    const loading = !knownThreads && connection === "Connecting";
+    list.setAttribute("aria-busy", String(loading));
     clearTimeout(listScrollTimer);
     list.addEventListener(
       "scroll",
@@ -2857,9 +2937,26 @@ export function initComments(options: CommentsOptions): CommentsController {
       },
       { passive: true },
     );
-    for (const thread of filtered()) {
+    for (const thread of rows) {
       const first = thread.comments[0];
       if (!first) continue;
+      const cached = listItems.get(thread);
+      if (cached) {
+        cached
+          .querySelector(".thread-card")!
+          .classList.toggle("active", selected === thread.id);
+        cached.querySelector<HTMLButtonElement>(".card-resolve")!.disabled =
+          !canResolve();
+        cached.querySelector("small")!.textContent = age(first.createdAt);
+        cached.querySelectorAll(".reply-meta").forEach((node, index) => {
+          const reply = thread.comments[index + 1];
+          node.textContent = `${reply.author.name} · ${age(reply.createdAt)}`;
+        });
+        cached.querySelector(".page")!.textContent =
+          thread.page === page() ? "" : thread.page;
+        list.append(cached);
+        continue;
+      }
       const card = button(
         `Open comment by ${first.author.name}`,
         () => selectThread(thread),
@@ -2915,10 +3012,12 @@ export function initComments(options: CommentsOptions): CommentsController {
         }
         card.append(replies);
       }
+      listItems.set(thread, item);
       list.append(item);
     }
     if (!list.childElementCount) {
       const empty = el("div", "empty");
+      if (loading) empty.setAttribute("role", "status");
       empty.append(
         icon("comment"),
         el(
@@ -2928,11 +3027,13 @@ export function initComments(options: CommentsOptions): CommentsController {
             ? "Private project"
             : connection === "Offline" && issue
               ? issue.title
-              : search
-                ? "No matching comments"
-                : filter === "resolved"
-                  ? "Nothing resolved yet"
-                  : "No comments yet",
+              : loading
+                ? "Loading comments…"
+                : search
+                  ? "No matching comments"
+                  : filter === "resolved"
+                    ? "Nothing resolved yet"
+                    : "No comments yet",
         ),
       );
       if (accessError) {
@@ -2970,7 +3071,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         if (issue.kind !== "site")
           actions.append(button("Try again", retryConnection, "secondary"));
         empty.append(actions);
-      } else if (!search && filter !== "resolved") {
+      } else if (knownThreads && !search && filter !== "resolved") {
         empty.append(
           button(
             "Add a comment",
@@ -2986,17 +3087,23 @@ export function initComments(options: CommentsOptions): CommentsController {
       list.append(empty);
       list.dataset.empty = "";
     }
+    if (threads.length && connection === "Offline")
+      list.prepend(
+        button("Saved comments · Try again", retryConnection, "secondary"),
+      );
     if (existingList) existingList.replaceWith(list);
     else panel.append(list);
     syncTips(!!list.querySelector(".empty [aria-label='Add a comment']"));
     requestAnimationFrame(pointTips);
     list.scrollTop = scroll;
-    if (!restoring && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (animateRows) {
       let entered = 0;
+      const bounds = list.getBoundingClientRect();
       for (const card of list.querySelectorAll<HTMLElement>("[data-thread]")) {
+        const box = card.getBoundingClientRect();
+        if (box.bottom < bounds.top || box.top > bounds.bottom) continue;
         const oldTop = previous.get(card.dataset.thread);
-        const delta =
-          oldTop === undefined ? 8 : oldTop - card.getBoundingClientRect().top;
+        const delta = oldTop === undefined ? 8 : oldTop - box.top;
         if (Math.abs(delta) > 0.5)
           card.animate(
             [
@@ -3173,6 +3280,7 @@ export function initComments(options: CommentsOptions): CommentsController {
               ([, users]) => api.user && users.includes(api.user.id),
             )?.[0],
             `branch-comments:emoji:${options.project}:${api.user?.id ?? "guest"}`,
+            options.emojiDataSource,
           );
         },
         "icon message-reaction",
@@ -3274,9 +3382,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         "POST",
         {},
       );
+      const authOrigin = new URL(start.url).origin;
       const listen = (event: MessageEvent) => {
         if (
-          event.origin !== endpoint.origin ||
+          event.origin !== authOrigin ||
           event.source !== popup ||
           event.data?.type !== "branch-comments:auth"
         )
@@ -3290,6 +3399,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         )
           return;
         api.save({ token, user });
+        hydrateThreads();
         profileDraft = null;
         window.removeEventListener("message", listen);
         clearTimeout(githubTimer);
@@ -3298,7 +3408,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         render();
         if (options.onboarding) return;
         if (submitAfterIdentity) run(resumeSubmission);
-        else notify(`Signed in as ${user.name}`);
+        else {
+          run(refresh);
+          notify(`Signed in as ${user.name}`);
+        }
       };
       window.addEventListener("message", listen, { signal: abort.signal });
       githubTimer = window.setTimeout(() => {
@@ -3469,6 +3582,14 @@ export function initComments(options: CommentsOptions): CommentsController {
           } else recoveredDrafts.push({ anchor, text: comment.body });
         },
       );
+      // Auth and composing pause capture, but do not end an explicitly chosen mode.
+      // A later Browse/Escape or another selection wins over this pending post.
+      if (commentMode && !draft && !account && selected === optimistic.id(item.id)) {
+        selected = null;
+        if (expanded) toggleExpanded(false);
+        mode = true;
+        render();
+      }
     }
   }
 
@@ -3818,15 +3939,22 @@ export function initComments(options: CommentsOptions): CommentsController {
             "Sign out",
             () =>
               run(async () => {
+                if (optimistic.busy || pending) {
+                  notify("Wait for your changes to save.");
+                  return;
+                }
                 clearTimeout(profileSaveTimer);
                 queuedProfile = null;
                 const signingOut = api.logout();
+                hydrateThreads();
                 profileDraft = null;
                 confirmedProfile = null;
                 render();
                 try {
                   await signingOut;
                 } finally {
+                  hydrateThreads();
+                  run(refresh);
                   render();
                 }
               }),
@@ -4251,27 +4379,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       target?.focus({ preventScroll: true });
     });
   }
-  const anchorElements = new WeakMap<Anchor, Element>();
-  function anchorElement(anchor: Anchor) {
-    try {
-      const cached = anchorElements.get(anchor);
-      if (
-        cached?.isConnected &&
-        (!anchor.selector || cached.matches(anchor.selector))
-      )
-        return cached;
-      const element = anchor.selector
-        ? document.querySelector(anchor.selector)
-        : document.body;
-      if (element) anchorElements.set(anchor, element);
-      return element;
-    } catch {
-      return null;
-    }
-  }
-  function locateAnchor(anchor: Anchor) {
-    return measureAnchor(anchor, anchorElement(anchor));
-  }
+  const anchorElement = resolveAnchor;
+  const locateAnchor = measureAnchor;
   function siteElementAt(x: number, y: number) {
     return (
       document
@@ -4377,7 +4486,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         target,
         { x, y },
         { x: x + rect.width, y: y + rect.height },
-        options.source?.(target),
+        options.source,
       );
       anchor.unstacked = true;
       run(async () => {
@@ -4545,7 +4654,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     end = start,
   ) {
     hidePreview();
-    draft = captureAnchor(element, start, end, options.source?.(element));
+    draft = captureAnchor(element, start, end, options.source);
     hoverTarget = element;
     mode = false;
     selected = null;
@@ -4733,7 +4842,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         return;
       if (event.key.toLowerCase() === "c") {
         event.preventDefault();
-        setMode(!mode);
+        setMode(!commentMode);
       }
       if (event.key.toLowerCase() === "v") {
         event.preventDefault();
@@ -4814,13 +4923,33 @@ export function initComments(options: CommentsOptions): CommentsController {
   ).navigation?.addEventListener("navigatesuccess", onNavigate, {
     signal: abort.signal,
   });
-  window.addEventListener(
-    "focus",
-    () => {
-      if (issue?.kind === "site") retryConnection();
-    },
-    { signal: abort.signal },
-  );
+  function syncSession() {
+    const next = new CommentsApi(options);
+    if (next.token === api.token || (api.transient && !next.token)) return false;
+    api.cancelReads();
+    api = next;
+    projectLoaded = false;
+    issue = null;
+    connection = "Connecting";
+    google = github = guests = guestResolve = false;
+    draft = parkedDraft = null;
+    draftText = "";
+    replies.clear();
+    recoveredDrafts.length = 0;
+    queuedProfile = profileDraft = confirmedProfile = null;
+    profileRevision++;
+    clearTimeout(profileSaveTimer);
+    hydrateThreads();
+    render();
+    run(loadProject);
+    return true;
+  }
+  window.addEventListener("storage", (event) => {
+    if (event.storageArea === localStorage && event.key === api.sessionKey && event.newValue !== api.token) syncSession();
+  }, { signal: abort.signal });
+  window.addEventListener("focus", () => { if (!syncSession()) polling?.wake(); }, {
+    signal: abort.signal,
+  });
   // Frame mode: a click on the framed site closes the sidebar, like a scrim.
   // Armed on pointerdown so a press that only dismisses a draft or selection
   // keeps the sidebar open; click (not pointerdown) so scrolling never closes.
@@ -4851,23 +4980,29 @@ export function initComments(options: CommentsOptions): CommentsController {
     },
     { capture: true, signal: abort.signal },
   );
-  const interval = window.setInterval(
-    () => {
-      if (document.hidden || destroyed) return;
+  polling = adaptivePolling({
+    interval: Math.max(2000, options.pollInterval ?? 4000),
+    enabled: () =>
+      !destroyed &&
+      !document.hidden &&
+      navigator.onLine !== false &&
+      !options.onboarding,
+    active: () => expanded || account || mode || !!draft || !!selected,
+    read: async () => {
       checkPage();
-      void (
-        projectLoaded || options.onboarding ? refresh() : loadProject()
-      ).catch(() => {});
+      return projectLoaded ? refresh() : loadProject();
     },
-    Math.max(2000, options.pollInterval ?? 4000),
-  );
-  window.addEventListener(
-    "online",
-    () => {
-      if (connection === "Offline" && !options.onboarding) retryConnection();
-    },
-    { signal: abort.signal },
-  );
+  });
+  for (const event of ["online", "offline"])
+    window.addEventListener(event, () => polling?.wake(), {
+      signal: abort.signal,
+    });
+  host.addEventListener("click", () => polling?.wake(false), {
+    signal: abort.signal,
+  });
+  host.addEventListener("keydown", () => polling?.wake(false), {
+    signal: abort.signal,
+  });
   document.addEventListener(
     "visibilitychange",
     () => {
@@ -4882,13 +5017,17 @@ export function initComments(options: CommentsOptions): CommentsController {
           characterData: true,
         });
         geometry();
-        void refresh().catch(() => {});
       }
+      if (document.hidden || !syncSession()) polling?.wake();
     },
     { signal: abort.signal },
   );
   const controller: CommentsController = {
     destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      polling?.stop();
+      api.cancelReads();
       stopLayoutMotion();
       disposeHeaderTip?.();
       clearTimeout(mutationTimer);
@@ -4906,12 +5045,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         dialog.remove();
       }
       exitingDialogs.clear();
-      destroyed = true;
       pageMotion?.stop();
       dockMotion?.stop();
       stopEdgeMotion(true);
       abort.abort();
-      clearInterval(interval);
       clearTimeout(toastTimer);
       clearTimeout(listScrollTimer);
       clearTimeout(githubTimer);
@@ -4929,12 +5066,13 @@ export function initComments(options: CommentsOptions): CommentsController {
       for (const [header, styles] of fixedHeaders)
         Object.assign(header.style, styles);
       fixedHeaders.clear();
-      document.documentElement.style.overflow = savedHtmlOverflow;
-      Object.assign(surface.style, savedStyle);
-      Object.assign(document.body.style, savedBody);
-      document.documentElement.style.background = savedHtmlBackground;
-      window.scrollTo({ top: scroll, behavior: "instant" });
-      if (ownsWrapper) surface.replaceWith(...surface.childNodes);
+      if (framed || !edgeSidebar) {
+        document.documentElement.style.overflow = savedHtmlOverflow;
+        Object.assign(surface.style, savedStyle);
+        Object.assign(document.body.style, savedBody);
+        document.documentElement.style.background = savedHtmlBackground;
+        window.scrollTo({ top: scroll, behavior: "instant" });
+      }
       toolbarSize.disconnect();
       toolbarRoot.unmount();
       host.remove();
@@ -4958,15 +5096,19 @@ export function initComments(options: CommentsOptions): CommentsController {
       } else compose();
     },
     open() {
+      if (destroyed) return;
       toggleExpanded(true);
     },
     close() {
+      if (destroyed) return;
       dismiss();
       toggleExpanded(false);
     },
-    refresh,
+    async refresh() {
+      await refresh();
+    },
   };
-  instances.set(document, controller);
+  instances.set(document, { scope, controller });
   try {
     restoring = !options.onboarding && localStorage.getItem(openKey) === "1";
   } catch {
@@ -4974,6 +5116,9 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   scalePage();
   const cached = options.onboarding ? null : api.cached();
+  knownThreads ||= cached !== null;
+  const reopen = restoring;
+  restoring = true;
   if (cached) optimistic.replace(visibleThreads(cached));
   render();
   if (edgeSidebar) {
@@ -4984,6 +5129,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     void sidebar.offsetWidth;
     sidebar.style.transition = "";
   }
+  restoring = reopen;
   if (restoring) {
     // Reopen where the reviewer left off: no frame, dock or card motion; one fade.
     toggleExpanded(true);
@@ -4996,6 +5142,8 @@ export function initComments(options: CommentsOptions): CommentsController {
         });
   }
   async function loadProject() {
+    const client = api;
+    const token = client.token;
     let config: {
       github: boolean;
       google?: boolean;
@@ -5003,16 +5151,28 @@ export function initComments(options: CommentsOptions): CommentsController {
       guestResolve: boolean;
     };
     // Threads need the settled session, not the config: load both in parallel.
-    const listed = api
+    const listed = client
       .restore()
       .catch(() => {
         /* An expired guest session can be renewed by entering a name. */
       })
-      .then(refresh);
+      .then(() => {
+        if (destroyed || client !== api) return;
+        if (token !== client.token) hydrateThreads();
+        renderToolbar();
+        if (account) renderDialog();
+        return refresh();
+      });
     listed.catch(() => {});
     try {
-      config = await api.request("config");
+      config = await client.request("config");
     } catch (reason) {
+      if (
+        destroyed ||
+        client !== api ||
+        (reason instanceof DOMException && reason.name === "AbortError")
+      )
+        return;
       const next = connectionIssue(reason);
       const changed = issue?.detail !== next.detail;
       issue = next;
@@ -5020,12 +5180,14 @@ export function initComments(options: CommentsOptions): CommentsController {
       if (changed) render();
       throw reason;
     }
+    if (destroyed || client !== api) return;
     projectLoaded = true;
     google = !!config.google;
     github = config.github;
     guests = config.guests;
     guestResolve = config.guestResolve;
-    await listed;
+    const changed = await listed;
+    if (destroyed || client !== api) return;
     const deepLink = new URL(location.href).searchParams.get("comment");
     const thread = threads.find((t) => t.id === deepLink);
     if (thread) {
@@ -5033,7 +5195,9 @@ export function initComments(options: CommentsOptions): CommentsController {
       selectThread(thread);
     }
     render();
+    return changed;
   }
-  if (!options.onboarding?.inProject) run(loadProject);
+  if (!options.onboarding?.inProject)
+    run(() => loadProject().finally(() => polling?.wake(false)));
   return controller;
 }

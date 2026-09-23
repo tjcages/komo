@@ -41,7 +41,7 @@ Official MCP authentication succeeded after restart. Searches for komo, Komo and
 | [OFF-673](https://linear.app/off-brand-studio/issue/OFF-673) | Publish and verify 0.4.0 | Done |
 | [OFF-674](https://linear.app/off-brand-studio/issue/OFF-674) | Matching production docs | Done; depends on 673 |
 | [OFF-675](https://linear.app/off-brand-studio/issue/OFF-675) | Google branding appeal | Await external decision |
-| [OFF-676](https://linear.app/off-brand-studio/issue/OFF-676) | Deleted-project logout cleanup | Todo |
+| [OFF-676](https://linear.app/off-brand-studio/issue/OFF-676) | Deleted-project logout cleanup | In Review in PR #29 |
 | [OFF-677](https://linear.app/off-brand-studio/issue/OFF-677) | Announcement copy | In Review |
 | [OFF-678](https://linear.app/off-brand-studio/issue/OFF-678) | Remaining device/accessibility QA | Todo |
 | [OFF-679](https://linear.app/off-brand-studio/issue/OFF-679) | Owner rollout approval | Depends on 672, 677, 678 |
@@ -67,3 +67,7 @@ Physical-phone testing is excluded by user instruction. Prior simulator evidence
 ## Follow-up found during cleanup
 
 `komo logout` returns 404 after its project has already been deleted, leaving the local credential file. Server-side sessions are removed by project deletion, so this is a local cleanup/UX issue. Reproduce with a disposable project; accept 404 during logout and remove its local session file, with a regression test. Tracked in OFF-676.
+
+## September 22 package readiness follow-up
+
+PR #29 fixes the deleted-project CLI cleanup noted above: logout accepts an already absent or expired session, skips project discovery, and removes the local credential file. Unexpected server errors still preserve credentials and report the failure. Existing CLI and real Worker tests also verify imported feedback IDs. Publication remains separate; current package and integration evidence lives in [package safety](../package-safety.md) and [optimization checks](../package-optimization.md).

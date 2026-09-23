@@ -89,7 +89,7 @@ export const pages = [
      ["enabled", "boolean", "true. Set false to omit the widget."],
      [
        "pageRoot", "HTMLElement",
-       "Page content wrapper. Set explicitly when your layout has one.",
+       "Mounted content root for Frame. Defaults to a sole existing content element; multiple roots use Floating until pageRoot is set.",
      ],
      ["page", "() => string", "Current pathname. Query strings and fragments excluded."],
      ["drawerContainer", "HTMLElement", "Optional element to center the drawer within."],

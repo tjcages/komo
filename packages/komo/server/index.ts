@@ -8,6 +8,7 @@ import { setupPage } from "./setup-page";
 import setupClient from "./setup-client.txt";
 import {
   projectConfig,
+  maintain,
   workspaceConfig,
   provision,
   googleOwner,
@@ -482,7 +483,7 @@ async function route(
   ctx: ExecutionContext
 ): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname === "/health") return json({ ok: true });
+  if (url.pathname === "/health") return json({ ok: true, version: env.KOMO_VERSION?.id });
   if (url.pathname === "/setup-client.js" && request.method === "GET")
     return new Response(setupClient, {
       headers: { "Content-Type": "text/javascript; charset=utf-8" },
@@ -495,6 +496,8 @@ async function route(
     });
     check(allowed.success, 429, "Too many requests. Try again shortly.");
   }
+  // Keep exact shared quotas: the per-location edge limiter cannot enforce a
+  // service-wide daily budget. Unchanged polls still consume these counters.
   if (env.KOMO_HOSTED === "true")
     await limit(env, "service:requests", 100000, 86400);
   if (
@@ -813,24 +816,7 @@ async function route(
       403,
       "A Google-authenticated owner must finish workspace setup first."
     );
-  // Cleanup runs without delaying requests and never contains user content in logs.
-  if (request.method !== "GET")
-    ctx.waitUntil(
-      env.DB.batch([
-        env.DB.prepare("DELETE FROM rate_limits WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM sessions WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM project_invites WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM oauth_states WHERE expires_at<?").bind(
-          Date.now()
-        ),
-      ]).then(() => undefined)
-    );
+  if (env.KOMO_HOSTED !== "true") ctx.waitUntil(maintain(env.DB));
   if (url.pathname === "/config" && request.method === "GET")
     return json({
       repo: config.repo,
@@ -1042,6 +1028,20 @@ async function route(
       400,
       "Invalid offset."
     );
+    let cursor: [number, string] | undefined;
+    if (url.searchParams.has("cursor")) {
+      try {
+        cursor = JSON.parse(string(url.searchParams.get("cursor"), 200, "cursor"));
+      } catch {
+        throw new HttpError(400, "Invalid cursor.");
+      }
+      check(
+        Array.isArray(cursor) && cursor.length === 2 &&
+        Number.isSafeInteger(cursor[0]) && cursor[0] >= 0 &&
+        typeof cursor[1] === "string" && cursor[1].length > 0 && cursor[1].length <= 100,
+        400, "Invalid cursor."
+      );
+    }
     const revision =
       (
         await env.DB.prepare(
@@ -1050,20 +1050,23 @@ async function route(
           .bind(project, repo, branch)
           .first<{ version: number }>()
       )?.version ?? 0;
-    if (offset === 0 && url.searchParams.get("revision") === String(revision))
+    if (!cursor && offset === 0 && url.searchParams.get("revision") === String(revision))
       return json({ notModified: true, revision });
     const requestedId = url.searchParams.get("id");
     const rows = await env.DB.prepare(
-      `SELECT t.*,u.name AS resolver_name,u.verified AS resolver_verified FROM threads t LEFT JOIN users u ON u.id=t.resolved_by WHERE t.project=? AND t.repo=? AND t.branch=?${requestedId ? " AND t.id=?" : ""} ORDER BY t.created_at,t.id LIMIT 50 OFFSET ?`
+      `SELECT t.*,u.name AS resolver_name,u.verified AS resolver_verified FROM threads t LEFT JOIN users u ON u.id=t.resolved_by WHERE t.project=? AND t.repo=? AND t.branch=?${requestedId ? " AND t.id=?" : ""}${cursor ? " AND (t.created_at,t.id)>(?,?)" : ""} ORDER BY t.created_at,t.id LIMIT 50 OFFSET ?`
     )
       .bind(
         project,
         repo,
         branch,
         ...(requestedId ? [string(requestedId, 100, "thread ID")] : []),
-        offset
+        ...(cursor ?? []),
+        cursor ? 0 : offset
       )
       .all<ThreadRow>();
+    const last = rows.results.at(-1);
+    const nextCursor = rows.results.length === 50 && last ? JSON.stringify([last.created_at, last.id]) : null;
     const ids = rows.results.map((row) => row.id);
     if (!ids.length) return json({ threads: [], next: null, revision });
     const placeholders = ids.map(() => "?").join(",");
@@ -1077,6 +1080,18 @@ async function route(
     )
       .bind(...ids)
       .all<{ comment_id: string; user_id: string; emoji: string }>();
+    const commentsByThread = new Map<string, CommentRow[]>();
+    for (const comment of comments.results) {
+      const group = commentsByThread.get(comment.thread_id) ?? [];
+      group.push(comment);
+      commentsByThread.set(comment.thread_id, group);
+    }
+    const reactionsByComment = new Map<string, Comment["reactions"]>();
+    for (const reaction of reactions.results) {
+      const group = reactionsByComment.get(reaction.comment_id) ?? {};
+      (group[reaction.emoji] ??= []).push(reaction.user_id);
+      reactionsByComment.set(reaction.comment_id, group);
+    }
     const threads: Thread[] = rows.results.map((row) => ({
       id: row.id,
       page: pagePath(row.page),
@@ -1091,32 +1106,42 @@ async function route(
         : null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      comments: comments.results
-        .filter((c) => c.thread_id === row.id)
-        .map((c) => {
-          const grouped: Comment["reactions"] = {};
-          for (const r of reactions.results.filter(
-            (r) => r.comment_id === c.id
-          ))
-            (grouped[r.emoji] ??= []).push(r.user_id);
-          return {
-            id: c.id,
-            body: c.body,
-            author: {
-              id: c.user_id,
-              name: c.name,
-              verified: !!c.verified,
-              avatarUrl: c.avatar_url || undefined,
-              accentColor: c.accent_color || undefined,
-            },
-            createdAt: c.created_at,
-            editedAt: c.edited_at,
-            reactions: grouped,
-          };
-        }),
+      comments: (commentsByThread.get(row.id) ?? []).map((c) => ({
+        id: c.id,
+        body: c.body,
+        author: {
+          id: c.user_id,
+          name: c.name,
+          verified: !!c.verified,
+          avatarUrl: c.avatar_url || undefined,
+          accentColor: c.accent_color || undefined,
+        },
+        createdAt: c.created_at,
+        editedAt: c.edited_at,
+        reactions: reactionsByComment.get(c.id) ?? {},
+      })),
     }));
+    if (url.searchParams.get("authors") === "1") {
+      const authors: Record<string, Identity> = Object.create(null);
+      const authorId = (author: Identity) => {
+        authors[author.id] = { ...authors[author.id], ...author };
+        return author.id;
+      };
+      return json({
+        threads: threads.map(thread => ({
+          ...thread,
+          resolvedBy: thread.resolvedBy ? authorId(thread.resolvedBy) : null,
+          comments: thread.comments.map(comment => ({ ...comment, author: authorId(comment.author) })),
+        })),
+        authors,
+        nextCursor,
+        next: ids.length === 50 ? offset + 50 : null,
+        revision,
+      });
+    }
     return json({
       threads,
+      nextCursor,
       next: ids.length === 50 ? offset + 50 : null,
       revision,
     });
@@ -1148,7 +1173,7 @@ async function route(
     return json({ id, commentId: firstCommentId }, 201);
   }
   const match = url.pathname.match(
-    /^\/threads\/([\w-]+)(?:\/comments(?:\/([\w-]+)(?:\/(reactions))?)?)?$/
+    /^\/threads\/([\w:-]{1,100})(?:\/comments(?:\/([\w:-]{1,100})(?:\/(reactions))?)?)?$/
   );
   check(match, 404, "Not found.");
   const [, threadId, commentId, reaction] = match;
@@ -1304,28 +1329,7 @@ async function route(
 }
 export default {
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(
-      env.DB.batch([
-        env.DB.prepare("DELETE FROM rate_limits WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM sessions WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM project_invites WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM oauth_states WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare("DELETE FROM setup_requests WHERE expires_at<?").bind(
-          Date.now()
-        ),
-        env.DB.prepare(
-          "DELETE FROM users WHERE id LIKE 'guest:%' AND id NOT IN (SELECT user_id FROM sessions) AND id NOT IN (SELECT user_id FROM comments) AND id NOT IN (SELECT user_id FROM project_members)"
-        ),
-      ]).then(() => undefined)
-    );
+    ctx.waitUntil(maintain(env.DB, true));
   },
   async fetch(request, env, ctx) {
     let response: Response;
@@ -1368,13 +1372,19 @@ export default {
         );
       }
     }
-    const headers = new Headers(response.headers);
     const project = new URL(request.url).searchParams.get("project");
-    const config = project
-      ? project === "_komo" && env.KOMO_HOSTED === "true"
-        ? { origins: [new URL(request.url).origin] }
-        : await projectConfig(env, project)
-      : undefined;
+    let config: { origins: string[] } | undefined;
+    try {
+      config = project
+        ? project === "_komo" && env.KOMO_HOSTED === "true"
+          ? { origins: [new URL(request.url).origin] }
+          : await projectConfig(env, project)
+        : undefined;
+    } catch {
+      // Do not leak a successful body or allow CORS without a known site policy.
+      response = json({ error: "Comments are temporarily unavailable. Try again." }, 500);
+    }
+    const headers = new Headers(response.headers);
     const origin = request.headers.get("Origin") ?? "";
     if (
       config &&

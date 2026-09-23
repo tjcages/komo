@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement, type FunctionComponent, type SVGProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { icons } from "../src/dom";
+import { components as icons, iconMarkup } from "../src/icon-markup";
 import { staticSvg } from "../src/static-svg";
 
 describe("static review icons", () => {
@@ -11,14 +11,17 @@ describe("static review icons", () => {
       const props = { "aria-hidden": true } as SVGProps<SVGSVGElement>;
       expect(
         staticSvg(
-          (component as FunctionComponent<SVGProps<SVGSVGElement>>)(props)
-        )
+          (component as FunctionComponent<SVGProps<SVGSVGElement>>)(props),
+        ),
       ).toBe(renderToStaticMarkup(createElement(component, props)));
-    }
+      expect(iconMarkup[_name as keyof typeof iconMarkup]).toBe(
+        renderToStaticMarkup(createElement(component, { "aria-hidden": true })),
+      );
+    },
   );
   it("escapes attribute values", () => {
     expect(staticSvg(createElement("svg", { "aria-label": '"<&' }))).toContain(
-      "&quot;&lt;&amp;"
+      "&quot;&lt;&amp;",
     );
   });
 });

@@ -15,7 +15,7 @@ export class OptimisticQueue<T> {
   constructor(
     private confirmed: T,
     private changed: (state: T) => void,
-    private normalize: (state: T, resolve: ResolveId) => T = (state) => state
+    private normalize: (state: T, resolve: ResolveId) => T = (state) => state,
   ) {}
   get busy() {
     return this.jobs.length > 0;
@@ -25,9 +25,9 @@ export class OptimisticQueue<T> {
     return this.normalize(
       this.jobs.reduce(
         (state, job) => job.change(state, this.id),
-        this.confirmed
+        this.confirmed,
       ),
-      this.id
+      this.id,
     );
   }
   replace(state: T, revision = this.revision): boolean {
@@ -35,6 +35,16 @@ export class OptimisticQueue<T> {
     this.confirmed = state;
     this.changed(this.value);
     return true;
+  }
+  reset(state: T) {
+    const jobs = this.jobs;
+    this.jobs = [];
+    this.aliases.clear();
+    this.confirmed = state;
+    this.revision++;
+    for (const job of jobs)
+      job.reject(new DOMException("Session changed", "AbortError"));
+    this.changed(this.value);
   }
   submit(change: Change<T>, save: Job<T>["save"]): Promise<void> {
     const result = new Promise<void>((resolve, reject) => {
@@ -52,6 +62,7 @@ export class OptimisticQueue<T> {
       let failed = false;
       try {
         const aliases = await job.save(this.id);
+        if (this.jobs[0] !== job) return;
         this.confirmed = job.change(this.confirmed, this.id);
         for (const [from, to] of Object.entries(aliases ?? {}))
           this.aliases.set(from, to);
@@ -60,6 +71,7 @@ export class OptimisticQueue<T> {
         failed = true;
         failure = error;
       }
+      if (this.jobs[0] !== job) return;
       this.jobs.shift();
       this.revision++;
       this.changed(this.value);

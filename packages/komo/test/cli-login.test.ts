@@ -1,7 +1,7 @@
 import { runInNewContext } from "node:vm";
 import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
-import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, writeFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,10 +11,16 @@ import { expect, it } from "vitest";
 it("keeps login credentials private and rejects a foreign callback origin", async () => {
   const directory = await mkdtemp(join(tmpdir(), "komo-login-test-"));
   let returnOrigin = "",
-    revoked = false;
+    revoked = false,
+    failure = 0;
   const user = { id: "google:test", name: "CLI reviewer", verified: true };
   const api = createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json");
+    if (failure) {
+      res.statusCode = failure;
+      res.end(JSON.stringify({error: "Unavailable"}));
+      return;
+    }
     if (req.url?.startsWith("/auth/google/start")) {
       let body = "";
       for await (const chunk of req) body += chunk;
@@ -149,6 +155,18 @@ it("keeps login credentials private and rejects a foreign callback origin", asyn
     });
     expect(revoked).toBe(true);
     expect(await readdir(directory)).toHaveLength(0);
+    const saved = join(directory, file);
+    await writeFile(saved, JSON.stringify({token: "test-session-secret"}));
+    failure = 500;
+    await expect(promisify(execFile)(process.execPath, [entry, "logout"], {env, cwd: directory})).rejects.toThrow();
+    expect(JSON.parse(await readFile(saved, "utf8")).token).toBe("test-session-secret");
+    for (const status of [404, 401]) {
+      failure = status;
+      await writeFile(saved, JSON.stringify({token: "test-session-secret"}));
+      const result = await promisify(execFile)(process.execPath, [entry, "logout"], {env, cwd: directory});
+      expect(JSON.parse(result.stdout).data.signedOut).toBe(true);
+      expect(await readdir(directory)).toHaveLength(0);
+    }
   } finally {
     child.kill();
     api.close();

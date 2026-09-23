@@ -29,7 +29,7 @@ document
               button.classList.remove("copied", "uncopying");
               button.classList.add("restored");
             },
-            reduceMotion.matches ? 0 : 180
+            reduceMotion.matches ? 0 : 180,
           );
         }, 1800);
       } catch {
@@ -143,6 +143,15 @@ mountUsageScene();
 mountConnectScene();
 mountFrameworkTabs();
 const review = initKomo({
+  // Preview API versions are selected by the same-origin Worker gateway.
+  endpoint: /^[a-z0-9-]+-komo-site\.off-brand\.workers\.dev$/.test(
+    location.hostname,
+  )
+    ? location.origin
+    : undefined,
+  // These previews and the gateway are owned by us and use the same API.
+  sessionDomain: "off-brand.workers.dev",
+  sessionEndpoint: "https://komo.offbr.co",
   project: "komo-landing-demo",
   repo: "tjcages/komo",
   autoHideDrawer: false,
@@ -167,9 +176,7 @@ if (tryBlock) {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let visible = false;
   const syncMotion = () => {
-    cursors.setPlaying(
-      visible && !document.hidden && !reduced.matches,
-    );
+    cursors.setPlaying(visible && !document.hidden && !reduced.matches);
   };
   new IntersectionObserver(([entry]) => {
     visible = !!entry?.isIntersecting;

@@ -1,6 +1,6 @@
 {
   "name": "@tjcages/komo",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Point, area, and threaded comments for website branches.",
   "type": "module",
   "license": "MIT",
@@ -23,7 +23,8 @@
     "server/setup-client.txt",
     "server/project-management.ts",
     "server/import-project.ts",
-    "server/digest.ts"
+    "server/digest.ts",
+    "server/project-sites.ts"
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -57,7 +58,8 @@
     "deploy:api": "pnpm run build:setup && wrangler deploy --config server/wrangler.jsonc",
     "build:setup": "esbuild src/setup-browser.ts --bundle --format=esm --minify --outfile=server/setup-client.txt",
     "size": "node scripts/measure.mjs",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "test:package": "pnpm run build && node scripts/check-package.mjs"
   },
   "repository": {
     "type": "git",
@@ -77,9 +79,10 @@
     "jsdom": "^30.1.0",
     "motion": "^12.43.0",
     "react-colorful": "^5.8.1",
+    "terser": "5.44.0",
     "typescript": "^6.0.0",
-    "vitest": "4.1.9",
-    "wrangler": "^4.105.0",
+    "vitest": "4.1.11",
+    "wrangler": "4.136.3",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
@@ -90,7 +93,7 @@
     "komo": "./cli/index.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "homepage": "https://komo.offbr.co",
   "bugs": {

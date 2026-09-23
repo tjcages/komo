@@ -5,7 +5,7 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
-    public code?: string
+    public code?: string,
   ) {
     super(message);
   }
@@ -13,7 +13,7 @@ export class HttpError extends Error {
 export function check(
   condition: unknown,
   status: number,
-  message: string
+  message: string,
 ): asserts condition {
   if (!condition) throw new HttpError(status, message);
 }
@@ -21,7 +21,7 @@ export function string(value: unknown, max: number, label: string): string {
   check(
     typeof value === "string" && value.trim().length > 0 && value.length <= max,
     400,
-    `Invalid ${label}.`
+    `Invalid ${label}.`,
   );
   return value.trim();
 }
@@ -33,7 +33,7 @@ export function pagePath(value: unknown): string {
       !/[?#\\]/.test(page) &&
       ![...page].some((char) => char.charCodeAt(0) < 32),
     400,
-    "Invalid page path."
+    "Invalid page path.",
   );
   return canonicalPage(page);
 }
@@ -52,7 +52,7 @@ export function anchorValue(value: unknown): Anchor {
     check(
       typeof a[key] === "number" && Number.isFinite(a[key]) && a[key] >= 0,
       400,
-      `Invalid anchor ${key}.`
+      `Invalid anchor ${key}.`,
     );
   }
   for (const key of ["x", "y", "width", "height"])
@@ -61,7 +61,7 @@ export function anchorValue(value: unknown): Anchor {
     Number(a.x) + Number(a.width) <= 1.001 &&
       Number(a.y) + Number(a.height) <= 1.001,
     400,
-    "Area outside element."
+    "Area outside element.",
   );
   check(
     Number(a.viewportWidth) > 0 &&
@@ -69,7 +69,7 @@ export function anchorValue(value: unknown): Anchor {
       Number(a.pageY) <= 10000000 &&
       Number(a.pageX) <= 20000,
     400,
-    "Anchor outside page."
+    "Anchor outside page.",
   );
   check(
     typeof a.selector === "string" &&
@@ -77,8 +77,36 @@ export function anchorValue(value: unknown): Anchor {
       typeof a.text === "string" &&
       a.text.length <= 160,
     400,
-    "Invalid anchor selector."
+    "Invalid anchor selector.",
   );
+  let context: Anchor["context"];
+  if (a.context !== undefined) {
+    check(
+      a.context && typeof a.context === "object" && !Array.isArray(a.context),
+      400,
+      "Invalid anchor context.",
+    );
+    context = {};
+    const supplied = a.context as Record<string, unknown>;
+    for (const [key, max] of Object.entries({
+      tag: 32,
+      role: 80,
+      label: 160,
+      nearby: 160,
+      classes: 200,
+      selectedText: 200,
+      styles: 500,
+      scope: 2000,
+    })) {
+      if (supplied[key] === undefined) continue;
+      check(
+        typeof supplied[key] === "string" && supplied[key].length <= max,
+        400,
+        `Invalid anchor context ${key}.`,
+      );
+      context[key as keyof typeof context] = supplied[key];
+    }
+  }
   const source =
     typeof a.source === "string" &&
     a.source.length <= 500 &&
@@ -97,6 +125,7 @@ export function anchorValue(value: unknown): Anchor {
     pageY: Number(a.pageY),
     viewportWidth: Number(a.viewportWidth),
     source,
+    ...(context ? { context } : {}),
     ...(a.unstacked === true ? { unstacked: true } : {}),
   };
 }
@@ -111,7 +140,9 @@ export function localOrigin(origin: string): boolean {
  * origins. Only that project's owner can publish under *.<project>.pages.dev.
  */
 export function previewPattern(origin: string): string | undefined {
-  const pages = /^https:\/\/(?:[a-z0-9-]+\.)?([a-z0-9-]+\.pages\.dev)$/.exec(origin);
+  const pages = /^https:\/\/(?:[a-z0-9-]+\.)?([a-z0-9-]+\.pages\.dev)$/.exec(
+    origin,
+  );
   return pages ? `https://*.${pages[1]}` : undefined;
 }
 
@@ -142,7 +173,7 @@ export function sitePattern(value: unknown): string {
   check(
     typeof value === "string" && value.length <= 300,
     400,
-    "Enter a site address."
+    "Enter a site address.",
   );
   const site = value.trim().replace(/\/$/, "").toLowerCase();
   if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(site)) return site;
@@ -163,7 +194,7 @@ export function sitePattern(value: unknown): string {
       (!first.includes("*") ||
         (rest.length >= 2 && /^[a-z0-9*-]+$/.test(first))),
     400,
-    "Use an HTTPS site like https://your-site.com, or a wildcard like https://*-preview.your-site.com."
+    "Use an HTTPS site like https://your-site.com, or a wildcard like https://*-preview.your-site.com.",
   );
   return site;
 }
@@ -183,7 +214,7 @@ export function cliReturnOrigin(value: unknown, fallback: string): string {
       Number(url.port) >= 1024 &&
       url.origin === value,
     400,
-    "CLI sign-in must return to an ephemeral loopback port."
+    "CLI sign-in must return to an ephemeral loopback port.",
   );
   return url.origin;
 }

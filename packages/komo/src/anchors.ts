@@ -1,35 +1,150 @@
 import type { Anchor } from "./types.js";
 
+const privateText =
+  "input,textarea,select,script,style,[contenteditable],[hidden],[aria-hidden=true]";
+const trim = (text: string, limit = 160) =>
+  text.replace(/\s+/g, " ").trim().slice(0, limit);
+function textFor(element: Element): string {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let text = "",
+    node: Node | null;
+  while ((node = walker.nextNode())) {
+    if (!node.parentElement?.closest(privateText))
+      text += node.textContent + " ";
+    if (text.length > 320) break;
+  }
+  return trim(text);
+}
+function unique(selector: string): Element | null {
+  const matches = document.querySelectorAll(selector);
+  return matches.length === 1 ? matches[0] : null;
+}
+function stableFor(element: Element, preferred?: string): string | undefined {
+  for (const attr of [
+    "data-comment-anchor",
+    "id",
+    "data-testid",
+    "data-test",
+    "data-cy",
+  ]) {
+    const value = element.getAttribute(attr);
+    if (!value || value.length > 500) continue;
+    const selector =
+      attr === "id"
+        ? `#${CSS.escape(value)}`
+        : `[${attr}="${CSS.escape(value)}"]`;
+    if (
+      selector.length <= 2000 &&
+      (!preferred || selector === preferred) &&
+      unique(selector) === element
+    )
+      return selector;
+  }
+}
 function selectorFor(element: Element): string {
   const parts: string[] = [];
   let node: Element | null = element;
   while (node && node !== document.body && parts.length < 12) {
-    if (node.id) {
-      parts.unshift(`#${CSS.escape(node.id)}`);
-      break;
-    }
-    const stable = node.getAttribute("data-comment-anchor");
+    const stable = stableFor(node);
     if (stable) {
-      parts.unshift(`[data-comment-anchor="${CSS.escape(stable)}"]`);
+      parts.unshift(stable);
       break;
     }
     const siblings = node.parentElement
       ? [...node.parentElement.children].filter(
-          (sibling) => sibling.tagName === node!.tagName
+          (sibling) => sibling.tagName === node!.tagName,
         )
       : [];
     parts.unshift(
-      `${node.tagName.toLowerCase()}:nth-of-type(${siblings.indexOf(node) + 1})`
+      `${node.tagName.toLowerCase()}:nth-of-type(${siblings.indexOf(node) + 1})`,
     );
     node = node.parentElement;
   }
   return parts.join(" > ");
 }
+function labelFor(element: Element): string {
+  return trim(
+    element.getAttribute("aria-label") ||
+      (element.getAttribute("aria-labelledby") || "")
+        .split(/\s+/)
+        .map((id) => {
+          const label = id && document.getElementById(id);
+          return label ? textFor(label) : "";
+        })
+        .join(" ") ||
+      element.getAttribute("alt") ||
+      ((element as HTMLInputElement).labels &&
+        [...(element as HTMLInputElement).labels!].map(textFor).join(" ")) ||
+      "",
+  );
+}
+function nearbyFor(element: Element): string {
+  const parent =
+    element.parentElement?.closest("li,article,tr,[data-comment-anchor]") ||
+    element.parentElement;
+  return parent &&
+    parent !== document.body &&
+    parent !== document.documentElement
+    ? textFor(parent)
+    : "";
+}
+function contextFor(element: Element): NonNullable<Anchor["context"]> {
+  let parent = element.parentElement,
+    scope: string | undefined;
+  while (parent && parent !== document.body && !(scope = stableFor(parent)))
+    parent = parent.parentElement;
+  const selection = window.getSelection();
+  const selected = selection?.rangeCount ? selection.getRangeAt(0) : null;
+  const style = getComputedStyle(element);
+  return {
+    tag:
+      element.tagName.length <= 32 ? element.tagName.toLowerCase() : undefined,
+    role: trim(element.getAttribute("role") || "", 80) || undefined,
+    label: labelFor(element) || undefined,
+    nearby: nearbyFor(element) || undefined,
+    classes: trim(element.getAttribute("class") || "", 200) || undefined,
+    styles: [
+      "display",
+      "width",
+      "height",
+      "font-size",
+      "color",
+      "padding",
+      "gap",
+    ]
+      .map((key) => `${key}: ${style.getPropertyValue(key)}`)
+      .join("; ")
+      .slice(0, 500),
+    selectedText:
+      selected &&
+      element.contains(selected.commonAncestorContainer) &&
+      !element.closest(privateText) &&
+      !element.querySelector(privateText)
+        ? trim(selection!.toString(), 200) || undefined
+        : undefined,
+    scope,
+  };
+}
+function matches(element: Element, anchor: Anchor): boolean {
+  const context = anchor.context;
+  if (!anchor.text && !context?.label && !context?.nearby) return false;
+  return (
+    (!anchor.text ||
+      (context
+        ? textFor(element) === trim(anchor.text)
+        : trim(element.textContent || "").startsWith(trim(anchor.text)))) &&
+    (!context ||
+      ((!context.tag || element.tagName.toLowerCase() === context.tag) &&
+        (!context.role || element.getAttribute("role") === context.role) &&
+        (!context.label || labelFor(element) === context.label) &&
+        (!context.nearby || nearbyFor(element) === context.nearby)))
+  );
+}
 export function captureAnchor(
   element: Element,
   start: { x: number; y: number },
   end: { x: number; y: number },
-  source?: string
+  source?: string | ((element: Element) => string | undefined),
 ): Anchor {
   let target = element;
   const left = Math.min(start.x, end.x),
@@ -56,7 +171,8 @@ export function captureAnchor(
   const y = clamp((top - rect.top) / (rect.height || 1));
   return {
     selector: selectorFor(target),
-    text: (target.textContent ?? "").trim().slice(0, 160),
+    text: textFor(target),
+    context: contextFor(target),
     x,
     y,
     width: area ? Math.min(1 - x, (right - left) / (rect.width || 1)) : 0,
@@ -65,16 +181,55 @@ export function captureAnchor(
     pageY: top + window.scrollY,
     viewportWidth: window.innerWidth,
     source:
-      source ??
+      (typeof source === "function" ? source(target) : source) ??
       target
         .closest("[data-comment-source]")
         ?.getAttribute("data-comment-source") ??
       undefined,
   };
 }
+type Search = (
+  scope: Element,
+  anchor: Anchor,
+  scoped: boolean,
+) => Element | null;
+const search: Search = (scope, anchor, scoped) => {
+  const candidates = [
+    ...(scoped ? scope.querySelectorAll(anchor.context!.tag!) : scope.children),
+  ].filter((candidate) => matches(candidate, anchor));
+  return candidates.length === 1 ? candidates[0] : null;
+};
+export function resolveAnchor(
+  anchor: Anchor,
+  target?: Element | null,
+  find: Search = search,
+): Element | null {
+  let element: Element | null = null;
+  try {
+    const found = anchor.selector ? unique(anchor.selector) : document.body;
+    element = target?.isConnected && target === found ? target : found;
+    if (element && stableFor(element, anchor.selector)) return element;
+    if (element && !matches(element, anchor)) element = null;
+    const context = anchor.context;
+    if (
+      context?.tag &&
+      (element || context.scope) &&
+      (anchor.text || context.label || context.nearby)
+    ) {
+      const scope = context.scope
+        ? unique(context.scope)
+        : element?.parentElement;
+      element = scope ? find(scope, anchor, !!context.scope) : null;
+    }
+  } catch {
+    // Invalid legacy selectors or ambiguous/missing targets retain their fallback position.
+    element = null;
+  }
+  return element;
+}
 export function locateAnchor(
   anchor: Anchor,
-  target?: Element | null
+  target?: Element | null,
 ): {
   x: number;
   y: number;
@@ -83,26 +238,9 @@ export function locateAnchor(
   attached: boolean;
   component?: { left: number; top: number; right: number; bottom: number };
 } {
-  let element: Element | null = null;
-  try {
-    element =
-      target !== undefined
-        ? target
-        : anchor.selector
-          ? document.querySelector(anchor.selector)
-          : document.body;
-  } catch {
-    /* A previous version may have used a selector no longer supported. */
-  }
-  // An explicit ID/anchor survives copy edits. Positional selectors also verify text.
-  if (
-    element &&
-    anchor.text &&
-    !anchor.selector.startsWith("#") &&
-    !anchor.selector.startsWith("[data-comment-anchor=") &&
-    !(element.textContent ?? "").trim().startsWith(anchor.text)
-  )
-    element = null;
+  return measure(anchor, resolveAnchor(anchor, target));
+}
+function measure(anchor: Anchor, element: Element | null) {
   if (element) {
     const rect = element.getBoundingClientRect();
     if (rect.width && rect.height)
@@ -128,5 +266,61 @@ export function locateAnchor(
     width: 0,
     height: 0,
     attached: false,
+  };
+}
+
+/** Synchronous geometry-pass cache: discard before the DOM can change. */
+export function anchorPass() {
+  const resolved = new Map<Anchor, Element | null>();
+  const measured = new Map<Anchor, ReturnType<typeof measure>>();
+  const scopes = new WeakMap<
+    Element,
+    Map<string, Map<string, Element | null>>
+  >();
+  const identities = new WeakMap<Element, string[]>();
+  const find: Search = (scope, anchor, scoped) => {
+    const c = anchor.context!;
+    const expected = [trim(anchor.text), c.tag, c.role, c.label, c.nearby];
+    const key = JSON.stringify([scoped, c.tag, expected.map(Boolean)]);
+    let indexes = scopes.get(scope);
+    if (!indexes) scopes.set(scope, (indexes = new Map()));
+    let index = indexes.get(key);
+    const signature = (values: (string | undefined)[]) =>
+      JSON.stringify(values.map((value, i) => (expected[i] ? value : null)));
+    if (!index) {
+      indexes.set(key, (index = new Map()));
+      for (const element of scoped
+        ? scope.querySelectorAll(c.tag!)
+        : scope.children) {
+        let identity = identities.get(element);
+        if (!identity)
+          identities.set(
+            element,
+            (identity = [
+              textFor(element),
+              element.tagName.toLowerCase(),
+              element.getAttribute("role") || "",
+              labelFor(element),
+              nearbyFor(element),
+            ]),
+          );
+        const value = signature(identity);
+        index.set(value, index.has(value) ? null : element);
+      }
+    }
+    return index.get(signature(expected)) ?? null;
+  };
+  const resolve = (anchor: Anchor) => {
+    if (!resolved.has(anchor))
+      resolved.set(anchor, resolveAnchor(anchor, undefined, find));
+    return resolved.get(anchor) ?? null;
+  };
+  return {
+    resolve,
+    locate(anchor: Anchor) {
+      if (!measured.has(anchor))
+        measured.set(anchor, measure(anchor, resolve(anchor)));
+      return measured.get(anchor)!;
+    },
   };
 }
