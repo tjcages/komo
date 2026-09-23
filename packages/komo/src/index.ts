@@ -3348,9 +3348,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         "POST",
         {},
       );
+      const authOrigin = new URL(start.url).origin;
       const listen = (event: MessageEvent) => {
         if (
-          event.origin !== endpoint.origin ||
+          event.origin !== authOrigin ||
           event.source !== popup ||
           event.data?.type !== "branch-comments:auth"
         )

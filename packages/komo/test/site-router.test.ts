@@ -30,6 +30,28 @@ describe("branded API routing", () => {
       expect(await forwarded.text()).toBe("payload");
     }
   });
+  it("keeps preview OAuth on the registered callback origin without changing the caller", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response("api"));
+    const origin = "https://refresh-ux-komo-site.off-brand.workers.dev";
+    const request = new Request(`${origin}/auth/google/start?project=test`, {
+      method: "POST",
+      headers: { Origin: origin },
+      body: "{}",
+    });
+    await worker.fetch(request, {
+      KOMO_API: { fetch },
+      KOMO_API_PREVIEW_VERSION: "preview",
+    } as never);
+    const forwarded = fetch.mock.lastCall![0] as Request;
+    expect(forwarded.url).toBe(
+      "https://komo.offbr.co/auth/google/start?project=test",
+    );
+    expect(forwarded.headers.get("Origin")).toBe(origin);
+    expect(forwarded.headers.get("Cloudflare-Workers-Version-Overrides")).toBe(
+      'komo-api="preview"',
+    );
+    expect(await forwarded.text()).toBe("{}");
+  });
   it("strips client version overrides when no preview version is configured", async () => {
     const fetch = vi.fn().mockResolvedValue(new Response("api"));
     await worker.fetch(
