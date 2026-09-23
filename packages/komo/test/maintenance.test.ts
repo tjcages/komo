@@ -4,8 +4,13 @@ afterEach(() => vi.useRealTimers());
 it("bounds fallback cleanup, isolates databases, and lets cron run explicitly", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(100000);
-  const makeDb = () => ({prepare: vi.fn(() => ({bind: vi.fn()})), batch: vi.fn().mockResolvedValue([])}) as unknown as D1Database;
-  const first = makeDb(), second = makeDb();
+  const makeDb = () =>
+    ({
+      prepare: vi.fn(() => ({ bind: vi.fn() })),
+      batch: vi.fn().mockResolvedValue([]),
+    }) as unknown as D1Database;
+  const first = makeDb(),
+    second = makeDb();
   await Promise.all([maintain(first), maintain(first), maintain(second)]);
   expect(first.batch).toHaveBeenCalledTimes(1);
   expect(second.batch).toHaveBeenCalledTimes(1);

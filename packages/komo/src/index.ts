@@ -47,9 +47,7 @@ import {
   mobileComposerPosition,
   reviewLayout,
 } from "./review-layout.js";
-import { createElement } from "react";
-import { createToolbar } from "./lazy-toolbar.js";
-import type { MenuItem } from "./MorphingMenu.js";
+import { createToolbar, type ToolbarItem } from "./lazy-toolbar.js";
 import { canonicalPage } from "./page.js";
 import { ApiError, CommentsApi } from "./api.js";
 import { connectionIssue, type ConnectionIssue } from "./connection-issue.js";
@@ -2052,9 +2050,8 @@ export function initComments(options: CommentsOptions): CommentsController {
         dockCenter = nextCenter;
       }
     }
-    const glyph = (name: keyof typeof icons) =>
-      createElement(icons[name], { "aria-hidden": true });
-    const items: MenuItem[] = [
+    const glyph = (name: keyof typeof icons) => ({ glyph: name });
+    const items: ToolbarItem[] = [
       {
         id: "browse",
         label: "Browse website · V",
@@ -2087,19 +2084,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           : options.onboarding?.inProject
             ? "Set up komo"
             : "Enter your name",
-        icon: createElement(
-          "span",
-          { className: "review-avatar" },
-          api.user?.avatarUrl
-            ? createElement("img", {
-                src: api.user.avatarUrl,
-                alt: "",
-                referrerPolicy: "no-referrer",
-              })
-            : api.user
-              ? initials(api.user.name)
-              : glyph("person"),
-        ),
+        icon: { user: api.user },
         onSelect: () => {
           if (account || accountOpenTimer) {
             clearTimeout(accountOpenTimer);
@@ -2931,6 +2916,10 @@ export function initComments(options: CommentsOptions): CommentsController {
         cached.querySelector<HTMLButtonElement>(".card-resolve")!.disabled =
           !canResolve();
         cached.querySelector("small")!.textContent = age(first.createdAt);
+        cached.querySelectorAll(".reply-meta").forEach((node, index) => {
+          const reply = thread.comments[index + 1];
+          node.textContent = `${reply.author.name} · ${age(reply.createdAt)}`;
+        });
         cached.querySelector(".page")!.textContent =
           thread.page === page() ? "" : thread.page;
         list.append(cached);
@@ -3257,6 +3246,7 @@ export function initComments(options: CommentsOptions): CommentsController {
               ([, users]) => api.user && users.includes(api.user.id),
             )?.[0],
             `branch-comments:emoji:${options.project}:${api.user?.id ?? "guest"}`,
+            options.emojiDataSource,
           );
         },
         "icon message-reaction",

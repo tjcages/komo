@@ -432,3 +432,57 @@ it("stops retrying cache writes after a storage quota failure", async () => {
   await api.list();
   expect(setItem).toHaveBeenCalledTimes(1);
 });
+
+it("does not turn an oversized thread into an empty project or lose shared author details", async () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("location", { hostname: "localhost", pathname: "/" });
+  vi.stubGlobal("document", { cookie: "" });
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+    removeItem: (key: string) => store.delete(key),
+  });
+  const options = {
+    endpoint: "https://example.com/",
+    project: "test",
+    repo: "test",
+    branch: "main",
+  };
+  const oversized = {
+    ...thread("large"),
+    comments: Array.from({ length: 80 }, (_, i) => ({
+      ...thread("x").comments[0],
+      id: String(i),
+      body: "x".repeat(4000),
+    })),
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(
+      Response.json({ threads: [oversized], revision: 1 }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  const api = new CommentsApi(options);
+  await api.list();
+  expect(new CommentsApi(options).cached()).toBeNull();
+  const first = {
+    ...thread("first"),
+    resolvedBy: { id: "u2", name: "A", verified: true },
+  };
+  const second = thread("second");
+  const author = {
+    id: "u2",
+    name: "A",
+    verified: true,
+    avatarUrl: "https://example.com/avatar",
+    accentColor: "#aabbcc",
+  };
+  second.comments[0].author = author;
+  fetch.mockResolvedValueOnce(
+    Response.json({ threads: [first, second], revision: 2 }),
+  );
+  await api.list();
+  expect(new CommentsApi(options).cached()![1].comments[0].author).toEqual(
+    author,
+  );
+});

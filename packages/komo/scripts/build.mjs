@@ -17,6 +17,17 @@ const { styles } = await import(
 const css = (
   await transform(styles, { loader: "css", minify: true, target: "es2022" })
 ).code;
+const iconModule = await build({
+  entryPoints: ["src/icon-markup.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  write: false,
+  metafile: true,
+});
+const { iconMarkup } = await import(
+  `data:text/javascript;base64,${Buffer.from(iconModule.outputFiles[0].text).toString("base64")}`
+);
 await rm("dist", { recursive: true, force: true });
 execFileSync("tsc", ["-p", "tsconfig.json", "--emitDeclarationOnly"], {
   stdio: "inherit",
@@ -39,6 +50,15 @@ const result = await build({
   legalComments: "linked",
   plugins: [
     {
+      name: "static-icon-markup",
+      setup(build) {
+        build.onLoad({ filter: /[\\/]src[\\/]icon-markup\.ts$/ }, () => ({
+          contents: `export const iconMarkup = ${JSON.stringify(iconMarkup)}`,
+          loader: "js",
+        }));
+      },
+    },
+    {
       name: "compact-shadow-styles",
       setup(build) {
         build.onLoad({ filter: /[\\/]src[\\/]styles\.ts$/ }, () => ({
@@ -52,7 +72,10 @@ const result = await build({
 });
 const packages = new Set();
 const notices = [];
-for (const input of Object.keys(result.metafile.inputs)) {
+for (const input of Object.keys({
+  ...iconModule.metafile.inputs,
+  ...result.metafile.inputs,
+})) {
   if (!input.includes("node_modules")) continue;
   let dir = dirname(resolve(input));
   while (dir !== dirname(dir)) {

@@ -212,6 +212,7 @@ export class CommentsApi {
     });
     readSignal?.throwIfAborted();
     const result = await response.json().catch(() => {
+      readSignal?.throwIfAborted();
       if (response.ok) throw invalidResponse();
       return {};
     });
@@ -279,8 +280,12 @@ export class CommentsApi {
         for (const thread of ordered) {
           const additions: Record<string, Identity> = Object.create(null);
           const author = (user: Identity | null) => {
-            if (user && !Object.hasOwn(authors, user.id))
-              additions[user.id] = user;
+            if (user)
+              additions[user.id] = {
+                ...authors[user.id],
+                ...additions[user.id],
+                ...user,
+              };
             return user?.id ?? null;
           };
           const compact = {
@@ -293,7 +298,13 @@ export class CommentsApi {
           };
           const cost =
             JSON.stringify(compact).length +
-            JSON.stringify(additions).length +
+            Object.entries(additions).reduce(
+              (cost, [id, user]) =>
+                cost +
+                JSON.stringify([id, user]).length -
+                (authors[id] ? JSON.stringify([id, authors[id]]).length : 0),
+              0,
+            ) +
             2;
           if (size + cost > 250_000) {
             partial = true;
@@ -302,6 +313,10 @@ export class CommentsApi {
           size += cost;
           Object.assign(authors, additions);
           threads.push(compact);
+        }
+        if (partial && !threads.length) {
+          localStorage.removeItem(this.listKey);
+          return;
         }
         localStorage.setItem(
           this.listKey,

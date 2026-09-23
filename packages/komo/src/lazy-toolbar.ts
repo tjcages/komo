@@ -1,12 +1,23 @@
-import type { MorphingMenuProps } from "./MorphingMenu.js";
-import { button, el, icon } from "./dom.js";
+import type { MenuItem, MorphingMenuProps } from "./MorphingMenu.js";
+import { button, el, icon, type icons } from "./dom.js";
+import type { Identity } from "./types.js";
+
+export type ToolbarIcon =
+  | { glyph: keyof typeof icons }
+  | { user: Identity | null };
+export type ToolbarItem = Omit<MenuItem, "icon" | "activeIcon" | "children"> & {
+  icon: ToolbarIcon;
+};
+export type ToolbarProps = Omit<MorphingMenuProps, "items"> & {
+  items: readonly ToolbarItem[];
+};
 
 /** Pins and the compact drawer work immediately; React's menu loads on intent. */
 export function createToolbar(
   element: HTMLElement,
-  glyph: (id: string) => Node
+  glyph: (id: string) => Node,
 ) {
-  let props: MorphingMenuProps;
+  let props: ToolbarProps;
   let mounted:
     | ReturnType<(typeof import("./toolbar-runtime.js"))["mountToolbar"]>
     | undefined;
@@ -20,7 +31,7 @@ export function createToolbar(
     () => {
       pressed = true;
     },
-    { capture: true, signal: events.signal }
+    { capture: true, signal: events.signal },
   );
   const finish = () => {
     pressed = false;
@@ -64,7 +75,7 @@ export function createToolbar(
   element.addEventListener("pointerenter", () => void load(), { once: true });
   element.addEventListener("focusin", () => void load(), { once: true });
   return {
-    render(next: MorphingMenuProps) {
+    render(next: ToolbarProps) {
       props = next;
       if (disposed) return;
       if (mounted) {
@@ -76,7 +87,7 @@ export function createToolbar(
       nav.dataset.view = "collapsed";
       nav.dataset.edge = props.edge ?? "bottom";
       nav.dataset.vertical = String(
-        props.edge === "left" || props.edge === "right"
+        props.edge === "left" || props.edge === "right",
       );
       nav.dataset.alignEnd = String(!!props.alignEnd);
       const items = props.items.filter((item) => item.showInBar !== false);
@@ -90,7 +101,7 @@ export function createToolbar(
             item.onSelect?.();
             void load();
           },
-          "morphing-menu__shortcut"
+          "morphing-menu__shortcut",
         );
         control.title = item.label;
         control.dataset.menuItem = item.id;
@@ -112,7 +123,7 @@ export function createToolbar(
               more.setAttribute("aria-label", more.title);
             }
           }),
-        "morphing-menu__shortcut"
+        "morphing-menu__shortcut",
       );
       more.dataset.menuItem = "more";
       more.setAttribute("aria-expanded", "false");

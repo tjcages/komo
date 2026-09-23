@@ -1,90 +1,23 @@
-import { Copy01 } from "@untitledui/icons/Copy01";
 import { applyAccent } from "./accent.js";
-import { ChevronSelectorVertical } from "@untitledui/icons/ChevronSelectorVertical";
-import { ChevronDown } from "@untitledui/icons/ChevronDown";
-import { Edit05 } from "@untitledui/icons/Edit05";
-import { Trash01 } from "@untitledui/icons/Trash01";
-import { type ComponentType, type SVGProps, type ReactNode } from "react";
-import { staticSvg } from "./static-svg.js";
-import { InfoCircle } from "@untitledui/icons/InfoCircle";
 import type { Identity } from "./types.js";
-import { DotsHorizontal } from "@untitledui/icons/DotsHorizontal";
-import { User01 } from "@untitledui/icons/User01";
-import { SearchLg } from "@untitledui/icons/SearchLg";
-import { Plus } from "@untitledui/icons/Plus";
-import { MessageChatCircle } from "@untitledui/icons/MessageChatCircle";
-import { PointerIcon } from "./PointerIcon.js";
-import { LayoutRight } from "@untitledui/icons/LayoutRight";
-import { XClose } from "@untitledui/icons/XClose";
-import { Check } from "@untitledui/icons/Check";
-import { ArrowUp } from "@untitledui/icons/ArrowUp";
-import { Link01 } from "@untitledui/icons/Link01";
-import { Code02 } from "@untitledui/icons/Code02";
-import { SmileIcon } from "./SmileIcon.js";
-import { GitBranch01 } from "@untitledui/icons/GitBranch01";
+import { iconMarkup as icons } from "./icon-markup.js";
+export { icons };
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className = "",
-  text?: string
+  text?: string,
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
 }
-// Icon components are shared by the DOM and React surfaces.
-type IconName =
-  | "chevron"
-  | "drawer"
-  | "edit"
-  | "trash"
-  | "info"
-  | "more"
-  | "person"
-  | "search"
-  | "plus"
-  | "comment"
-  | "copy"
-  | "pointer"
-  | "expand"
-  | "close"
-  | "check"
-  | "arrow"
-  | "link"
-  | "code"
-  | "smile"
-  | "branch";
-export const icons: Record<IconName, ComponentType<SVGProps<SVGSVGElement>>> = {
-  chevron: ChevronDown,
-  drawer: ChevronSelectorVertical,
-  edit: Edit05,
-  trash: Trash01,
-  info: InfoCircle,
-  more: DotsHorizontal,
-  person: User01,
-  search: SearchLg,
-  plus: Plus,
-  comment: MessageChatCircle,
-  copy: Copy01,
-  pointer: PointerIcon,
-  expand: LayoutRight,
-  close: XClose,
-  check: Check,
-  arrow: ArrowUp,
-  link: Link01,
-  code: Code02,
-  smile: SmileIcon,
-  branch: GitBranch01,
-};
 const iconTemplates = new Map<keyof typeof icons, SVGSVGElement>();
 export function icon(name: keyof typeof icons): SVGSVGElement {
   let template = iconTemplates.get(name);
   if (!template) {
     const container = document.createElement("div");
-    const component = icons[name] as (
-      props: SVGProps<SVGSVGElement>
-    ) => ReactNode;
-    container.innerHTML = staticSvg(component({ "aria-hidden": true }));
+    container.innerHTML = icons[name];
     template = container.querySelector("svg")!;
     iconTemplates.set(name, template);
   }
@@ -94,7 +27,7 @@ export function button(
   label: string,
   action: () => void,
   className = "icon",
-  glyph?: keyof typeof icons
+  glyph?: keyof typeof icons,
 ) {
   const node = el("button", className);
   node.type = "button";
