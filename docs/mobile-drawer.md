@@ -12,7 +12,7 @@ On the marketing site, tapping the current URL in the expanded mobile navigation
 - Initial gzip: 97,330 bytes / 100,000. All features: 195,966 bytes / 196,000. Budgets unchanged; remaining headroom is small.
 - Responsive Chrome: 320×568, 390×844, 844×390, and desktop restoration. A 40-comment fixture verified independent scrolling and search, handle dismissal, account handoff, and host scroll/style restoration.
 - Deployed preview: live comments/account loaded, open Drawer restored on refresh, toolbar pin toggles settled, and no console errors were reported. Same-page navigation preserved paused walkthrough state locally.
-- Physical iOS/Android devices and native software keyboards have not been tested.
+- These initial checks used desktop responsive emulation. Later native iOS Device Hub evidence is recorded below; physical iOS/Android hardware remains untested.
 
 Preview: https://mobile-drawer-komo-site.off-brand.workers.dev/
 
@@ -36,7 +36,7 @@ Validation: build/typecheck passed; the existing 207-test suite passed, followed
 
 Preview Worker version: `e7714b1c-7853-48f7-b0fe-eed3d755a96d`.
 
-Requested iPhone Simulator validation remains blocked: the installed iOS 27 runtime boots an iPhone 18 Pro, but `/Applications/Xcode.app` lacks `Contents/Developer/Applications/Simulator.app`. No Simulator UI was found in the other checked application/download locations. Actual Safari chrome collapse, software keyboard, and touch interaction have not been verified in the simulator.
+The initial attempt looked for the former standalone Simulator.app and was blocked. Device Hub was subsequently recovered at the path below, allowing native iOS Safari testing.
 
 ## Device Hub follow-up
 
@@ -45,3 +45,18 @@ The owner still reproduced the mobile problems, so desktop-browser evidence was 
 Candidate preview: https://5db3903e-komo-site.off-brand.workers.dev/ (also the mobile-drawer alias). Device validation is in progress.
 
 Device Hub recovery: its installed app is `Xcode.app/Contents/Applications/DeviceHub.app`. Normal app attachment and System Events can return an invalid process identity or empty window list. The device window was recovered through CoreGraphics' owner PID and direct Accessibility `AXMainWindow` access. The absence of the old standalone Simulator.app is not a blocker to using Device Hub.
+
+### Native device evidence
+
+Device Hub runs an iPhone 18 Pro with iOS 27. This is the native iOS runtime, not a desktop browser viewport; it is not physical hardware. Background window capture and some Accessibility controls work. Direct screen gestures require the device window to be briefly foregrounded, confirmed visible through CoreGraphics, and the previous app restored afterward. System Events and NSWorkspace focus alone are not reliable evidence that this window is visible.
+
+Verified in native Safari:
+
+- The Drawer opens and a downward handle drag dismisses it.
+- Focusing a reply opens the software keyboard and centers the comment card in the remaining visual viewport. Safari also scrolls the host page on focus; this check does not establish scroll preservation during keyboard opening.
+- Native window scrolling hides indicators (`data-scrolling=true`, computed opacity 0), then restores them after scrolling ends. Recorded scrollY changed from 76 to 187 to 240; visual viewport height changed from 714 to 754 as browser chrome collapsed.
+- Closing the Drawer restores root/body backgrounds, theme metadata, scroll locks, and hidden state in the DOM. Safari's status strip nevertheless retains the overlay tint. The preview also exhibited a retained dark bottom region, while the synthetic fixture's bottom region restored correctly.
+
+An isolated experiment delaying color restoration until 400ms after dismissal did not fix the retained status tint. No timing workaround was added to the package. A second isolated fixture omitted the root background tint: Safari still tinted the status strip while open, but its close gesture was not reliably delivered, so restoration in that variant is unverified. Neither experiment changed package source. The candidate is not being declared fully verified.
+
+Remaining native checks: new-comment software keyboard, dismissal by pulling comment content at list start, and continuous toolbar animation quality. A later control attempt failed its foreground-window safety check, so raw input stopped rather than risk interacting with the user's other app. The reply keyboard result does not substitute for the untested new-comment case.
