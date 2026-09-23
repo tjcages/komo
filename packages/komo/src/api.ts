@@ -126,6 +126,7 @@ function invalidResponse() {
 export class CommentsApi {
   token: string | null = null;
   user: Identity | null = null;
+  transient = false;
   private revision: number | undefined;
   private cachedThreads: Thread[] = [];
   private reads = new AbortController();
@@ -154,7 +155,9 @@ export class CommentsApi {
       /* Cookies may be blocked independently from local storage. */
     }
     try {
-      if (!cookiePresent) this.token = localStorage.getItem(this.key);
+      const local = localStorage.getItem(this.key);
+      if (!cookiePresent) this.token = local;
+      else if (!this.token && local) this.clear();
       // Last known account, shown at once; restore() confirms it with /me.
       const known = JSON.parse(localStorage.getItem(this.userKey) ?? "null");
       if (this.token && known?.token === this.token && identity(known.user))
@@ -419,14 +422,16 @@ export class CommentsApi {
     this.token = data.token;
     this.user = data.user;
     this.rememberUser();
+    let stored = false;
     try {
       localStorage.setItem(this.key, data.token);
+      stored = true;
       // Browsers cap cookie Max-Age at 400 days; the service session lasts far
       // longer and localStorage keeps the token beyond the cookie's lifetime.
     } catch {
       /* Session remains usable for this tab. */
     }
-    this.writeCookie(data.token, 400 * 86400);
+    this.transient = !this.writeCookie(data.token, 400 * 86400) && !stored;
   }
   private writeCookie(value: string, maxAge: number) {
     if (location.protocol !== "https:") return;
@@ -436,6 +441,7 @@ export class CommentsApi {
       if (this.cookieDomain)
         document.cookie = `${this.cookieName}=; Max-Age=0; ${attributes}`;
       document.cookie = `${this.cookieName}=${value}; Max-Age=${maxAge}; ${attributes}${this.cookieDomain ? `; Domain=${this.cookieDomain}` : ""}`;
+      return document.cookie.split("; ").includes(`${this.cookieName}=${value}`);
     } catch {
       /* Storage may be unavailable in this browser. */
     }
@@ -454,6 +460,7 @@ export class CommentsApi {
     this.cachedThreads = [];
     this.token = null;
     this.user = null;
+    this.transient = false;
     this.rememberUser();
     // An empty shared cookie prevents another preview's local fallback reviving logout.
     this.writeCookie("", 400 * 86400);
@@ -471,7 +478,7 @@ export class CommentsApi {
     if (!identity(result.user)) throw invalidResponse();
     this.user = result.user;
     this.rememberUser();
-    this.writeCookie(token, 400 * 86400);
+    if (this.writeCookie(token, 400 * 86400)) this.transient = false;
   }
   async guest(name: string) {
     this.save(await this.request("auth/guest", "POST", { name }));

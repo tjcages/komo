@@ -4926,7 +4926,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   });
   function syncSession() {
     const next = new CommentsApi(options);
-    if (next.token === api.token) return false;
+    if (next.token === api.token || (api.transient && !next.token)) return false;
     api.cancelReads();
     api = next;
     projectLoaded = false;

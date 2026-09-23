@@ -214,4 +214,15 @@ it("shared logout prevents another preview's local fallback from reviving the se
   expect(first.window.localStorage.getItem(`branch-comments:${options.endpoint}:${options.project}`)).toBe("shared");
   expect(new CommentsApi(shared).token).toBeNull();
   expect(new CommentsApi(shared).user).toBeNull();
+  expect(first.window.localStorage.getItem(`branch-comments:${options.endpoint}:${options.project}`)).toBeNull();
+});
+
+it("marks memory-only sessions so a focus check cannot mistake blocked persistence for logout", () => {
+  page("http://localhost:3000");
+  vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => { throw new Error("Blocked"); }, removeItem: () => {} });
+  const api = new CommentsApi(options);
+  api.save({ token: "memory-only", user });
+  expect(api.transient).toBe(true);
+  expect(api.token).toBe("memory-only");
+  expect(new CommentsApi(options).token).toBeNull();
 });
