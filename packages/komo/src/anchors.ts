@@ -33,7 +33,8 @@ function stableFor(element: Element): string | undefined {
       attr === "id"
         ? `#${CSS.escape(value)}`
         : `[${attr}="${CSS.escape(value)}"]`;
-    if (unique(selector) === element) return selector;
+    if (selector.length <= 2000 && unique(selector) === element)
+      return selector;
   }
 }
 function selectorFor(element: Element): string {
@@ -91,7 +92,8 @@ function contextFor(element: Element): NonNullable<Anchor["context"]> {
   const selection = window.getSelection();
   const selected = selection?.rangeCount ? selection.getRangeAt(0) : null;
   return {
-    tag: element.tagName.toLowerCase(),
+    tag:
+      element.tagName.length <= 32 ? element.tagName.toLowerCase() : undefined,
     role: trim(element.getAttribute("role") || "", 80) || undefined,
     label: labelFor(element) || undefined,
     nearby: nearbyFor(element) || undefined,

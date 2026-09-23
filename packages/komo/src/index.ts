@@ -52,7 +52,11 @@ import type { MenuItem } from "./MorphingMenu.js";
 import { canonicalPage } from "./page.js";
 import { ApiError, CommentsApi } from "./api.js";
 import { connectionIssue, type ConnectionIssue } from "./connection-issue.js";
-import { captureAnchor, locateAnchor as measureAnchor } from "./anchors.js";
+import {
+  captureAnchor,
+  resolveAnchor,
+  locateAnchor as measureAnchor,
+} from "./anchors.js";
 import {
   age,
   avatar,
@@ -4308,27 +4312,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       target?.focus({ preventScroll: true });
     });
   }
-  const anchorElements = new WeakMap<Anchor, Element>();
-  function anchorElement(anchor: Anchor) {
-    try {
-      const cached = anchorElements.get(anchor);
-      if (
-        cached?.isConnected &&
-        (!anchor.selector || cached.matches(anchor.selector))
-      )
-        return cached;
-      const element = anchor.selector
-        ? document.querySelector(anchor.selector)
-        : document.body;
-      if (element) anchorElements.set(anchor, element);
-      return element;
-    } catch {
-      return null;
-    }
-  }
-  function locateAnchor(anchor: Anchor) {
-    return measureAnchor(anchor, anchorElement(anchor));
-  }
+  const anchorElement = resolveAnchor;
+  const locateAnchor = measureAnchor;
   function siteElementAt(x: number, y: number) {
     return (
       document
@@ -4434,7 +4419,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         target,
         { x, y },
         { x: x + rect.width, y: y + rect.height },
-        options.source?.(target),
+        options.source,
       );
       anchor.unstacked = true;
       run(async () => {
@@ -4602,7 +4587,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     end = start,
   ) {
     hidePreview();
-    draft = captureAnchor(element, start, end, options.source?.(element));
+    draft = captureAnchor(element, start, end, options.source);
     hoverTarget = element;
     mode = false;
     selected = null;

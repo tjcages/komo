@@ -2,6 +2,50 @@ import { describe, expect, it, vi } from "vitest";
 import worker from "../../komo-site/worker/index";
 
 describe("branded API routing", () => {
+  it("pins only preview API requests to a configured version and preserves the request", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response("api"));
+    const version = "12345678-1234-1234-1234-123456789012";
+    for (const host of [
+      "precise-feedback-komo-site.off-brand.workers.dev",
+      "komo.offbr.co",
+    ]) {
+      const request = new Request(`https://${host}/threads?project=test`, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer test",
+          "Cloudflare-Workers-Version-Overrides": 'komo-api="untrusted"',
+        },
+        body: "payload",
+      });
+      await worker.fetch(request, {
+        KOMO_API: { fetch },
+        KOMO_API_PREVIEW_VERSION: version,
+      } as never);
+      const forwarded = fetch.mock.lastCall![0] as Request;
+      expect(forwarded.url).toBe(request.url);
+      expect(forwarded.headers.get("Authorization")).toBe("Bearer test");
+      expect(
+        forwarded.headers.get("Cloudflare-Workers-Version-Overrides"),
+      ).toBe(host === "komo.offbr.co" ? null : `komo-api="${version}"`);
+      expect(await forwarded.text()).toBe("payload");
+    }
+  });
+  it("strips client version overrides when no preview version is configured", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response("api"));
+    await worker.fetch(
+      new Request("https://komo.offbr.co/health", {
+        headers: {
+          "Cloudflare-Workers-Version-Overrides": 'komo-api="untrusted"',
+        },
+      }),
+      { KOMO_API: { fetch } } as never,
+    );
+    expect(
+      fetch.mock.lastCall![0].headers.has(
+        "Cloudflare-Workers-Version-Overrides",
+      ),
+    ).toBe(false);
+  });
   it.each([
     "/auth/google/callback?code=test",
     "/setup",

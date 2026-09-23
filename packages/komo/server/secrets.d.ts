@@ -3,6 +3,7 @@ interface Env {
   KOMO_HOSTED?: string;
   KOMO_PAUSED?: string;
   EDGE_LIMIT?: RateLimit;
+  KOMO_VERSION?: { id: string };
 }
 
 declare module "*.txt" {

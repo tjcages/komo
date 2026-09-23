@@ -482,7 +482,7 @@ async function route(
   ctx: ExecutionContext
 ): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname === "/health") return json({ ok: true });
+  if (url.pathname === "/health") return json({ ok: true, version: env.KOMO_VERSION?.id });
   if (url.pathname === "/setup-client.js" && request.method === "GET")
     return new Response(setupClient, {
       headers: { "Content-Type": "text/javascript; charset=utf-8" },
