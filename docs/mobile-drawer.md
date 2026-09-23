@@ -60,3 +60,9 @@ Verified in native Safari:
 An isolated experiment delaying color restoration until 400ms after dismissal did not fix the retained status tint. No timing workaround was added to the package. A second isolated fixture omitted the root background tint: Safari still tinted the status strip while open, but its close gesture was not reliably delivered, so restoration in that variant is unverified. Neither experiment changed package source. The candidate is not being declared fully verified.
 
 Remaining native checks: new-comment software keyboard, dismissal by pulling comment content at list start, and continuous toolbar animation quality. A later control attempt failed its foreground-window safety check, so raw input stopped rather than risk interacting with the user's other app. The reply keyboard result does not substitute for the untested new-comment case.
+
+## Scroll and entrance follow-up
+
+After owner testing of the older Worker preview found scrolling and Drawer entrance unacceptable, a new candidate removes the expensive fade mask from the mobile comment scroller and skips page geometry updates for scrolls inside the widget. The mobile toolbar is absolute within the overlay, without a lagging height transition when Safari changes its visual viewport. The sheet uses a shorter transform animation; its backdrop now fades with the sheet and remains visible until dismissal finishes. The Drawer no longer changes the page's theme metadata or root background, and locks body scrolling without changing the root overflow. This is intended to avoid Safari chrome tint retention and layout shifts, but needs owner device verification.
+
+Computer-use attachment to Device Hub repeatedly failed with `Computer Use server error -10005: timeoutReached`, including after Device Hub and Codex relaunch and an exact bundle-ID attempt. No native verification of this candidate is claimed.

@@ -2400,19 +2400,19 @@ textarea {
 /* Mobile owns a bottom sheet, never a shrunken desktop sidebar. */
 :host([data-sidebar="drawer"]) .sidebar-tip { display:none !important; }
 :host([data-sidebar="drawer"]) .mobile-drawer {
-  position:absolute; inset:auto 0 0; height: min(82%, 820px); max-height:100%;
+  position:absolute; inset:auto 0 0; height: min(82%, 820px);
   display:flex; flex-direction:column; min-height:0; pointer-events:auto;
   background:#0d0d0d; color:#e9e6e1; border-radius:24px 24px 0 0;
-  box-shadow:0 -1px 0 #ffffff24,0 -12px 48px #0003; outline:none;
-  z-index:8; overscroll-behavior:contain; touch-action:pan-y;
+  box-shadow:0 -1px 0 #ffffff24;
+  z-index:8; touch-action:pan-y; overscroll-behavior:contain; will-change:transform;
 
 }
 .mobile-drawer[hidden] { display:none !important; }
-.mobile-drawer-backdrop { position:absolute; inset:0; background:#0005; border:0; border-radius:0; pointer-events:auto; z-index:7; touch-action:none; }
+.mobile-drawer-backdrop { position:absolute; inset:0; background:#0005; pointer-events:auto; z-index:7; touch-action:none; }
 .mobile-drawer-backdrop[hidden] { display:none; }
 .mobile-drawer-head { touch-action:none; position:relative; height:36px; flex:none; display:flex; align-items:center; justify-content:center; }
-.mobile-drawer-head .mobile-drawer-handle { width:72px; height:32px; display:flex; align-items:center; justify-content:center; touch-action:none; cursor:grab; }
-.mobile-drawer-head .mobile-drawer-handle::before { content:""; width:36px; height:4px; background:currentColor; opacity:.3; border-radius:4px; }
+.mobile-drawer-handle { width:72px; height:32px; display:flex; align-items:center; justify-content:center; }
+.mobile-drawer-handle::before { content:""; width:36px; height:4px; background:currentColor; opacity:.3; border-radius:4px; }
 .mobile-drawer-head > button { position:absolute; right:8px; top:0; width:36px; height:36px; font-size:24px; }
 .mobile-drawer-slot { flex:1; min-height:0; display:flex; overflow:hidden; }
 .mobile-drawer-slot > div { flex:1; min-height:0; display:flex; flex-direction:column; }
@@ -2422,8 +2422,8 @@ textarea {
   background:transparent; box-shadow:none; animation:none; transition:none;
 }
 :host([data-sidebar="drawer"]) .panel::before { display:none; }
-:host([data-sidebar="drawer"]) .panel .list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; padding-bottom:calc(88px + env(safe-area-inset-bottom,0px)); }
-:host([data-sidebar="drawer"]) .toolbar { z-index:10; }
+:host([data-sidebar="drawer"]) .panel .list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; padding-bottom:calc(88px + env(safe-area-inset-bottom,0px)); -webkit-mask-image:none; mask-image:none; scrollbar-gutter:auto; }
+:host([data-sidebar="drawer"]) .toolbar { position:absolute; z-index:10; }
 :host([data-sidebar="drawer"]) .account-layer { top:0; height:100%; z-index:11; }
 :host([data-sidebar="drawer"]):not(.review-open) .panel { display:none; }
 :host([data-sidebar="drawer"]) > :not(.mobile-drawer-mount) > .panel { position:absolute; inset:18% 0 0; height:82%; background:#0d0d0d; }

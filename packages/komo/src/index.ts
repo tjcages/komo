@@ -1973,7 +1973,6 @@ export function initComments(options: CommentsOptions): CommentsController {
       hidden = false;
       scalePage();
       render();
-      syncMobileDrawer();
       presence.show();
       presence.update();
       return;
@@ -4787,7 +4786,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       hidePreview();
       const target = event.target;
       // Sidebar and comment text scrolling do not move the page anchors.
-      if (target === host || !target) return;
+      if (target === host || !target ||
+        (target instanceof Node && target.getRootNode() === shadow)) return;
       const scroller = target === document ? document.scrollingElement : target;
       if (!(scroller instanceof Element)) return;
       if (!movingThread) {

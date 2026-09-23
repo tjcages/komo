@@ -23,44 +23,60 @@ export function mobileDrawer(
   slot.append(content);
   sheet.append(head, slot);
   mount.append(backdrop, sheet);
+  backdrop.addEventListener("wheel", event => event.preventDefault(),
+    { passive: false, signal: abort.signal });
   let open = false,
     locked = false,
     disposed = false;
   let previousFocus: HTMLElement | null = null;
   let release: (() => void) | undefined;
   let motion: Animation | undefined;
+  let shade: Animation | undefined;
   let drag:
     | { id: number; y: number; start: number; distance: number }
     | undefined;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   function settle(value: boolean, restored = false) {
+    const dim = backdrop.hidden ? "0" : getComputedStyle(backdrop).opacity;
     const from = sheet.hidden
       ? "translateY(105%)"
       : getComputedStyle(sheet).transform;
     motion?.cancel();
+    shade?.cancel();
     motion = undefined;
     sheet.style.transform = value ? "translateY(0)" : "translateY(105%)";
     if (value) sheet.hidden = false;
     sheet.inert = !value;
-    backdrop.hidden = !value;
-    backdrop.style.opacity = "";
+    backdrop.hidden = false;
+    backdrop.style.opacity = value ? "1" : "0";
     if (!reduced.matches && !restored && !sheet.hidden) {
       const next = sheet.animate(
         [
           { transform: from === "none" ? "translateY(105%)" : from },
           { transform: sheet.style.transform },
         ],
-        { duration: 320, easing: "cubic-bezier(.32,.72,0,1)" },
+        { duration: 260, easing: "cubic-bezier(.22,1,.36,1)" },
       );
       motion = next;
+      shade = backdrop.animate(
+        [{ opacity: dim }, { opacity: value ? "1" : "0" }],
+        { duration: 180, easing: "ease-out" },
+      );
+      void shade.finished.catch(() => {});
       void next.finished
         .then(() => {
           if (motion !== next || disposed) return;
           motion = undefined;
+          shade = undefined;
           sheet.hidden = !open;
+          backdrop.hidden = !open;
+          backdrop.style.opacity = "";
         })
         .catch(() => {});
-    } else sheet.hidden = !value;
+    } else {
+      sheet.hidden = backdrop.hidden = !value;
+      backdrop.style.opacity = "";
+    }
   }
   head.addEventListener(
     "pointerdown",
@@ -69,6 +85,7 @@ export function mobileDrawer(
       const transform = getComputedStyle(sheet).transform;
       const offset = new DOMMatrix(transform).m42;
       motion?.cancel();
+      shade?.cancel();
       sheet.style.transform = transform;
       motion = undefined;
       drag = {
@@ -126,6 +143,7 @@ export function mobileDrawer(
     if (!event.cancelable) return;
     event.preventDefault();
     motion?.cancel();
+    shade?.cancel();
     drag ??= { id: -1, y: touchY, start: performance.now(), distance: 0 };
     move(distance);
   }, { passive: false, signal: abort.signal });
@@ -141,40 +159,11 @@ export function mobileDrawer(
     update(value: boolean, restored = false, lock = value) {
       if (disposed) return;
       if (lock && !locked) {
-        const body = document.body,
-          html = document.documentElement;
-        const overflow = body.style.overflow,
-          htmlOverflow = html.style.overflow;
-        const background = html.style.backgroundColor;
-        const bodyBackground = body.style.backgroundColor;
-        const base = getComputedStyle(html).backgroundColor;
-        const channels = base.match(/[\d.]+/g);
-        const tint = channels?.length && channels[3] !== "0"
-          ? `rgb(${channels.slice(0, 3).map(n => +n * 2 / 3).join(",")})` : "#aaa";
-        const themes = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')];
-        const created = !themes.length;
-        if (created) {
-          const meta = document.createElement("meta");
-          meta.name = "theme-color";
-          document.head.append(meta);
-          themes.push(meta);
-        }
-        const colors = themes.map(meta => meta.getAttribute("content"));
-        themes.forEach(meta => meta.content = tint);
-        if (getComputedStyle(body).backgroundColor === "rgba(0, 0, 0, 0)")
-          body.style.backgroundColor = base;
-        html.style.backgroundColor = tint;
-        body.style.overflow = html.style.overflow = "hidden";
+        const body = document.body;
+        const overflow = body.style.overflow;
+        body.style.overflow = "hidden";
         release = () => {
           body.style.overflow = overflow;
-          html.style.overflow = htmlOverflow;
-          html.style.backgroundColor = background;
-          body.style.backgroundColor = bodyBackground;
-          themes.forEach((meta, i) => {
-            if (created) meta.remove();
-            else if (colors[i] === null) meta.removeAttribute("content");
-            else meta.content = colors[i]!;
-          });
         };
       } else if (!lock && locked) {
         release?.();
@@ -198,6 +187,7 @@ export function mobileDrawer(
       disposed = true;
       abort.abort();
       motion?.cancel();
+      shade?.cancel();
       release?.();
       content.remove();
       mount.remove();

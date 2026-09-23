@@ -39,7 +39,8 @@ it("contains comments and restores host scrolling on repeated close or destroy",
       true,
     );
     expect(document.body.style.overflow).toBe("hidden");
-    expect(theme.content).toBe("rgb(170,170,170)");
+    expect(document.documentElement.style.overflow).toBe("scroll");
+    expect(theme.content).toBe("#ffffff");
     expect(document.body.style.pointerEvents).toBe("none");
     expect(page.hasAttribute("aria-hidden")).toBe(false);
     drawer!.update(false);
