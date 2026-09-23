@@ -19,7 +19,7 @@ function unique(selector: string): Element | null {
   const matches = document.querySelectorAll(selector);
   return matches.length === 1 ? matches[0] : null;
 }
-function stableFor(element: Element): string | undefined {
+function stableFor(element: Element, preferred?: string): string | undefined {
   for (const attr of [
     "data-comment-anchor",
     "id",
@@ -33,7 +33,7 @@ function stableFor(element: Element): string | undefined {
       attr === "id"
         ? `#${CSS.escape(value)}`
         : `[${attr}="${CSS.escape(value)}"]`;
-    if (selector.length <= 2000 && unique(selector) === element)
+    if (selector.length <= 2000 && (!preferred || selector === preferred) && unique(selector) === element)
       return selector;
   }
 }
@@ -112,7 +112,10 @@ function matches(element: Element, anchor: Anchor): boolean {
   const context = anchor.context;
   if (!anchor.text && !context?.label && !context?.nearby) return false;
   return (
-    (!anchor.text || textFor(element) === trim(anchor.text)) &&
+    (!anchor.text ||
+      (context
+        ? textFor(element) === trim(anchor.text)
+        : trim(element.textContent || "").startsWith(trim(anchor.text)))) &&
     (!context ||
       ((!context.tag || element.tagName.toLowerCase() === context.tag) &&
         (!context.role || element.getAttribute("role") === context.role) &&
@@ -176,26 +179,21 @@ export function resolveAnchor(
   try {
     const found = anchor.selector ? unique(anchor.selector) : document.body;
     element = target?.isConnected && target === found ? target : found;
-    if (
-      element &&
-      stableFor(element) !== anchor.selector &&
-      !matches(element, anchor)
-    )
-      element = null;
+    if (element && stableFor(element, anchor.selector)) return element;
+    if (element && !matches(element, anchor)) element = null;
     const context = anchor.context;
     if (
-      !element &&
-      context?.scope &&
-      context.tag &&
+      context?.tag &&
+      (element || context.scope) &&
       (anchor.text || context.label || context.nearby)
     ) {
-      const scope = unique(context.scope);
-      const candidates = scope
-        ? [...scope.querySelectorAll(context.tag)].filter((candidate) =>
-            matches(candidate, anchor),
-          )
-        : [];
-      if (candidates.length === 1) element = candidates[0];
+      const scope = context.scope ? unique(context.scope) : null;
+      const candidates = [
+        ...(context.scope
+          ? scope?.querySelectorAll(context.tag) || []
+          : element?.parentElement?.children || []),
+      ].filter((candidate) => matches(candidate, anchor));
+      element = candidates.length === 1 ? candidates[0] : null;
     }
   } catch {
     // Invalid legacy selectors or ambiguous/missing targets retain their fallback position.

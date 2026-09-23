@@ -52,6 +52,7 @@ describe("precise anchors", () => {
     document.body.innerHTML = '<button id="save">Save</button>';
     const target = document.querySelector("button")!;
     const anchor = capture(target);
+    target.setAttribute("data-comment-anchor", "save-action");
     target.textContent = "Save changes";
     expect(resolveAnchor(anchor)).toBe(target);
     document.body.insertAdjacentHTML(
@@ -60,6 +61,28 @@ describe("precise anchors", () => {
     );
     expect(resolveAnchor(anchor, target)).toBeNull();
     expect(capture(target).selector).not.toBe("#save");
+  });
+
+  it("keeps legacy inline text anchors attached without introducing boundary spaces", () => {
+    document.body.innerHTML =
+      "<section><button>Save <b>changes</b>!</button></section>";
+    const target = document.querySelector("button")!;
+    const anchor = capture(target);
+    delete anchor.context;
+    anchor.text = "Save changes!";
+    expect(resolveAnchor(anchor)).toBe(target);
+  });
+
+  it("detaches indistinguishable positional controls with and without a stable scope", () => {
+    for (const id of ['id="toolbar"', ""]) {
+      document.body.innerHTML = `<section ${id}><button>Edit</button><button>Edit</button></section>`;
+      const parent = document.querySelector("section")!;
+      const target = parent.lastElementChild!;
+      const anchor = capture(target);
+      expect(resolveAnchor(anchor, target)).toBeNull();
+      parent.prepend(target);
+      expect(resolveAnchor(anchor, target)).toBeNull();
+    }
   });
 
   it("refuses ambiguous recovery rather than choosing the first matching control", () => {
