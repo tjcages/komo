@@ -22,14 +22,6 @@ export const styles: string = `
 .copy-page-prompt:disabled { opacity:.4; cursor:default; }
 :host {
   all: initial;
-  font-family: var(
-    --font-stk-bureau-sans,
-    ui-sans-serif,
-    system-ui,
-    sans-serif
-  );
-  color: #232321;
-  font-size: 13px;
   line-height: 1.45;
   color-scheme: light;
 }
@@ -154,17 +146,7 @@ small {
 .pin {
   position: fixed;
   pointer-events: auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 50% 50% 50% 4px;
   transform: translate(-5px, -25px);
-  background: #f48120;
-  color: #241609;
-  font-weight: 600;
-  font-size: 12px;
-  box-shadow:
-    0 2px 8px #0003,
-    0 0 0 2px #fff;
   z-index: 2;
 }
 .pin:hover,
@@ -174,10 +156,6 @@ small {
   box-shadow:
     0 2px 8px #0003,
     0 0 0 3px #f48120;
-}
-.pin.resolved {
-  background: #64816a;
-  color: white;
 }
 .pin.detached {
   opacity: 0.65;
@@ -198,9 +176,7 @@ small {
   z-index: 4;
 }
 .panel-head {
-  padding: 24px 22px 18px;
   display: grid;
-  gap: 15px;
 }
 .row {
   display: flex;
@@ -253,16 +229,12 @@ small {
 .thread-card {
   display: block;
   width: 100%;
-  padding: 16px 12px;
   text-align: left;
-  border-radius: 10px;
   position: relative;
 }
 .thread-card::after {
   content: "";
   position: absolute;
-  left: 12px;
-  right: 12px;
   bottom: 0;
   height: 1px;
   background: #e8e5de;
@@ -309,12 +281,9 @@ small {
   background: #ede9df;
 }
 .thread-card .preview {
-  margin: 9px 0 10px;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -332,12 +301,10 @@ small {
   max-width: 215px;
 }
 .empty {
-  padding: 48px 24px;
   text-align: center;
   color: #77766f;
   display: grid;
   justify-items: center;
-  gap: 12px;
 }
 .empty svg {
   width: 32px;
@@ -346,7 +313,6 @@ small {
 }
 .empty strong {
   color: #34332e;
-  font-size: 15px;
 }
 .empty p {
   max-width: 250px;
@@ -360,24 +326,14 @@ small {
 }
 .dialog {
   position: fixed;
-  width: 354px;
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 110px);
   display: flex;
   flex-direction: column;
-  background: #fffefa;
-  box-shadow:
-    0 12px 50px #0002,
-    0 2px 8px #0001,
-    0 0 0 1px #dedbd3;
-  border-radius: 14px;
   pointer-events: auto;
   z-index: 6;
-  overflow: hidden;
 }
 .dialog-head {
-  padding: 14px 16px;
-  box-shadow: 0 1px 0 #e8e5de;
   flex-shrink: 0;
 }
 .dialog-head h3 {
@@ -386,11 +342,8 @@ small {
 .messages {
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 4px 16px;
-  max-height: 45vh;
 }
 .message {
-  padding: 15px 0;
   position: relative;
 }
 .message + .message::before {
@@ -398,7 +351,6 @@ small {
   position: absolute;
   inset: 0 0 auto;
   height: 1px;
-  background: #e8e5de;
 }
 .author {
   font-weight: 600;
@@ -413,30 +365,18 @@ small {
   font-size: 10px;
   background: #e7e3d7;
   color: #5c5647;
-  flex-shrink: 0;
 }
 .message-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  margin: 10px 0;
-  line-height: 1.6;
 }
 .actions {
   display: flex;
   align-items: center;
-  gap: 4px;
   flex-wrap: wrap;
 }
 .reaction {
-  font-size: 12px;
-  padding: 3px 7px;
-  border-radius: 6px;
-  background: #f0eee7;
   min-height: 25px;
-}
-.reaction.mine {
-  background: #ffead6;
-  box-shadow: inset 0 0 0 1px #efb582;
 }
 .reaction-picker {
   display: flex;
@@ -445,10 +385,7 @@ small {
   margin: 9px 0;
 }
 .composer {
-  padding: 14px 16px 16px;
   display: grid;
-  gap: 10px;
-  box-shadow: 0 -1px 0 #e8e5de;
 }
 .primary {
   background: #282822;
@@ -503,12 +440,7 @@ small {
   box-shadow: 0 4px 20px #0002;
 }
 .account {
-  padding: 20px;
   display: grid;
-  gap: 14px;
-}
-.account h2 {
-  font-size: 17px;
 }
 .sr-only {
   position: absolute;
@@ -556,9 +488,6 @@ ${morphingMenuStyles}
   --mm-ink: #f8f7f4;
   --mm-hover: #ffffff12;
 }
-.toolbar .morphing-menu [aria-current] {
-  color: #f7a363;
-}
 .toolbar .morphing-menu__row {
   justify-content: flex-start;
 }
@@ -571,13 +500,11 @@ ${morphingMenuStyles}
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #ffffff20;
   font-size: 10px;
   letter-spacing: 0;
 }
 
 :host(.review-open) .panel {
-  background: #080808;
   color: #eee;
   box-shadow: none;
 }
@@ -604,16 +531,6 @@ ${morphingMenuStyles}
 :host(.review-open) .panel .icon:hover,
 :host(.review-open) .panel .thread-card:hover {
   background: #161616;
-}
-:host(.review-open) .panel .thread-card.active {
-  background: #202020;
-}
-:host(.review-open) .panel .thread-card::after {
-  background: #ffffff10;
-}
-:host(.review-open) .panel .avatar {
-  background: #292929;
-  color: #ccc;
 }
 :host(.review-open) .panel .empty .primary {
   background: var(--accent, #bda6ef);
@@ -687,15 +604,8 @@ ${morphingMenuStyles}
   border-radius: 3px;
 }
 :host(.review-open) .panel {
-  top: 10%;
-  height: 80%;
   width: 380px;
   background: transparent;
-  padding: 0 20px 0 4px;
-}
-.panel-head {
-  padding: 0 12px 20px;
-  gap: 12px;
 }
 .panel-head .row {
   gap: 4px;
@@ -709,11 +619,7 @@ ${morphingMenuStyles}
   width: 16px;
   height: 16px;
 }
-:host(.review-open) .panel .list {
-  padding: 0 0 16px;
-}
 .thread-card {
-  padding: 18px 14px;
   border-radius: 14px;
 }
 .thread-card .preview {
@@ -776,9 +682,7 @@ ${morphingMenuStyles}
   font-size: 13px;
 }
 .dialog {
-  width: 340px;
   background: #fff;
-  border-radius: 18px;
   box-shadow:
     0 16px 60px #0003,
     0 3px 10px #0001,
@@ -787,8 +691,6 @@ ${morphingMenuStyles}
 }
 .dialog-head {
   position: absolute;
-  top: 10px;
-  right: 10px;
   z-index: 1;
   padding: 0;
   box-shadow: none;
@@ -815,24 +717,9 @@ ${morphingMenuStyles}
   z-index: 1;
 }
 .messages {
-  padding: 0 16px;
   max-height: 45vh;
 }
-.message {
-  padding: 20px 0 14px;
-}
-.message:first-child > .row {
-  padding-right: 86px;
-}
-.message + .message::before {
-  background: #f1f1f1;
-  left: 36px;
-}
-.message .row {
-  gap: 7px;
-}
 .message .author {
-  font-size: 12px;
   font-weight: 600;
   min-width: 0;
   overflow: hidden;
@@ -840,25 +727,17 @@ ${morphingMenuStyles}
   white-space: nowrap;
 }
 .message .avatar {
-  width: 26px;
-  height: 26px;
   background: #c8b5f4;
   color: #352a50;
   font-size: 9px;
 }
 .message small {
   font-size: 10px;
-  color: #999;
 }
 .message-text {
-  font-size: 14px;
-  line-height: 1.55;
-  margin: 8px 0 7px;
-  padding-left: 33px;
   letter-spacing: -0.01em;
 }
 .actions {
-  padding-left: 33px;
   gap: 5px;
   min-height: 26px;
 }
@@ -872,30 +751,17 @@ ${morphingMenuStyles}
   width: 15px;
 }
 .reaction {
-  background: #f4f4f5;
   padding: 3px 7px;
   border-radius: 20px;
   font-size: 11px;
 }
-.reaction.mine {
-  background: #e9f1ff;
-  box-shadow: inset 0 0 0 1px #c5d9ff;
-}
 .composer {
-  padding: 14px;
-  gap: 8px;
   box-shadow: 0 -1px 0 #f1f1f1;
 }
 .composer textarea {
-  min-height: 54px;
   max-height: 180px;
   resize: none;
-  background: transparent;
   box-shadow: none;
-  padding: 4px 24px 4px 4px;
-  border-radius: 0;
-  font-size: 14px;
-  line-height: 1.5;
   outline: none;
 }
 .composer textarea:focus {
@@ -942,8 +808,6 @@ ${morphingMenuStyles}
 }
 .send:disabled {
   opacity: 1;
-  background: #eee;
-  color: #b8b8b8;
   cursor: default;
 }
 .send svg {
@@ -952,12 +816,6 @@ ${morphingMenuStyles}
 }
 .send:not(:disabled):active {
   transform: scale(0.94);
-}
-.account h2 {
-  font-size: 16px;
-}
-.account {
-  padding: 38px 20px 20px;
 }
 .toolbar .review-avatar {
   background: #ffffff16;
@@ -1002,17 +860,11 @@ ${morphingMenuStyles}
   transition: opacity 100ms ease;
 }
 
-.dialog {
-  width: 300px;
-  border-radius: 12px;
-}
 .composer {
-  padding: 12px;
   gap: 8px;
 }
 .composer textarea {
   min-height: 34px;
-  padding: 6px 24px 6px 4px;
   font-size: 13px;
   line-height: 22px;
 }
@@ -1022,23 +874,14 @@ ${morphingMenuStyles}
   padding-right: 40px;
   min-height: 58px;
 }
-.composer:has(.avatar) textarea {
-  padding-right: 0;
-}
 .composer:has(.avatar) > .row {
   display: contents;
 }
 .composer:has(.avatar) .avatar {
   position: absolute;
-  left: 12px;
-  bottom: 17px;
-  width: 22px;
-  height: 22px;
 }
 .composer:has(.avatar) .send {
   position: absolute;
-  right: 10px;
-  bottom: 14px;
   width: 26px;
   height: 26px;
 }
@@ -1047,24 +890,10 @@ ${morphingMenuStyles}
 }
 .message-text {
   font-size: 13px;
-  padding-left: 0;
   line-height: 1.5;
-}
-.actions {
-  padding-left: 0;
 }
 .message:first-child > .row {
   padding-right: 78px;
-}
-.message .avatar {
-  width: 22px;
-  height: 22px;
-}
-.messages {
-  padding: 0 12px;
-}
-.message {
-  padding: 16px 0 12px;
 }
 .dialog-head {
   top: 12px;
@@ -1089,34 +918,20 @@ ${morphingMenuStyles}
   position: absolute;
   top: 30px;
   right: 0;
-  min-width: 150px;
-  padding: 4px;
-  background: white;
-  border-radius: 8px;
-  box-shadow:
-    0 4px 20px #0002,
-    0 0 0 1px #00000012;
 }
 .menu-action {
-  display: block;
   width: 100%;
   text-align: left;
-  padding: 8px;
-  border-radius: 5px;
-  font-size: 12px;
   background: transparent;
-  color: #333;
 }
 .menu-action:hover {
   background: #f3f3f3;
 }
 .pin-preview {
   position: fixed;
-  width: 264px;
   pointer-events: auto;
   background: white;
   color: #222;
-  border-radius: 12px;
   box-shadow:
     0 8px 32px #0002,
     0 0 0 1px #00000012;
@@ -1125,7 +940,6 @@ ${morphingMenuStyles}
 .pin-preview-open {
   display: block;
   width: 100%;
-  padding: 14px;
   background: transparent;
   color: inherit;
   text-align: left;
@@ -1142,14 +956,7 @@ ${morphingMenuStyles}
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.pin-preview .row {
-  gap: 6px;
-  font-size: 11px;
-}
 .pin-preview .avatar {
-  width: 20px;
-  height: 20px;
-  font-size: 8px;
   background: #c8b5f4;
   color: #352a50;
 }
@@ -1167,7 +974,6 @@ ${morphingMenuStyles}
 :host(.review-open) .panel {
   top: 36px;
   right: 0;
-  height: calc(100% - 136px);
   padding: 0 24px;
 }
 .panel-head {
@@ -1193,9 +999,6 @@ ${morphingMenuStyles}
     inset 0 1px 0 #ffffff20,
     inset 0 0 0 1px #ffffff0c,
     0 4px 16px #0002;
-}
-.message + .message::before {
-  left: 0;
 }
 .pin:hover {
   background: #bda6ef;
@@ -1303,7 +1106,6 @@ ${morphingMenuStyles}
 .message + .message::before {
   left: -16px;
   right: -16px;
-  background: #f0f0f2;
 }
 .composer {
   padding: 12px 16px;
@@ -1712,10 +1514,7 @@ ${morphingMenuStyles}
 .emoji-choice {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
   padding: 0;
-  font-size: 20px;
   border-radius: 7px;
   opacity: 0;
   transform: translateX(-6px) scale(0.97);
@@ -1821,7 +1620,6 @@ ${morphingMenuStyles}
 .sidebar-search {
   display: grid;
   grid-template-rows: 0fr;
-  opacity: 0;
   transition:
     grid-template-rows 250ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 150ms ease-out;
@@ -1842,7 +1640,6 @@ ${morphingMenuStyles}
 }
 .sidebar-search-field {
   display: flex;
-  flex: 1;
   min-width: 0;
   align-items: center;
   gap: 8px;
