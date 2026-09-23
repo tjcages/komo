@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { buildEditorUI } from "./build-ui.mjs";
 import { ensureCuelume } from "./cuelume-bank.mjs";
 import { cpSync } from "node:fs";
@@ -41,7 +42,14 @@ if (!Number.isFinite(actual) || Math.abs(actual - timeline.duration) > 0.08)
   throw Error("Preview film and cut map do not match.");
 const out = resolve(repo, "packages/komo-site/dist/audio");
 mkdirSync(out, { recursive: true });
-copyFileSync(await buildEditorUI(), resolve(out, "panels-ui.mjs"));
+const bundle = await buildEditorUI();
+const revision = createHash("sha256")
+  .update(readFileSync(bundle))
+  .update(readFileSync(resolve(here, "studio.mjs")))
+  .digest("hex")
+  .slice(0, 12);
+const bundleName = `panels-ui-${revision}.mjs`;
+copyFileSync(bundle, resolve(out, bundleName));
 cpSync(await ensureCuelume(), resolve(out, "cuelume"), { recursive: true });
 for (const name of [
   "index.html",
@@ -53,6 +61,21 @@ for (const name of [
   "cues.json",
 ])
   copyFileSync(resolve(here, name), resolve(out, name));
+// Version module URLs so revisiting the stable alias never mixes UI revisions.
+writeFileSync(
+  resolve(out, "studio.mjs"),
+  readFileSync(resolve(here, "studio.mjs"), "utf8").replace(
+    '"./panels-ui.mjs"',
+    `"./${bundleName}"`,
+  ),
+);
+writeFileSync(
+  resolve(out, "index.html"),
+  readFileSync(resolve(out, "index.html"), "utf8").replace(
+    'src="studio.mjs"',
+    `src="studio.mjs?v=${revision}"`,
+  ),
+);
 writeFileSync(
   resolve(out, "capabilities.json"),
   JSON.stringify({ localExport: false }),
