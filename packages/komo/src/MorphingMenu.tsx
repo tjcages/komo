@@ -284,7 +284,6 @@ export function MorphingMenu({
         {
           opacity: expanded ? 0 : 1,
           scale: expanded && !reducedMotion ? 0.8 : 1,
-          filter: expanded && !reducedMotion ? "blur(8px)" : "blur(0px)",
         },
         {
           duration: snap ? 0 : expanded ? 0.15 : 0.22,
@@ -303,7 +302,6 @@ export function MorphingMenu({
           Object.assign(row.style, {
             opacity: "0",
             transform: "translateY(48px)",
-            filter: "blur(4px)",
           });
         }
         track(
@@ -312,7 +310,6 @@ export function MorphingMenu({
             {
               opacity: visible ? 1 : 0,
               y: visible || reducedMotion ? 0 : 16,
-              filter: visible || reducedMotion ? "blur(0px)" : "blur(2px)",
             },
             {
               ...spring,
@@ -350,7 +347,15 @@ export function MorphingMenu({
     }
 
     // Geometry is measured from CSS, including the larger touch target tier.
-    const resize = () => setView((current) => ({ ...current }));
+    const geometryKey = () =>
+      `${bar.offsetWidth}:${bar.offsetHeight}:${panel?.offsetWidth ?? 0}:${panel?.offsetHeight ?? 0}`;
+    let lastGeometry = geometryKey();
+    const resize = () => {
+      const nextGeometry = geometryKey();
+      if (nextGeometry === lastGeometry) return;
+      lastGeometry = nextGeometry;
+      setView((current) => ({ ...current }));
+    };
     window.addEventListener("resize", resize);
     return () => {
       cancelled = true;

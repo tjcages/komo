@@ -52,18 +52,19 @@ export function floatingDrag(
   signal: AbortSignal,
   beforeDrag?: () => void,
   onSettled?: () => void,
-  enabled: () => boolean = () => true
+  enabled: () => boolean = () => true,
+  allowInteractiveStart: (target: Element) => boolean = () => false
 ) {
   let cleanup: (() => void) | undefined;
   handle.addEventListener(
     "pointerdown",
     (event) => {
+      const target = event.target as Element;
       if (
         !enabled() ||
         event.button !== 0 ||
-        (event.target as Element).closest(
-          "button,input,textarea,a,summary,[role=menu]"
-        )
+        (target.closest("button,input,textarea,a,summary,[role=menu]") &&
+          !allowInteractiveStart(target))
       )
         return;
       cleanup?.();

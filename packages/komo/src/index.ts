@@ -605,6 +605,14 @@ export function initComments(options: CommentsOptions): CommentsController {
     toolbar.style.bottom = "auto";
   }
   function placeSidebar(p: Placement) {
+    if (sidebar.dataset.dragging === "true") {
+      // Pointer moves already arrive constrained from floatingDrag. Avoid the
+      // size reads and tip layout in positionSidebar on every touch event.
+      sidebarPlacement = p;
+      sidebar.style.left = `${p.x}px`;
+      sidebar.style.top = `${p.y}px`;
+      return;
+    }
     if (!sidebar.offsetWidth) return;
     sidebarPlacement = constrain(
       p,
@@ -1028,6 +1036,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       presence.update();
     },
     () => !expanded,
+    (target) => !!target.closest(".morphing-menu__shortcut"),
   );
 
   const toolbarSize = new ResizeObserver(() => {
@@ -1966,10 +1975,15 @@ export function initComments(options: CommentsOptions): CommentsController {
       render();
       presence.show();
       presence.update();
-      if (host.dataset.mobileEntering !== undefined)
+      if (host.dataset.mobileEntering !== undefined) {
+        // The panel is first mounted by render(). Establish its collapsed style
+        // before removing the entrance guard so WebKit has a real start frame.
+        const panel = sidebar.querySelector<HTMLElement>(".panel");
+        if (panel) void getComputedStyle(panel).transform;
         mobileEnterFrame = requestAnimationFrame(() => {
           delete host.dataset.mobileEntering;
         });
+      }
       return;
     }
     if (edgeSidebar) {
@@ -2989,8 +3003,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       );
     }
     const animateRows =
-      !compactSidebar &&
       !restoring &&
+      host.dataset.mobileEntering === undefined &&
       !matchMedia("(prefers-reduced-motion: reduce)").matches;
     const previous = new Map<string | undefined, number>();
     if (animateRows && existingList) {

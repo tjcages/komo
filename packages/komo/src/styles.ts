@@ -884,6 +884,10 @@ ${morphingMenuStyles}
     inset 0 0 0 1px #ffffff0c,
     0 4px 16px #0002;
 }
+@media (any-pointer: coarse) {
+  .toolbar .morphing-menu__shell { backdrop-filter: none; }
+  :host(.review-open) .toolbar .morphing-menu { --mm-surface: #282828; }
+}
 .pin:hover {
   background: #bda6ef;
   color: #352a50;
@@ -2406,21 +2410,16 @@ textarea {
   padding:20px 20px 10px; display:flex; flex-direction:column;
   background:#0d0d0d; color:#e9e6e1; border-radius:24px;
   box-shadow:0 -1px 0 #ffffff24; overflow:hidden;
-  pointer-events:none; visibility:hidden; opacity:0;
+  pointer-events:none; opacity:0;
   transform-origin:bottom center;
-  translate:var(--mobile-pill-x,0px) var(--mobile-pill-y,-24px);
-  scale:var(--mobile-pill-scale-x,.6) var(--mobile-pill-scale-y,.08);
-  will-change:translate,scale,opacity;
-  transition:translate 320ms cubic-bezier(.22,1,.36,1),
-    scale 320ms cubic-bezier(.22,1,.36,1), opacity 150ms ease,
-    visibility 0s linear 320ms;
+  transform:translate3d(var(--mobile-pill-x,0px),var(--mobile-pill-y,-24px),0)
+    scale(var(--mobile-pill-scale-x,.6),var(--mobile-pill-scale-y,.08));
+  will-change:transform,opacity;
+  transition:transform 280ms cubic-bezier(.22,1,.36,1), opacity 150ms ease;
   z-index:8;
 }
 :host([data-sidebar="mobile"].review-open:not([data-mobile-entering])) .panel {
-  pointer-events:auto; visibility:visible; opacity:1; translate:0 0; scale:1;
-  transition:translate 320ms cubic-bezier(.22,1,.36,1),
-    scale 320ms cubic-bezier(.22,1,.36,1), opacity 150ms ease,
-    visibility 0s;
+  pointer-events:auto; opacity:1; transform:translate3d(0,0,0) scale(1);
 }
 :host([data-sidebar="mobile"]) .panel::before { display:none; }
 :host([data-sidebar="mobile"]) .panel .list {
