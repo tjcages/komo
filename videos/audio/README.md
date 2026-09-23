@@ -1,0 +1,74 @@
+# Sound studio
+
+A local-first music editor for the komo launch film. Import a song, inspect its waveform, choose an excerpt, align a beat to a scene cut, preview volume/fades, and save a repeatable mix. No accounts, uploads, catalog keys, or new runtime dependencies.
+
+## Run
+
+Requires Node 22.12+. From the repository root:
+
+```sh
+pnpm audio:studio
+```
+
+Open http://127.0.0.1:4341. By default it reads `../komo-promo/out/film.mp4` and the tracked `tools/launch-video/remotion/edit.json`. Render that film using its existing README. For the older local `videos/` buildout:
+
+```sh
+pnpm audio:studio --video videos/out/film.mp4 --edit videos/src/edit.json
+```
+
+The server binds only to localhost and serves an explicit file allowlist. You can also replace the video in the browser; its original cut map is then removed rather than applied to a different edit. The first frame remains an alignment target. Missing media does not stop the editor: choose a video from disk.
+
+1. Choose a song, or try the original 120 BPM demo (also downloads a WAV for export).
+2. Drag the highlighted waveform excerpt, use the slider, or enter a start time.
+3. Select a scene cut and choose **Align beat to selected cut**. Adjust estimated BPM / first beat by ear if needed.
+4. Play, set volume and fades, then **Save mix settings**.
+5. Export with the command below.
+
+## Export full-quality MP4
+
+Install FFmpeg (including FFprobe) through your usual package manager. Files remain local. Paths with spaces must be quoted.
+
+```sh
+node videos/audio/mix.mjs \
+  --video /path/film.mp4 \
+  --song /path/song.wav \
+  --mix /path/komo-mix.json \
+  --out /path/film-with-music.mp4
+```
+
+Run this after the normal Remotion build/assembly; there is no reason to re-render the pictures to audition another song. The exporter copies the video stream and adds a 192 kbps AAC track. **Music replaces any original audio.** It refuses to overwrite an existing output, rejects stale duration / short excerpts / invalid fades, and never shells user values into commands. Outputs should stay outside Git, alongside your existing rendered film.
+
+The browser saves the mix recipe rather than encoding an MP4. Keep the original song and video alongside it; the JSON stores timing, not embedded media. Changing or reordering an edit requires reviewing and saving its mix again even if the total duration stays the same.
+
+## Tempo, not RPM
+
+The song analyzer estimates BPM from its onset envelope and autocorrelation. It also estimates a beat phase. Syncopated music, intros, changing tempos, and half/double time can confuse it: all values are editable, and weak/no pulse is labeled. This is a constant-tempo grid, not downbeat or time-stretch detection.
+
+A silent film has no intrinsic musical BPM. **Suggested cut rhythm** finds the 70–180 BPM grid that best fits scene lengths; it is an editing suggestion, not a measurement of all visual motion. Matching the song BPM to it is optional. Alignment moves the song excerpt so one beat falls on the selected cut; it does not retime scenes or promise every cut hits a beat.
+
+The browser decodes supported formats locally (up to 100 MB / 15 minutes). Playback uses the video as its clock, corrects audio drift, pauses audio on video buffering, and applies the same linear fades as export. Encoded export is authoritative for frame-accurate review.
+
+## Catalogs
+
+Spotify cannot power this feature: its [Developer Policy](https://developer.spotify.com/policy) prohibits synchronizing recordings with visual media. Its streaming access is not an audio file export license.
+
+[Jamendo Licensing](https://licensing.jamendo.com/) offers music licenses for video. Import a licensed download here. Its [public API](https://developer.jamendo.com/v3.0/docs) and [API terms](https://devportal.jamendo.com/api_terms_of_use) are separate from commercial sync licensing; do not assume a public API result grants a commercial video license. A future searchable catalog requires an appropriate provider agreement and credentials. This version deliberately works without them.
+
+## Review preview
+
+After `pnpm build`, stage the editor and a matching film/cut map into the existing site Worker output:
+
+```sh
+node videos/audio/preview.mjs /path/film.mp4 /path/edit.json
+pnpm exec wrangler versions upload --config packages/komo-site/wrangler.jsonc --preview-alias audio-studio
+```
+
+Open the returned preview URL at `/audio/`. This is a preview version of `komo-site`, not a production deployment. Normal site builds do not include the editor or video. Staging checks film duration against the cut map and grants blob media playback only on this review route. Song imports stay in the browser on the hosted preview too.
+
+## Verify
+
+```sh
+node --test videos/audio/timing.test.mjs
+```
+
+The tests cover pulse estimation, trimmed cut timing, beat alignment at excerpt boundaries, and export validation. The helpers in the existing untracked `videos/` Remotion scaffold are private skill assets; this directory contains only the new independently authored audio tools.

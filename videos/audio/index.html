@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>komo · sound studio</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="studio.mjs"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <a href="/" class="brand">komo<span> / sound studio</span></a
+        ><span class="badge">LOCAL AUDIO · PRIVATE BY DEFAULT</span>
+      </header>
+      <div class="intro">
+        <div>
+          <p class="eyebrow">THE FINAL LAYER</p>
+          <h1>Find the feeling.<br />Land the beat.</h1>
+        </div>
+        <p>Pick a song. Find your moment.<br />Bring your film into rhythm.</p>
+      </div>
+      <div class="workspace">
+        <section class="picture" aria-label="Video preview">
+          <video
+            id="video"
+            muted
+            playsinline
+            preload="metadata"
+            src="film.mp4"
+          ></video>
+          <div class="transport">
+            <button id="play" disabled>Play preview</button
+            ><output id="clock">0:00 / 0:00</output
+            ><label class="quiet file"
+              >Replace video<input id="videoFile" type="file" accept="video/*"
+            /></label>
+          </div>
+          <input
+            id="scrub"
+            aria-label="Video position"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value="0"
+          />
+          <div class="film-meta">
+            <span id="filmInfo">Loading edit…</span
+            ><span id="tempo">Suggested rhythm —</span>
+          </div>
+          <div
+            id="cutList"
+            class="cut-list"
+            aria-label="Select a cut to align"
+          ></div>
+        </section>
+        <section class="music" aria-label="Music controls">
+          <p class="eyebrow">YOUR SOUNDTRACK</p>
+          <h2>Add a little atmosphere.</h2>
+          <p class="muted">
+            Use a song you own or have licensed. Your files stay in this
+            browser.
+          </p>
+          <label class="import file"
+            >＋ Choose a song<input
+              id="songFile"
+              type="file"
+              accept="audio/*" /></label
+          ><button id="demo" class="secondary">Try a 120 BPM demo beat</button>
+          <p id="songName" class="song-name">No song selected</p>
+          <p id="analysis" class="muted">
+            MP3, WAV, M4A or another browser-supported format.
+          </p>
+          <fieldset id="controls" disabled>
+            <div class="two">
+              <label
+                >Song BPM<input
+                  id="bpm"
+                  type="number"
+                  min="30"
+                  max="300"
+                  step="0.1"
+                  value="120" /></label
+              ><label
+                >First beat (seconds)<input
+                  id="firstBeat"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value="0"
+              /></label>
+            </div>
+            <button id="snap" class="secondary">
+              Align beat to selected cut
+            </button>
+            <div class="two">
+              <label
+                >Fade in (s)<input
+                  id="fadeIn"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value="0.2" /></label
+              ><label
+                >Fade out (s)<input
+                  id="fadeOut"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value="0.8"
+              /></label>
+            </div>
+            <label class="volume"
+              >Music volume <output id="volumeText">80%</output
+              ><input
+                id="volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value="0.8"
+            /></label>
+          </fieldset>
+        </section>
+      </div>
+      <section class="timeline">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">FIND YOUR MOMENT</p>
+            <h2>Slide to choose the best part.</h2>
+          </div>
+          <label
+            >Song starts at
+            <input
+              id="startNumber"
+              type="number"
+              min="0"
+              step="0.01"
+              value="0"
+              disabled
+            />
+            s</label
+          >
+        </div>
+        <div class="wave-wrap">
+          <canvas
+            id="wave"
+            width="1600"
+            height="180"
+            aria-label="Song waveform with selected excerpt"
+          ></canvas>
+          <div id="selection" aria-hidden="true"></div>
+        </div>
+        <input
+          id="start"
+          aria-label="Song excerpt start"
+          type="range"
+          min="0"
+          max="0"
+          step="0.000001"
+          value="0"
+          disabled
+        />
+        <div class="legend">
+          <span><i></i>Selected excerpt</span
+          ><span>Lavender lines: beats · white lines: video cuts</span
+          ><output id="range">Add a song to begin</output>
+        </div>
+      </section>
+      <footer>
+        <div>
+          <p id="status" role="status">Load a song to preview your mix.</p>
+          <p class="muted">
+            Save the mix settings, then export a full-quality MP4 locally.
+          </p>
+        </div>
+        <button id="save" disabled>Save mix settings ↗</button>
+      </footer>
+      <details>
+        <summary>Export & music sources</summary>
+        <p>Save the JSON next to your song. From the repository root, run:</p>
+        <pre>
+node videos/audio/mix.mjs --video /path/film.mp4 --song /path/song.mp3 --mix /path/komo-mix.json --out /path/film-with-music.mp4</pre
+        >
+        <p>
+          The exporter keeps the picture untouched and adds your chosen excerpt.
+          It requires FFmpeg and FFprobe. The demo button also downloads its
+          original WAV so you can test the complete export.
+        </p>
+        <p>
+          Spotify’s API does not permit video synchronization. For a catalog,
+          <a
+            href="https://licensing.jamendo.com/"
+            target="_blank"
+            rel="noreferrer"
+            >Jamendo Licensing</a
+          >
+          offers video licenses; import the licensed download here. A catalog
+          API integration needs a separate provider agreement.
+        </p>
+      </details>
+    </main>
+  </body>
+</html>
