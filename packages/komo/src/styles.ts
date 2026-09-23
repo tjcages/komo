@@ -2404,7 +2404,7 @@ textarea {
   display:flex; flex-direction:column; min-height:0; pointer-events:auto;
   background:#0d0d0d; color:#e9e6e1; border-radius:24px 24px 0 0;
   box-shadow:0 -1px 0 #ffffff24;
-  z-index:8; touch-action:pan-y; overscroll-behavior:contain; will-change:transform;
+  z-index:8; touch-action:none; overscroll-behavior:contain; will-change:transform;
 
 }
 .mobile-drawer[hidden] { display:none !important; }

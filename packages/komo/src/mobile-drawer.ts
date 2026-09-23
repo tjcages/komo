@@ -30,142 +30,97 @@ export function mobileDrawer(
     disposed = false;
   let previousFocus: HTMLElement | null = null;
   let release: (() => void) | undefined;
-  let motion: Animation | undefined;
-  let shade: Animation | undefined;
+  let settleTimer = 0;
+  let openedAt = 0;
   let drag:
-    | { id: number; y: number; start: number; distance: number; height: number }
+    | { id: number; y: number; start: number; distance: number; height: number; active: boolean }
     | undefined;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const transition = "transform .5s cubic-bezier(.32,.72,0,1)";
+  const fade = "opacity .5s cubic-bezier(.32,.72,0,1)";
+  const closed = "translate3d(0,105%,0)";
+  const opened = "translate3d(0,0,0)";
+  function hideClosed() {
+    if (open || disposed) return;
+    sheet.hidden = backdrop.hidden = true;
+    backdrop.style.opacity = "";
+  }
   function settle(value: boolean, restored = false) {
     const dim = backdrop.hidden ? "0" : getComputedStyle(backdrop).opacity;
-    const from = sheet.hidden
-      ? "translate3d(0,105%,0)"
-      : getComputedStyle(sheet).transform;
-    motion?.cancel();
-    shade?.cancel();
-    motion = undefined;
-    sheet.style.transform = value ? "translate3d(0,0,0)" : "translate3d(0,105%,0)";
-    if (value) sheet.hidden = false;
+    const from = sheet.hidden ? closed : getComputedStyle(sheet).transform;
+    clearTimeout(settleTimer);
+    sheet.style.transition = backdrop.style.transition = "none";
+    sheet.style.transform = from === "none" ? opened : from;
+    backdrop.style.opacity = dim;
+    sheet.hidden = backdrop.hidden = false;
     sheet.inert = !value;
-    backdrop.hidden = false;
-    backdrop.style.opacity = value ? "1" : "0";
-    if (!reduced.matches && !restored && !sheet.hidden) {
-      const next = sheet.animate(
-        [
-          { transform: from === "none" ? "translate3d(0,105%,0)" : from },
-          { transform: sheet.style.transform },
-        ],
-        { duration: 260, easing: "cubic-bezier(.22,1,.36,1)" },
-      );
-      motion = next;
-      shade = backdrop.animate(
-        [{ opacity: dim }, { opacity: value ? "1" : "0" }],
-        { duration: 180, easing: "ease-out" },
-      );
-      void shade.finished.catch(() => {});
-      void next.finished
-        .then(() => {
-          if (motion !== next || disposed) return;
-          motion = undefined;
-          shade = undefined;
-          sheet.hidden = !open;
-          backdrop.hidden = !open;
-          backdrop.style.opacity = "";
-        })
-        .catch(() => {});
-    } else {
+    if (reduced.matches || restored) {
+      sheet.style.transform = value ? opened : closed;
+      backdrop.style.opacity = value ? "1" : "0";
       sheet.hidden = backdrop.hidden = !value;
-      backdrop.style.opacity = "";
+      openedAt = 0;
+      return;
     }
+    // Commit the starting transform once; movement itself never reads layout.
+    void sheet.offsetHeight;
+    sheet.style.transition = transition;
+    backdrop.style.transition = fade;
+    sheet.style.transform = value ? opened : closed;
+    backdrop.style.opacity = value ? "1" : "0";
+    if (value) openedAt = performance.now();
+    else settleTimer = window.setTimeout(hideClosed, 500);
   }
-  head.addEventListener(
-    "pointerdown",
-    (event) => {
-      if (!open || event.button !== 0 || (event.target as Element).closest("button")) return;
-      const transform = getComputedStyle(sheet).transform;
-      const offset = new DOMMatrix(transform).m42;
-      const height = sheet.offsetHeight;
-      motion?.cancel();
-      shade?.cancel();
-      sheet.style.transform = transform;
-      motion = undefined;
-      drag = {
-        id: event.pointerId,
-        y: event.clientY - offset,
-        start: performance.now(),
-        distance: 0,
-        height,
-      };
-      head.setPointerCapture(event.pointerId);
-      event.preventDefault();
-    },
-    { signal: abort.signal },
-  );
-  const move = (distance: number) => {
-    if (!drag) return;
+  sheet.addEventListener("transitionend", event => {
+    if (event.target === sheet && event.propertyName === "transform") hideClosed();
+  }, { signal: abort.signal });
+  function canDrag(target: Element) {
+    if (getSelection()?.toString()) return false;
+    for (let node: Element | null = target; node && node !== sheet; node = node.parentElement) {
+      if (node.scrollHeight > node.clientHeight && node.scrollTop > 0) return false;
+    }
+    return true;
+  }
+  sheet.addEventListener("pointerdown", event => {
+    if (!open || event.button !== 0 ||
+      (event.target as Element).closest("button:not(.thread-card),input,textarea,select")) return;
+    drag = {
+      id: event.pointerId,
+      y: event.pageY,
+      start: performance.now(),
+      distance: 0,
+      height: sheet.getBoundingClientRect().height,
+      active: false,
+    };
+    (event.target as Element).setPointerCapture?.(event.pointerId);
+  }, { signal: abort.signal });
+  sheet.addEventListener("pointermove", event => {
+    if (drag?.id !== event.pointerId || !open) return;
+    const distance = event.pageY - drag.y;
+    if (!drag.active) {
+      if (openedAt && performance.now() - openedAt < 500) return;
+      const threshold = event.pointerType === "touch" ? 10 : 2;
+      if (distance < -threshold) { drag = undefined; return; }
+      if (distance <= threshold || !canDrag(event.target as Element)) return;
+      drag.active = true;
+      sheet.style.transition = backdrop.style.transition = "none";
+    }
     drag.distance = Math.max(0, distance);
     sheet.style.transform = `translate3d(0,${drag.distance}px,0)`;
-    backdrop.style.opacity = String(1 - Math.min(1, drag.distance / drag.height));
-  };
-  head.addEventListener("pointermove", event => {
-    if (drag?.id === event.pointerId) move(event.clientY - drag.y);
   }, { signal: abort.signal });
-  const end = (cancelled: boolean) => {
-    if (!drag) return;
-    const { distance, start, height } = drag;
+  const end = (event: PointerEvent, cancelled: boolean) => {
+    if (drag?.id !== event.pointerId) return;
+    const { active, distance, start, height } = drag;
     drag = undefined;
-    if (
-      !cancelled &&
-      (distance > height * 0.28 ||
-        (distance > 40 &&
-          distance / Math.max(1, performance.now() - start) > 0.6))
-    )
+    if (!active) return;
+    if (!cancelled &&
+      (distance >= height * .25 || distance / Math.max(1, performance.now() - start) > .4))
       close();
     else settle(open);
   };
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
-    head.addEventListener(type, event => {
-      if (drag?.id === (event as PointerEvent).pointerId) end(type !== "pointerup");
-    }, {
-      signal: abort.signal,
-    });
-  // Let the list scroll natively; a downward pull at its top dismisses.
-  let touchY: number | undefined;
-  const touchMove = (event: TouchEvent) => {
-    if (touchY === undefined) return;
-    const distance = event.touches[0].clientY - touchY;
-    if (distance < 0 && !drag) {
-      touchY = undefined;
-      slot.removeEventListener("touchmove", touchMove);
-      return;
-    }
-    if (!event.cancelable) return;
-    event.preventDefault();
-    if (!drag) {
-      const height = sheet.offsetHeight;
-      motion?.cancel();
-      shade?.cancel();
-      drag = { id: -1, y: touchY, start: performance.now(), distance: 0, height };
-    }
-    move(distance);
-  };
-  slot.addEventListener("touchstart", (event) => {
-    slot.removeEventListener("touchmove", touchMove);
-    const target = event.target as Element;
-    touchY = event.touches.length === 1 &&
-      !target.closest("button:not(.thread-card),input,textarea,select") &&
-      !(content.querySelector(".list")?.scrollTop)
-      ? event.touches[0].clientY : undefined;
-    if (touchY !== undefined)
-      slot.addEventListener("touchmove", touchMove, { passive: false, signal: abort.signal });
-  }, { passive: true, signal: abort.signal });
-  for (const type of ["touchend", "touchcancel"])
-    slot.addEventListener(type, () => {
-      slot.removeEventListener("touchmove", touchMove);
-      touchY = undefined;
-      if (drag?.id === -1) end(type !== "touchend");
-    }, { signal: abort.signal });
-  sheet.style.transform = "translate3d(0,105%,0)";
+    sheet.addEventListener(type, event => end(event as PointerEvent, type !== "pointerup"),
+      { signal: abort.signal });
+  sheet.style.transform = closed;
   sheet.hidden = backdrop.hidden = true;
   sheet.inert = true;
   return {
@@ -202,8 +157,7 @@ export function mobileDrawer(
     destroy() {
       disposed = true;
       abort.abort();
-      motion?.cancel();
-      shade?.cancel();
+      clearTimeout(settleTimer);
       release?.();
       content.remove();
       mount.remove();
