@@ -136,9 +136,6 @@ small {
 .area {
   position: fixed;
   pointer-events: none;
-  background: #f481201a;
-  box-shadow: inset 0 0 0 2px #f48120;
-  border-radius: 3px;
 }
 .selection {
   z-index: 1;
@@ -146,16 +143,12 @@ small {
 .pin {
   position: fixed;
   pointer-events: auto;
-  transform: translate(-5px, -25px);
   z-index: 2;
 }
 .pin:hover,
 .pin.active {
   background: #252522;
   color: #fff;
-  box-shadow:
-    0 2px 8px #0003,
-    0 0 0 3px #f48120;
 }
 .pin.detached {
   opacity: 0.65;
@@ -363,8 +356,6 @@ small {
   display: inline-grid;
   place-items: center;
   font-size: 10px;
-  background: #e7e3d7;
-  color: #5c5647;
 }
 .message-text {
   white-space: pre-wrap;
@@ -544,9 +535,6 @@ ${morphingMenuStyles}
 :host(.review-open) .panel .list {
   padding-bottom: 24px;
 }
-:host(.review-open) .toolbar .morphing-menu {
-  --mm-surface: #202020;
-}
 
 :host {
   font-family:
@@ -558,14 +546,11 @@ ${morphingMenuStyles}
   width: 34px;
   height: 34px;
   border-radius: 50% 50% 50% 5px;
-  background: #c8b5f4;
-  color: #352a50;
   font-size: 11px;
   font-weight: 600;
   box-shadow:
     0 0 0 2px #fff,
     0 3px 10px #0003;
-  transform: translate(-9px, -28px);
 }
 .pin.active {
   box-shadow:
@@ -679,11 +664,6 @@ ${morphingMenuStyles}
   font-size: 13px;
 }
 .dialog {
-  background: #fff;
-  box-shadow:
-    0 16px 60px #0003,
-    0 3px 10px #0001,
-    0 0 0 1px #0000000a;
   overflow: hidden;
 }
 .dialog-head {
@@ -741,7 +721,6 @@ ${morphingMenuStyles}
 .actions > .icon {
   height: 24px;
   width: 24px;
-  color: #9a9a9a;
 }
 .actions > .icon svg {
   height: 15px;
@@ -752,20 +731,10 @@ ${morphingMenuStyles}
   border-radius: 20px;
   font-size: 11px;
 }
-.composer {
-  box-shadow: 0 -1px 0 #f1f1f1;
-}
 .composer textarea {
   max-height: 180px;
   resize: none;
-  box-shadow: none;
   outline: none;
-}
-.composer textarea:focus {
-  box-shadow: none;
-}
-.composer textarea::placeholder {
-  color: #a0a0a0;
 }
 .composer .row {
   gap: 8px;
@@ -821,9 +790,6 @@ ${morphingMenuStyles}
 .toolbar .review-avatar svg {
   width: 15px;
   height: 15px;
-}
-.toolbar .morphing-menu [aria-current] {
-  color: #fff;
 }
 @media (max-width: 760px) {
   :host(.mobile-composing) .toolbar { opacity:0; pointer-events:none; visibility:hidden; }
@@ -921,17 +887,9 @@ ${morphingMenuStyles}
   text-align: left;
   background: transparent;
 }
-.menu-action:hover {
-  background: #f3f3f3;
-}
 .pin-preview {
   position: fixed;
   pointer-events: auto;
-  background: white;
-  color: #222;
-  box-shadow:
-    0 8px 32px #0002,
-    0 0 0 1px #00000012;
   z-index: 3;
 }
 .pin-preview-open {
@@ -1108,7 +1066,6 @@ ${morphingMenuStyles}
   padding: 12px 16px;
 }
 .composer textarea {
-  background: #f7f7f9;
   padding: 8px 10px;
   border-radius: 8px;
 }
@@ -2039,7 +1996,6 @@ textarea {
 .account .accent-swatch:focus-visible { outline: 2px solid #eee; outline-offset: 2px; }
 .accent-custom::before { background: conic-gradient(#f46021, #f9b73b, #2e9d51, #38c5f6, #1f72ff, #9038fc, #f46021); }
 .accent-custom svg { position: relative; width: 16px; height: 16px; padding: 2px; border-radius: 50%; background: #252525; color: #eee; }
-
 
 .emoji-keyboard { position: fixed; z-index: 21; width: min(300px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow: auto; border-radius: 16px; background: #252525; box-shadow: 0 0 0 1px #ffffff12, 0 12px 32px #0006; }
 .emoji-keyboard-close { position: absolute; top: 12px; right: 10px; z-index: 2; width: 26px; height: 26px; color: #999; }
