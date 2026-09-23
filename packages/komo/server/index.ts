@@ -1173,7 +1173,7 @@ async function route(
     return json({ id, commentId: firstCommentId }, 201);
   }
   const match = url.pathname.match(
-    /^\/threads\/([\w-]+)(?:\/comments(?:\/([\w-]+)(?:\/(reactions))?)?)?$/
+    /^\/threads\/([\w:-]{1,100})(?:\/comments(?:\/([\w:-]{1,100})(?:\/(reactions))?)?)?$/
   );
   check(match, 404, "Not found.");
   const [, threadId, commentId, reaction] = match;

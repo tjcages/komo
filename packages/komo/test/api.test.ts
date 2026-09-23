@@ -1657,6 +1657,20 @@ describe("owner management and private projects", () => {
       "New feedback during export",
     ]);
     expect(result.threads[0].comments[0].author.verified).toBe(false);
+    const imported = result.threads[0];
+    expect(imported.id).toMatch(/^import:/);
+    const mutateImported = (path: string, method: string, data: unknown) =>
+      call(path, method, data, "destination-owner", "destination");
+    expect((await mutateImported(`/threads/${imported.id}`, "PATCH", {resolved: false})).status).toBe(200);
+    expect((await mutateImported(`/threads/${imported.id}`, "PATCH", {anchor: {...anchor, x: 0.4}})).status).toBe(200);
+    expect((await mutateImported(`/threads/${imported.id}/comments`, "POST", {body: "Reply after import"})).status).toBe(201);
+    const importedComment = `/threads/${imported.id}/comments/${imported.comments[0].id}`;
+    expect((await mutateImported(`${importedComment}/reactions`, "POST", {emoji: "👍", active: true})).status).toBe(200);
+    // Import never grants ownership of the historical author's messages.
+    expect((await mutateImported(importedComment, "PATCH", {body: "Not mine"})).status).toBe(403);
+    expect((await call(`/threads/${imported.id}`, "PATCH", {resolved: true})).status).toBe(404);
+    expect((await request(`/threads/${imported.id}`, "PATCH", {resolved: true}, "destination-owner", "other", "owner/site", "destination")).status).toBe(404);
+
     expect(
       (await call("/project/clear-resolved", "POST", { confirm: "wrong" }))
         .status
