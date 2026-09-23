@@ -87,7 +87,7 @@ export interface CommentsOptions {
   autoHideDrawer?: boolean;
   /** Center the default drawer position within this element. */
   drawerContainer?: HTMLElement;
-  /** The site's content wrapper, excluding the comments UI. */
+  /** Mounted content root for Frame. Defaults to a sole body content element; otherwise Floating only. */
   pageRoot?: HTMLElement;
   /** Resolve an anchor to a repository-relative source path. */
   source?: (element: Element) => string | undefined;
