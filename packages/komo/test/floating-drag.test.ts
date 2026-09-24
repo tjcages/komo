@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { constrain, settle } from "../src/floating-drag";
+import { JSDOM } from "jsdom";
+import { describe, expect, it, vi } from "vitest";
+import { constrain, floatingDrag, settle } from "../src/floating-drag";
 
 describe("floating placement", () => {
   it("snaps to a corner with a 16px clearance", () => {
@@ -23,8 +24,8 @@ describe("floating placement", () => {
         320,
         250,
         600,
-        600
-      )
+        600,
+      ),
     ).toEqual({ x: 264, y: 334, edgeX: "right", edgeY: "bottom" });
   });
   it("keeps an oversized surface's controls reachable", () => {
@@ -32,5 +33,67 @@ describe("floating placement", () => {
       x: 16,
       y: 16,
     });
+  });
+
+  it("drags from a toolbar tab but keeps a tap as a click", () => {
+    const dom = new JSDOM(
+      '<div id="toolbar"><button class="morphing-menu__shortcut">Comments</button></div>',
+    );
+    const { window } = dom;
+    vi.stubGlobal("window", window);
+    vi.stubGlobal("document", window.document);
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    const toolbar = window.document.querySelector<HTMLElement>("#toolbar")!;
+    const tab = toolbar.querySelector("button")!;
+    toolbar.getBoundingClientRect = () =>
+      ({ left: 100, top: 100, width: 200, height: 52 }) as DOMRect;
+    toolbar.getAnimations = () => [];
+    const save = vi.fn();
+    const click = vi.fn();
+    tab.addEventListener("click", click);
+    const abort = new window.AbortController();
+    floatingDrag(
+      toolbar,
+      toolbar,
+      save,
+      abort.signal,
+      undefined,
+      undefined,
+      () => true,
+      (target) => !!target.closest(".morphing-menu__shortcut"),
+    );
+    const pointer = (
+      type: string,
+      x: number,
+      y: number,
+      target: EventTarget,
+    ) => {
+      const event = new window.MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: x,
+        clientY: y,
+      });
+      Object.defineProperty(event, "pointerId", { value: 1 });
+      target.dispatchEvent(event);
+    };
+    try {
+      pointer("pointerdown", 120, 120, tab);
+      pointer("pointermove", 140, 140, window);
+      pointer("pointerup", 140, 140, window);
+      tab.click();
+      expect(save).toHaveBeenCalled();
+      expect(click).not.toHaveBeenCalled();
+
+      pointer("pointerdown", 120, 120, tab);
+      pointer("pointerup", 120, 120, window);
+      tab.click();
+      expect(click).toHaveBeenCalledTimes(1);
+    } finally {
+      abort.abort();
+      vi.unstubAllGlobals();
+      dom.window.close();
+    }
   });
 });

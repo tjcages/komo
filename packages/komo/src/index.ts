@@ -601,10 +601,23 @@ export function initComments(options: CommentsOptions): CommentsController {
       window.innerHeight,
     );
     toolbar.style.left = `${toolbarPlacement.x + toolbar.offsetWidth / 2}px`;
-    toolbar.style.top = `${toolbarPlacement.y}px`;
-    toolbar.style.bottom = "auto";
+    if (toolbarPlacement.edgeY === "bottom" && !compactSidebar) {
+      toolbar.style.top = "auto";
+      toolbar.style.bottom = "calc(16px + env(safe-area-inset-bottom,0px))";
+    } else {
+      toolbar.style.top = `${toolbarPlacement.y}px`;
+      toolbar.style.bottom = "auto";
+    }
   }
   function placeSidebar(p: Placement) {
+    if (sidebar.dataset.dragging === "true") {
+      // Pointer moves already arrive constrained from floatingDrag. Avoid the
+      // size reads and tip layout in positionSidebar on every touch event.
+      sidebarPlacement = p;
+      sidebar.style.left = `${p.x}px`;
+      sidebar.style.top = `${p.y}px`;
+      return;
+    }
     if (!sidebar.offsetWidth) return;
     sidebarPlacement = constrain(
       p,
@@ -1028,6 +1041,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       presence.update();
     },
     () => !expanded,
+    (target) => !!target.closest(".morphing-menu__shortcut"),
   );
 
   const toolbarSize = new ResizeObserver(() => {
@@ -1407,7 +1421,10 @@ export function initComments(options: CommentsOptions): CommentsController {
     clearEdgeRows();
     undockEdgeTabs();
     compactSidebar = next;
-    if (!next) toolbar.style.translate = "";
+    if (!next) {
+      toolbar.style.translate = "";
+      if (!toolbarPlacement) toolbar.style.bottom = "";
+    }
     edgeSidebar = !next && sidebarMode === "edge";
     sidebar.removeAttribute("style");
     syncEdgeMode();
@@ -1464,8 +1481,9 @@ export function initComments(options: CommentsOptions): CommentsController {
         window.scrollTo({ top: scroll, behavior: "instant" });
       host.style.zoom = String(1 / zoom);
       host.style.width = `${window.innerWidth}px`;
-      host.style.height = `${compactSidebar ? window.innerHeight : viewportHeight}px`;
-      host.style.top = "";
+      // Preserve the fixed bottom inset when Safari's top chrome resizes.
+      host.style.height = compactSidebar ? `${window.innerHeight}px` : "";
+      host.style.top = compactSidebar ? "" : "0px";
       if (compactSidebar) {
         const bottom = mobileViewportBottom();
         toolbar.style.translate = `0 ${bottom}px`;
@@ -2108,7 +2126,10 @@ export function initComments(options: CommentsOptions): CommentsController {
       if (!edgeMorphing) {
         delete toolbar.dataset.hidden;
         if (expanded) dockEdgeTabs();
-        else undockEdgeTabs();
+        else {
+          undockEdgeTabs();
+          if (toolbarPlacement) placeToolbar(toolbarPlacement);
+        }
         positionSidebar();
       }
     } else {
