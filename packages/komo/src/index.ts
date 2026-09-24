@@ -1696,6 +1696,15 @@ export function initComments(options: CommentsOptions): CommentsController {
   ) {
     return `translate3d(${from.left - to.left}px, ${from.top - to.top}px, 0) scale(${from.width / to.width}, ${from.height / to.height})`;
   }
+  function edgeMorphRadius(
+    from: { width: number; height: number },
+    to: { width: number; height: number },
+    radius: number,
+  ) {
+    const scaleX = from.width / to.width;
+    const scaleY = from.height / to.height;
+    return `${radius / scaleX}px / ${radius / scaleY}px`;
+  }
   function pinEdgeBox(
     box: { left: number; top: number; width: number; height: number },
     radius: string,
@@ -1830,7 +1839,13 @@ export function initComments(options: CommentsOptions): CommentsController {
       const grow = trackEdge(
         animate(
           sidebar,
-          { transform: [edgeMorphTransform(visual ?? drawer, destination), "none"] },
+          {
+            transform: [edgeMorphTransform(visual ?? drawer, destination), "none"],
+            borderRadius: [
+              edgeMorphRadius(visual ?? drawer, destination, (visual ?? drawer).height / 2),
+              "16px",
+            ],
+          },
           { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
         ),
       );
@@ -1860,7 +1875,13 @@ export function initComments(options: CommentsOptions): CommentsController {
     const collapse = trackEdge(
       animate(
         sidebar,
-        { transform: ["none", edgeMorphTransform(drawer, visual)] },
+        {
+          transform: ["none", edgeMorphTransform(drawer, visual)],
+          borderRadius: [
+            "16px",
+            edgeMorphRadius(drawer, visual, drawer.height / 2),
+          ],
+        },
         { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
       ),
     );

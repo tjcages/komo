@@ -220,6 +220,7 @@ export function MorphingMenu({
       (element) => element.getAttribute("aria-hidden") === "false",
     );
     const running: ReturnType<typeof animate>[] = [];
+    let touchCleanupTimer = 0;
     let cancelled = false;
     const track = (animation: ReturnType<typeof animate>) => {
       running.push(animation);
@@ -247,18 +248,19 @@ export function MorphingMenu({
       shell.style.transform = "";
       setSize();
     } else if (crossingBar && touch) {
-      const before = shell.getBoundingClientRect();
+      // Resizing a scaled menu also scales its contents and corner radii. On
+      // touch devices, transition the shell's measured size and radius directly
+      // so the toolbar stays visible and its corners retain their shape.
+      const radius = expanded ? "16px" : "var(--mm-radius)";
+      shell.style.transition =
+        "width 240ms cubic-bezier(.22,1,.36,1), height 240ms cubic-bezier(.22,1,.36,1), border-radius 240ms cubic-bezier(.22,1,.36,1)";
+      shell.style.borderRadius = radius;
+      void shell.offsetWidth;
       setSize();
-      shell.style.transform = "none";
-      shell.style.transformOrigin = "bottom center";
-      const after = shell.getBoundingClientRect();
-      const from = `translate(${before.left + before.width / 2 - after.left - after.width / 2}px, ${before.bottom - after.bottom}px) scale(${before.width / after.width}, ${before.height / after.height})`;
-      track(
-        animate(shell, { transform: [from, "none"] }, {
-          duration: 0.24,
-          ease: [0.22, 1, 0.36, 1],
-        }),
-      );
+      touchCleanupTimer = window.setTimeout(() => {
+        shell.style.transition = "";
+        shell.style.borderRadius = "";
+      }, 280);
     } else if (crossingBar && !expanded) {
       track(animate(shell, targetSize(), drawerCollapse));
     } else if (crossingBar) {
@@ -375,6 +377,11 @@ export function MorphingMenu({
     window.addEventListener("resize", resize);
     return () => {
       cancelled = true;
+      window.clearTimeout(touchCleanupTimer);
+      if (touch) {
+        shell.style.transition = "";
+        shell.style.borderRadius = "";
+      }
       running.forEach((animation) => animation.stop());
       window.removeEventListener("resize", resize);
     };
