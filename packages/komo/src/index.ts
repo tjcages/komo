@@ -27,6 +27,17 @@ import {
   resizeEdgeBox,
   type EdgeResizeDir,
 } from "./edge-sidebar.js";
+import {
+  boxFromAnchor,
+  compressedDrawerSize,
+  drawerCollapse,
+  drawerExpandCompress,
+  drawerExpandSpring,
+  drawerRowEnter,
+  drawerRowEnterDelay,
+  drawerRowExit,
+  drawerRowStagger,
+} from "./drawer-expand-motion.js";
 import { recordEmoji } from "./emoji-history.js";
 import { reactionPicker } from "./reaction-picker.js";
 import { animate } from "motion";
@@ -750,7 +761,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     dockMotion?.stop();
     dockMotion = undefined;
     stopEdgeMotion(true);
-    clearEdgeSurface();
+    clearEdgeRows();
     undockEdgeTabs();
     toolbar.style.translate = "";
     dockCenter = undefined;
@@ -1407,7 +1418,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     shadow.append(sidebar);
     stopLayoutMotion();
     stopEdgeMotion(true);
-    clearEdgeSurface();
+    clearEdgeRows();
     undockEdgeTabs();
     compactSidebar = next;
     if (!next) {
@@ -1470,9 +1481,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         window.scrollTo({ top: scroll, behavior: "instant" });
       host.style.zoom = String(1 / zoom);
       host.style.width = `${window.innerWidth}px`;
-      // An edge sidebar needs the host's fixed bottom inset. Giving the host
-      // an explicit height makes Safari ignore that inset as its top chrome
-      // changes size, which lifts the bottom drawer with the page viewport.
+      // Preserve the fixed bottom inset when Safari's top chrome resizes.
       host.style.height = compactSidebar ? `${window.innerHeight}px` : "";
       host.style.top = compactSidebar ? "" : "0px";
       if (compactSidebar) {
@@ -1681,29 +1690,24 @@ export function initComments(options: CommentsOptions): CommentsController {
   function drawerBar() {
     return toolbar.querySelector<HTMLElement>(".morphing-menu__bar");
   }
+  function edgeRows() {
+    return [
+      ...sidebar.querySelectorAll<HTMLElement>(
+        ".panel-head, .panel .empty, .thread-card",
+      ),
+    ];
+  }
   function trackEdge(motion: ReturnType<typeof animate>) {
     edgeMotions.push(motion);
     return motion;
   }
-  function clearEdgeSurface() {
-    const panel = sidebar.querySelector<HTMLElement>(".panel");
-    if (panel) panel.style.opacity = "";
+  function clearEdgeRows() {
+    for (const row of edgeRows()) {
+      row.style.opacity = "";
+      row.style.transform = "";
+      row.style.filter = "";
+    }
     grip.style.opacity = "";
-  }
-  function edgeMorphTransform(
-    from: { left: number; top: number; width: number; height: number },
-    to: { left: number; top: number; width: number; height: number },
-  ) {
-    return `translate3d(${from.left - to.left}px, ${from.top - to.top}px, 0) scale(${from.width / to.width}, ${from.height / to.height})`;
-  }
-  function edgeMorphRadius(
-    from: { width: number; height: number },
-    to: { width: number; height: number },
-    radius: number,
-  ) {
-    const scaleX = from.width / to.width;
-    const scaleY = from.height / to.height;
-    return `${radius / scaleX}px / ${radius / scaleY}px`;
   }
   function pinEdgeBox(
     box: { left: number; top: number; width: number; height: number },
@@ -1712,7 +1716,6 @@ export function initComments(options: CommentsOptions): CommentsController {
     for (const animation of sidebar.getAnimations()) animation.cancel();
     sidebar.style.transition = "none";
     sidebar.style.transform = "none";
-    sidebar.style.transformOrigin = "top left";
     sidebar.style.translate = "none";
     sidebar.style.opacity = "1";
     sidebar.style.left = `${box.left}px`;
@@ -1726,7 +1729,6 @@ export function initComments(options: CommentsOptions): CommentsController {
     sidebar.style.height = "";
     sidebar.style.borderRadius = "";
     sidebar.style.transform = "";
-    sidebar.style.transformOrigin = "";
     sidebar.style.opacity = "";
     if (edgeSidebar) positionSidebar();
     void sidebar.offsetWidth;
@@ -1747,7 +1749,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     if (menu) menu.style.transition = "";
     delete toolbar.dataset.hidden;
     undockEdgeTabs();
-    clearEdgeSurface();
+    clearEdgeRows();
     releaseEdgeBox();
   }
   function morphEdgeSidebar(
@@ -1776,6 +1778,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     edgeMorphing = true;
     const menu = drawerMenu();
     if (menu) menu.style.transition = "none";
+    const bar = drawerBar();
     const shell = drawerShell();
     let settled = false;
     const finish = () => {
@@ -1788,17 +1791,18 @@ export function initComments(options: CommentsOptions): CommentsController {
       delete toolbar.dataset.hidden;
       if (menu) menu.style.transition = "";
       if (!opening) {
-        clearEdgeSurface();
+        clearEdgeRows();
         sidebar.style.opacity = "0";
         undockEdgeTabs();
-      } else sidebar.querySelector<HTMLElement>(".panel")?.style.removeProperty("opacity");
+      }
       releaseEdgeBox();
       if (opening) sidebar.dataset.tipsReady = "";
     };
     const reduced =
       restoring || matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (opening) {
-      const visual = interrupted ? closingRect : null;
+      const visual = interrupted ? sidebar.getBoundingClientRect() : null;
+      const radius = sidebar.style.borderRadius || "16px";
       sidebar.style.transition = "none";
       sidebar.style.width = "";
       sidebar.style.height = "";
@@ -1820,43 +1824,99 @@ export function initComments(options: CommentsOptions): CommentsController {
       delete sidebar.dataset.morphing;
       positionSidebar();
       const destination = sidebar.getBoundingClientRect();
+      sidebar.dataset.morphing = "true";
       if (
         reduced ||
         drawer.width <= 0 ||
-        destination.width <= 0
+        destination.width <= 0 ||
+        (interrupted && !visual)
       ) {
         finish();
         return;
       }
-      // Lay out the full panel once. Only its composite transform changes
-      // during the morph, so WebKit does not relayout every card each frame.
-      pinEdgeBox(destination, "16px");
-      const panel = sidebar.querySelector<HTMLElement>(".panel");
-      if (panel) {
-        panel.style.opacity = "0";
-        trackEdge(animate(panel, { opacity: 1 }, { duration: 0.16, delay: 0.06 }));
+      const pillRadius = `${drawer.height / 2}px`;
+      if (interrupted && visual) pinEdgeBox(visual, radius);
+      else pinEdgeBox(drawer, pillRadius);
+      edgeRows().forEach((row, index) => {
+        row.style.opacity = "0";
+        row.style.transform = "translateY(48px)";
+        row.style.filter = "blur(4px)";
+        trackEdge(
+          animate(
+            row,
+            { opacity: 1, y: 0, filter: "blur(0px)" },
+            {
+              ...drawerRowEnter,
+              delay: drawerRowEnterDelay + index * drawerRowStagger,
+            },
+          ),
+        );
+      });
+      grip.style.opacity = "0";
+      trackEdge(
+        animate(
+          grip,
+          { opacity: 1 },
+          { ...drawerRowEnter, delay: drawerRowEnterDelay },
+        ),
+      );
+      const springToPanel = () => {
+        if (generation !== edgeMorphGeneration || destroyed) return;
+        // Rest padding has to be in place for the grow, or the last frame
+        // uses the pill padding and snaps when the motion ends.
+        delete sidebar.dataset.morphing;
+        const from = sidebar.getBoundingClientRect();
+        const spring = trackEdge(
+          animate(
+            sidebar,
+            {
+              left: [`${from.left}px`, `${destination.left}px`],
+              top: [`${from.top}px`, `${destination.top}px`],
+              width: [`${from.width}px`, `${destination.width}px`],
+              height: [`${from.height}px`, `${destination.height}px`],
+              borderRadius: [sidebar.style.borderRadius || "16px", "16px"],
+            },
+            drawerExpandSpring,
+          ),
+        );
+        void spring.finished.then(finish).catch(() => {
+          if (generation === edgeMorphGeneration) finish();
+        });
+      };
+      if (interrupted || drawer.height > drawer.width + 8) {
+        springToPanel();
+        return;
       }
-      const grow = trackEdge(
+      const size = compressedDrawerSize(
+        bar?.offsetWidth || drawer.width,
+        bar?.offsetHeight || drawer.height,
+      );
+      const compressed = boxFromAnchor(
+        drawer.left + drawer.width / 2,
+        drawer.top + drawer.height,
+        size.width,
+        size.height,
+      );
+      const from = sidebar.getBoundingClientRect();
+      const compression = trackEdge(
         animate(
           sidebar,
           {
-            transform: [edgeMorphTransform(visual ?? drawer, destination), "none"],
-            borderRadius: [
-              edgeMorphRadius(visual ?? drawer, destination, (visual ?? drawer).height / 2),
-              "16px",
-            ],
+            left: [`${from.left}px`, `${compressed.left}px`],
+            top: [`${from.top}px`, `${compressed.top}px`],
+            width: [`${from.width}px`, `${compressed.width}px`],
+            height: [`${from.height}px`, `${compressed.height}px`],
           },
-          { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+          drawerExpandCompress,
         ),
       );
-      void grow.finished.then(finish).catch(() => {
-        if (generation === edgeMorphGeneration) finish();
-      });
+      void compression.finished.then(springToPanel).catch(() => {});
       return;
     }
     const visual = closingFrom ?? sidebar.getBoundingClientRect();
     const radius = closingFrom?.radius || sidebar.style.borderRadius || "16px";
     delete toolbar.dataset.hidden;
+    sidebar.dataset.morphing = "true";
     dockEdgeTabs();
     const docked = toolbar.getBoundingClientRect();
     const drawer = drawerHome ?? {
@@ -1870,19 +1930,23 @@ export function initComments(options: CommentsOptions): CommentsController {
       return;
     }
     pinEdgeBox(visual, radius);
-    const panel = sidebar.querySelector<HTMLElement>(".panel");
-    if (panel) trackEdge(animate(panel, { opacity: 0 }, { duration: 0.12 }));
+    for (const row of edgeRows()) {
+      trackEdge(
+        animate(row, { opacity: 0, y: 16, filter: "blur(2px)" }, drawerRowExit),
+      );
+    }
+    trackEdge(animate(grip, { opacity: 0 }, drawerRowExit));
     const collapse = trackEdge(
       animate(
         sidebar,
         {
-          transform: ["none", edgeMorphTransform(drawer, visual)],
-          borderRadius: [
-            "16px",
-            edgeMorphRadius(drawer, visual, drawer.height / 2),
-          ],
+          left: [`${visual.left}px`, `${drawer.left}px`],
+          top: [`${visual.top}px`, `${drawer.top}px`],
+          width: [`${visual.width}px`, `${drawer.width}px`],
+          height: [`${visual.height}px`, `${drawer.height}px`],
+          borderRadius: [radius, `${drawer.height / 2}px`],
         },
-        { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
+        drawerCollapse,
       ),
     );
     void collapse.finished.then(finish).catch(() => {
@@ -1920,15 +1984,10 @@ export function initComments(options: CommentsOptions): CommentsController {
       render();
       presence.show();
       presence.update();
-      if (host.dataset.mobileEntering !== undefined) {
-        // The panel is first mounted by render(). Establish its collapsed style
-        // before removing the entrance guard so WebKit has a real start frame.
-        const panel = sidebar.querySelector<HTMLElement>(".panel");
-        if (panel) void getComputedStyle(panel).transform;
+      if (host.dataset.mobileEntering !== undefined)
         mobileEnterFrame = requestAnimationFrame(() => {
           delete host.dataset.mobileEntering;
         });
-      }
       return;
     }
     if (edgeSidebar) {
@@ -2951,8 +3010,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       );
     }
     const animateRows =
+      !compactSidebar &&
       !restoring &&
-      host.dataset.mobileEntering === undefined &&
       !matchMedia("(prefers-reduced-motion: reduce)").matches;
     const previous = new Map<string | undefined, number>();
     if (animateRows && existingList) {

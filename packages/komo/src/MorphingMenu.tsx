@@ -220,7 +220,6 @@ export function MorphingMenu({
       (element) => element.getAttribute("aria-hidden") === "false",
     );
     const running: ReturnType<typeof animate>[] = [];
-    let touchCleanupTimer = 0;
     let cancelled = false;
     const track = (animation: ReturnType<typeof animate>) => {
       running.push(animation);
@@ -242,26 +241,9 @@ export function MorphingMenu({
     const crossingBar =
       (old.kind === "collapsed") !== (view.kind === "collapsed");
     const snap = reducedMotion || !changed;
-    const touch = matchMedia("(any-pointer: coarse)").matches;
 
-    if (snap) {
-      shell.style.transform = "";
-      setSize();
-    } else if (crossingBar && touch) {
-      // Resizing a scaled menu also scales its contents and corner radii. On
-      // touch devices, transition the shell's measured size and radius directly
-      // so the toolbar stays visible and its corners retain their shape.
-      const radius = expanded ? "16px" : "var(--mm-radius)";
-      shell.style.transition =
-        "width 240ms cubic-bezier(.22,1,.36,1), height 240ms cubic-bezier(.22,1,.36,1), border-radius 240ms cubic-bezier(.22,1,.36,1)";
-      shell.style.borderRadius = radius;
-      void shell.offsetWidth;
-      setSize();
-      touchCleanupTimer = window.setTimeout(() => {
-        shell.style.transition = "";
-        shell.style.borderRadius = "";
-      }, 280);
-    } else if (crossingBar && !expanded) {
+    if (snap) setSize();
+    else if (crossingBar && !expanded) {
       track(animate(shell, targetSize(), drawerCollapse));
     } else if (crossingBar) {
       const width = Math.min(
@@ -302,6 +284,7 @@ export function MorphingMenu({
         {
           opacity: expanded ? 0 : 1,
           scale: expanded && !reducedMotion ? 0.8 : 1,
+          filter: expanded && !reducedMotion ? "blur(8px)" : "blur(0px)",
         },
         {
           duration: snap ? 0 : expanded ? 0.15 : 0.22,
@@ -320,6 +303,7 @@ export function MorphingMenu({
           Object.assign(row.style, {
             opacity: "0",
             transform: "translateY(48px)",
+            filter: "blur(4px)",
           });
         }
         track(
@@ -328,13 +312,14 @@ export function MorphingMenu({
             {
               opacity: visible ? 1 : 0,
               y: visible || reducedMotion ? 0 : 16,
+              filter: visible || reducedMotion ? "blur(0px)" : "blur(2px)",
             },
             {
               ...spring,
-              duration: snap ? 0 : visible ? (crossingBar ? (touch ? 0.22 : 0.4) : 0.25) : 0.12,
+              duration: snap ? 0 : visible ? (crossingBar ? 0.4 : 0.25) : 0.12,
               bounce: crossingBar ? 0.3 : 0,
               delay:
-                !snap && visible ? (crossingBar ? (touch ? 0.06 : 0.2) : 0) + index * 0.02 : 0,
+                !snap && visible ? (crossingBar ? 0.2 : 0) + index * 0.02 : 0,
             },
           ),
         );
@@ -365,23 +350,10 @@ export function MorphingMenu({
     }
 
     // Geometry is measured from CSS, including the larger touch target tier.
-    const geometryKey = () =>
-      `${bar.offsetWidth}:${bar.offsetHeight}:${panel?.offsetWidth ?? 0}:${panel?.offsetHeight ?? 0}`;
-    let lastGeometry = geometryKey();
-    const resize = () => {
-      const nextGeometry = geometryKey();
-      if (nextGeometry === lastGeometry) return;
-      lastGeometry = nextGeometry;
-      setView((current) => ({ ...current }));
-    };
+    const resize = () => setView((current) => ({ ...current }));
     window.addEventListener("resize", resize);
     return () => {
       cancelled = true;
-      window.clearTimeout(touchCleanupTimer);
-      if (touch) {
-        shell.style.transition = "";
-        shell.style.borderRadius = "";
-      }
       running.forEach((animation) => animation.stop());
       window.removeEventListener("resize", resize);
     };
