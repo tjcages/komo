@@ -42,11 +42,11 @@ for (const name of ["package.json", "package-lock.json"])
   cpSync(resolve(source, name), resolve(target, name));
 console.log(`Prepared ${target}. Run npm ci there, then node build.mjs.`);
 
-// The five-word opening, interaction holds, and URL hold need 641 frames; retain a 22s cap.
+// The five-word opening and interaction holds need 613 frames; retain a 21s cap.
 const sceneHelper = resolve(target, "src/scenes.ts");
 writeFileSync(
   sceneHelper,
   readFileSync(sceneHelper, "utf8")
     .replace("const MAX_CLIP = 75", "const MAX_CLIP = 120")
-    .replace("const MAX_FILM = 450", "const MAX_FILM = 660"),
+    .replace("const MAX_FILM = 450", "const MAX_FILM = 630"),
 );

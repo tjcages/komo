@@ -1,13 +1,13 @@
 # Current render evidence — 2026-09-25
 
-[Worker preview](https://film-sound-komo-site.off-brand.workers.dev/promo/) · [PR #34](https://github.com/tjcages/komo/pull/34) · [OFF-672](https://linear.app/off-brand-studio/issue/OFF-672)
+[Worker preview](https://film-sound-komo-site.off-brand.workers.dev/promo/) · [PR #34](https://github.com/tjcages/komo/pull/34) · [OFF-736](https://linear.app/off-brand-studio/issue/OFF-736)
 
-- Revision applies the [video-editor skill](https://github.com/tjcages/skills/tree/main/video-editor): komo.offbr.co call to action, original music bed, 31 interface sound cues, and beat-aligned cuts. Opening wording and scene choreography are unchanged.
-- H.264 1920×1080 30fps, 641 frames (21.37s, labelled 21.4s), AAC soundtrack. Mixed movie: 3,538,774 bytes. Local and deployed SHA-256 match: `2b062402574dc1a7b98f9d8fb389635e563e6f3c09af6d6bc7e7e3c63eb27be8`.
-- `beats.mjs`: 7/7 cuts on the 112 BPM half-beat grid. `listen.mjs`: audio aligned within a frame, -14.2 LUFS, -1.2 dBTP true peak, no dead air, faded ending, all 31 cues stand out at their frames. Spectrogram inspected; no masked cues.
-- The URL passes its reading-hold validation (62 frames against 60 required). CTA frame and the trimmed feed/drawer, drawer/copy, and agent/logo boundaries were inspected as stills.
-- `qc.mjs` keeps the three intentional warnings: conversation/sidebar and agent/logo meet on the canvas color; drawer/copy share the settled menu camera.
-- Local `pnpm build`, `pnpm typecheck`, 206 tests across 32 files, and size gates pass. Remotion typecheck passes.
-- Worker preview version only, alias `film-sound`; no production deployment. A person still needs to listen through the final frame before release.
+- Re-edit per the [video-editor skill](https://github.com/tjcages/skills/tree/main/video-editor): pin push-through into the thread, resolved thread collapse into a pull-back onto the page, faster feed, closer drawer, menu lift into a rising agent composer, 12-frame pointer approaches, original music bed, and 32 sound cues. The end CTA was removed at the owner's request; the logo ending is the approved one.
+- H.264 1920×1080 30fps, 613 frames (20.43s, labelled 20.4s), AAC soundtrack. Mixed movie: 3815547 bytes. Local and deployed SHA-256 match: `452c0e5430e7d0b5ea45b165bfe20299bae1c0ff116fb6696c4bdfef55bb2916`.
+- `beats.mjs`: 7/7 cuts on the 112 BPM half-beat grid. `listen.mjs`: aligned within a frame, -14.2 LUFS, -1.3 dBTP, no dead air, faded ending, all 32 cues stand out at their frames. No sound-grammar warnings.
+- Transition frames inspected as stills: pin centred before the cut, thread opening at matching size, no blank frame before the page pull-back, drawer and menu fully in frame, menu/composer handoff.
+- `qc.mjs` warnings: conversation/sidebar, drawer/copy, and agent/logo boundary similarity (intentional handoffs), and the empty band on the final copy frame between the lifting menu and rising composer.
+- Local `pnpm build`, `pnpm typecheck`, 206 tests, and size gates pass. Remotion typecheck passes.
+- Worker preview version only, alias `film-sound`; no production deployment. A person still needs to watch and listen through the final frame.
 
 Source/render commands: [README](./README.md). Previous revision evidence remains in Git history.

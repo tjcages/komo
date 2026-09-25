@@ -26,7 +26,7 @@
     {
       "scene": "feed",
       "in": 0,
-      "out": 114,
+      "out": 98,
       "continuity": "match"
     },
     {
@@ -38,7 +38,7 @@
     {
       "scene": "copy",
       "in": 0,
-      "out": 57,
+      "out": 65,
       "continuity": "match"
     },
     {
@@ -50,7 +50,7 @@
     {
       "scene": "logo",
       "in": 0,
-      "out": 98,
+      "out": 78,
       "continuity": "momentum"
     }
   ]

@@ -30,6 +30,15 @@
       "label": "Click pin"
     },
     {
+      "id": "context-56-handoff",
+      "scene": "context",
+      "frame": 56,
+      "sound": "custom:handoff",
+      "role": "impact",
+      "volume": 0.9,
+      "label": "Push into pin"
+    },
+    {
       "id": "conversation-1-open",
       "scene": "conversation",
       "frame": 1,
@@ -129,54 +138,45 @@
       "label": "Comment 1 arrives"
     },
     {
-      "id": "feed-19-arrive",
+      "id": "feed-22-arrive",
       "scene": "feed",
-      "frame": 19,
+      "frame": 22,
       "sound": "custom:arrive",
       "role": "add",
       "volume": 1,
       "label": "Comment 2 arrives"
     },
     {
-      "id": "feed-28-arrive",
+      "id": "feed-34-arrive",
       "scene": "feed",
-      "frame": 28,
+      "frame": 34,
       "sound": "custom:arrive",
       "role": "add",
       "volume": 1,
       "label": "Comment 3 arrives"
     },
     {
-      "id": "feed-55-arrive",
+      "id": "feed-62-press",
       "scene": "feed",
-      "frame": 55,
-      "sound": "custom:arrive",
-      "role": "add",
-      "volume": 1,
-      "label": "Comment 6 arrives"
-    },
-    {
-      "id": "feed-80-press",
-      "scene": "feed",
-      "frame": 80,
+      "frame": 62,
       "sound": "custom:press",
       "role": "press",
       "volume": 0.6,
       "label": "Click search"
     },
     {
-      "id": "feed-88-type",
+      "id": "feed-70-type",
       "scene": "feed",
-      "frame": 88,
+      "frame": 70,
       "sound": "custom:type",
       "role": "type",
       "volume": 0.55,
       "label": "Typing lavender"
     },
     {
-      "id": "feed-96-type",
+      "id": "feed-78-type",
       "scene": "feed",
-      "frame": 96,
+      "frame": 78,
       "sound": "custom:type",
       "role": "type",
       "volume": 0.55,
@@ -235,6 +235,15 @@
       "role": "success",
       "volume": 0.9,
       "label": "Copied prompt"
+    },
+    {
+      "id": "copy-55-handoff",
+      "scene": "copy",
+      "frame": 55,
+      "sound": "custom:handoff",
+      "role": "impact",
+      "volume": 0.9,
+      "label": "Menu lifts, composer rises"
     },
     {
       "id": "agent-19-press",

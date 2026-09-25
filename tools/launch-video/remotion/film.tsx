@@ -23,6 +23,9 @@ const FPS = 30,
   LAV = "#bba2ee";
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const html = (s: string) => ({ __html: s });
+// Camera accelerates into a subject; extra scale for an outgoing shot's last frames.
+const pushThrough = (f: number, range: [number, number], depth: number) =>
+  1 + (depth - 1) * ramp(f, range, "leave") ** 2;
 function Native({
   children,
   css = "",
@@ -98,8 +101,8 @@ function Pointer({
   start?: number;
   click?: number;
 }) {
-  const x = move(frame, [start, start + 18], [at[0] + 330, at[0]], "standard"),
-    y = move(frame, [start + 2, start + 20], [at[1] + 200, at[1]], "arrive");
+  const x = move(frame, [start, start + 12], [at[0] + 330, at[0]], "standard"),
+    y = move(frame, [start + 1, start + 13], [at[1] + 200, at[1]], "arrive");
   const press =
     ramp(frame, [click, click + 2], "snap") *
     (1 - ramp(frame, [click + 3, click + 7], "arrive"));
@@ -167,32 +170,41 @@ function Context() {
           transformOrigin: "50% 50%",
         }}
       >
-        <Center>
-          <div
-            style={{
-              whiteSpace: "nowrap",
-              fontSize: 96,
-              fontWeight: 550,
-              letterSpacing: -6,
-            }}
-          >
-            {["Figma", "comments", "for", "any", "site"].map((w, i) => (
-              <span
-                key={w}
-                style={{
-                  opacity: ramp(f, [i * 3, i * 3 + 9], "arrive"),
-                  display: "inline-block",
-                  marginRight: i === 4 ? 0 : 24,
-                }}
-              >
-                {w}
-              </span>
-            ))}
-          </div>
-        </Center>
-        <Pin frame={f} delay={16} x={1470} y={370} clicked />
-        <Pin frame={f} delay={25} x={465} y={715} blue />
-        <Pointer frame={f} start={31} click={54} at={[1470, 370]} />
+        <AbsoluteFill
+          style={{
+            // Push through the clicked pin: it travels to centre as the camera
+            // accelerates into it, and the thread opens from that point.
+            transform: `translate(${-510 * ramp(f, [56, 77], "standard")}px,${170 * ramp(f, [56, 77], "standard")}px) scale(${pushThrough(f, [56, 77], 7)})`,
+            transformOrigin: "1470px 370px",
+          }}
+        >
+          <Center>
+            <div
+              style={{
+                whiteSpace: "nowrap",
+                fontSize: 96,
+                fontWeight: 550,
+                letterSpacing: -6,
+              }}
+            >
+              {["Figma", "comments", "for", "any", "site"].map((w, i) => (
+                <span
+                  key={w}
+                  style={{
+                    opacity: ramp(f, [i * 3, i * 3 + 9], "arrive"),
+                    display: "inline-block",
+                    marginRight: i === 4 ? 0 : 24,
+                  }}
+                >
+                  {w}
+                </span>
+              ))}
+            </div>
+          </Center>
+          <Pin frame={f} delay={16} x={1470} y={370} clicked />
+          <Pin frame={f} delay={25} x={465} y={715} blue />
+          <Pointer frame={f} start={39} click={54} at={[1470, 370]} />
+        </AbsoluteFill>
       </AbsoluteFill>
     </Canvas>
   );
@@ -207,8 +219,11 @@ function Conversation() {
   return (
     <Canvas>
       <Center
-        scale={ZOOM.CLOSE * (0.88 + 0.12 * entry) + move(f, [0, 90], [0, 0.08])}
-        opacity={ramp(f, [0, 5]) * (1 - ramp(f, [84, 89]))}
+        scale={
+          (ZOOM.CLOSE * (0.7 + 0.3 * entry) + move(f, [0, 90], [0, 0.08])) *
+          (1 - 0.92 * ramp(f, [82, 90], "leave"))
+        }
+        opacity={ramp(f, [0, 2]) * (1 - ramp(f, [86, 90]))}
       >
         <Native
           css={`
@@ -269,7 +284,7 @@ function Conversation() {
         </Native>
       </Center>
       <div style={{ opacity: 1 - ramp(f, [84, 89]) }}>
-        <Pointer frame={f} start={57} click={78} at={[1225, 270]} />
+        <Pointer frame={f} start={63} click={78} at={[1225, 270]} />
       </div>
     </Canvas>
   );
@@ -282,147 +297,154 @@ function SidebarStage({ f }: { f: number }) {
   const zoom = move(f, [31, 49], [1, 2.05], "arrive");
   const x = move(f, [31, 49], [0, -2245], "arrive"),
     y = move(f, [31, 49], [0, 0], "arrive");
-  const count = Math.min(6, Math.max(0, Math.floor((f - 49) / 9) + 1));
-  const search = f >= 120,
-    query = "lavender".slice(0, Math.max(0, Math.floor((f - 125) / 2)));
+  const count = Math.min(6, Math.max(0, Math.floor((f - 49) / 6) + 1));
+  const search = f >= 102,
+    query = "lavender".slice(0, Math.max(0, Math.floor((f - 107) / 2)));
   const nativeEase = Easing.bezier(0.22, 1, 0.36, 1);
-  const searchMotion = interpolate(f, [120, 128.4], [0, 1], {
+  const searchMotion = interpolate(f, [102, 110.4], [0, 1], {
     ...clamp,
     easing: nativeEase,
   });
   return (
     <Canvas>
-      <div
+      <AbsoluteFill
         style={{
-          position: "absolute",
-          left: 110,
-          top: 130,
-          width: 1700,
-          height: 820,
-          background: "#080808",
-          borderRadius: 20,
-          overflow: "hidden",
-          opacity: ramp(f, [0, 5]),
-          transform: `translate(${x}px,${y}px) scale(${zoom})`,
-          transformOrigin: "top left",
+          transform: `scale(${move(f, [0, 16], [1.35, 1], "arrive")})`,
+          transformOrigin: "50% 50%",
         }}
       >
         <div
           style={{
             position: "absolute",
-            inset: 0,
-            background: "#e6e5e8",
-            borderRadius: 12 * open,
-            transform: `translate(${-234 * open}px,${41 * open}px) scale(${1 - 0.1 * open})`,
+            left: 110,
+            top: 130,
+            width: 1700,
+            height: 820,
+            background: "#080808",
+            borderRadius: 20,
+            overflow: "hidden",
+            opacity: ramp(f, [0, 2]),
+            transform: `translate(${x}px,${y}px) scale(${zoom})`,
             transformOrigin: "top left",
           }}
         >
-          <Pin frame={f} delay={3} x={450} y={250} />
-          <Pin frame={f} delay={9} x={1000} y={520} blue />
-          <Pin frame={f} delay={6} x={690} y={680} />
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 36,
-            width: 380,
-            transform: `translateX(${404 * (1 - open)}px)`,
-          }}
-        >
-          <Native
-            className="review-open"
-            css={`
-              .native .panel {
-                width: 380px !important;
-                height: 720px !important;
-                background: transparent !important;
-                border-radius: 0 !important;
-                padding: 0 24px !important;
-                box-shadow: none !important;
-              }
-              .native .panel-head {
-                padding: 0 0 16px !important;
-              }
-              .native .list {
-                mask-image: linear-gradient(black 80%, transparent);
-              }
-              .native .sidebar-search {
-                display: grid !important;
-                grid-template-rows: ${interpolate(f, [120, 127.5], [0, 1], {
-                  ...clamp,
-                  easing: nativeEase,
-                })}fr!important;
-                opacity: ${interpolate(f, [120, 127.5], [0, 1], {
-                  ...clamp,
-                  easing: nativeEase,
-                })}!important;
-              }
-              .native .sidebar-search-inner {
-                overflow: visible !important;
-              }
-              .native .sidebar-search-field {
-                transform: translate(
-                  ${286 * (1 - searchMotion)}px,
-                  ${-50 * (1 - searchMotion)}px
-                ) !important;
-                width: ${24 + 308 * searchMotion}px!important;
-                height: ${24 + 14 * searchMotion}px!important;
-                border-radius: ${12 - 2 * searchMotion}px!important;
-                opacity: ${search ? 0.4 + 0.6 * searchMotion : 0}!important;
-              }
-              .native .sidebar-search-field input,
-              .native .search-cancel {
-                opacity: ${ramp(f, [124, 130])}!important;
-              }
-            `}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "#e6e5e8",
+              borderRadius: 12 * open,
+              transform: `translate(${-234 * open}px,${41 * open}px) scale(${1 - 0.1 * open})`,
+              transformOrigin: "top left",
+            }}
           >
-            <aside className="panel" data-search={search ? "true" : "false"}>
-              <div
-                dangerouslySetInnerHTML={html(
-                  native.sidebarHead.replace(
-                    '<input type="search"',
-                    `<input value="${query}" type="search"`,
-                  ),
-                )}
-              />
-              <div className="list">
-                {(query.length > 3
-                  ? [native.rows.find((r) => r.includes("lavender"))!]
-                  : [
-                      ...native.rows.slice(0, count).reverse(),
-                      ...native.rows
-                        .slice(8)
-                        .filter((r) => !r.includes("Love this direction.")),
-                    ]
-                ).map((r, i) => {
-                  const age = f - (49 + (count - i - 1) * 9);
-                  const q =
-                    query.length > 3 || i >= count
-                      ? 1
-                      : interpolate(age, [0, 7.5], [0, 1], {
-                          ...clamp,
-                          easing: nativeEase,
-                        });
-                  return (
-                    <div
-                      key={r}
-                      style={{
-                        height: 96,
-                        opacity: q,
-                        transform: `translateY(${count === 0 ? 0 : i === 0 ? 8 * (1 - q) : -40 * (1 - interpolate(f - (49 + (count - 1) * 9), [0, 7.5], [0, 1], { ...clamp, easing: nativeEase }))}px)`,
-                        overflow: "hidden",
-                      }}
-                      dangerouslySetInnerHTML={html(r)}
-                    />
-                  );
-                })}
-              </div>
-            </aside>
-          </Native>
+            <Pin frame={f} delay={3} x={450} y={250} />
+            <Pin frame={f} delay={9} x={1000} y={520} blue />
+            <Pin frame={f} delay={6} x={690} y={680} />
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 36,
+              width: 380,
+              transform: `translateX(${404 * (1 - open)}px)`,
+            }}
+          >
+            <Native
+              className="review-open"
+              css={`
+                .native .panel {
+                  width: 380px !important;
+                  height: 720px !important;
+                  background: transparent !important;
+                  border-radius: 0 !important;
+                  padding: 0 24px !important;
+                  box-shadow: none !important;
+                }
+                .native .panel-head {
+                  padding: 0 0 16px !important;
+                }
+                .native .list {
+                  mask-image: linear-gradient(black 80%, transparent);
+                }
+                .native .sidebar-search {
+                  display: grid !important;
+                  grid-template-rows: ${interpolate(f, [102, 109.5], [0, 1], {
+                    ...clamp,
+                    easing: nativeEase,
+                  })}fr!important;
+                  opacity: ${interpolate(f, [102, 109.5], [0, 1], {
+                    ...clamp,
+                    easing: nativeEase,
+                  })}!important;
+                }
+                .native .sidebar-search-inner {
+                  overflow: visible !important;
+                }
+                .native .sidebar-search-field {
+                  transform: translate(
+                    ${286 * (1 - searchMotion)}px,
+                    ${-50 * (1 - searchMotion)}px
+                  ) !important;
+                  width: ${24 + 308 * searchMotion}px!important;
+                  height: ${24 + 14 * searchMotion}px!important;
+                  border-radius: ${12 - 2 * searchMotion}px!important;
+                  opacity: ${search ? 0.4 + 0.6 * searchMotion : 0}!important;
+                }
+                .native .sidebar-search-field input,
+                .native .search-cancel {
+                  opacity: ${ramp(f, [106, 112])}!important;
+                }
+              `}
+            >
+              <aside className="panel" data-search={search ? "true" : "false"}>
+                <div
+                  dangerouslySetInnerHTML={html(
+                    native.sidebarHead.replace(
+                      '<input type="search"',
+                      `<input value="${query}" type="search"`,
+                    ),
+                  )}
+                />
+                <div className="list">
+                  {(query.length > 3
+                    ? [native.rows.find((r) => r.includes("lavender"))!]
+                    : [
+                        ...native.rows.slice(0, count).reverse(),
+                        ...native.rows
+                          .slice(8)
+                          .filter((r) => !r.includes("Love this direction.")),
+                      ]
+                  ).map((r, i) => {
+                    const age = f - (49 + (count - i - 1) * 6);
+                    const q =
+                      query.length > 3 || i >= count
+                        ? 1
+                        : interpolate(age, [0, 7.5], [0, 1], {
+                            ...clamp,
+                            easing: nativeEase,
+                          });
+                    return (
+                      <div
+                        key={r}
+                        style={{
+                          height: 96,
+                          opacity: q,
+                          transform: `translateY(${count === 0 ? 0 : i === 0 ? 8 * (1 - q) : -40 * (1 - interpolate(f - (49 + (count - 1) * 6), [0, 7.5], [0, 1], { ...clamp, easing: nativeEase }))}px)`,
+                          overflow: "hidden",
+                        }}
+                        dangerouslySetInnerHTML={html(r)}
+                      />
+                    );
+                  })}
+                </div>
+              </aside>
+            </Native>
+          </div>
         </div>
-      </div>
-      {f >= 98 && <Pointer frame={f} start={98} click={119} at={[1206, 242]} />}
+      </AbsoluteFill>
+      {f >= 86 && <Pointer frame={f} start={86} click={101} at={[1206, 242]} />}
     </Canvas>
   );
 }
@@ -548,7 +570,7 @@ function Drawer() {
     <Canvas>
       <Center
         scale={
-          interpolate(f, [72, 82], [2.2, 3.3], {
+          interpolate(f, [0, 72, 82], [2.9, 3.0, 3.3], {
             ...clamp,
             easing: Easing.bezier(0.22, 1, 0.36, 1),
           }) *
@@ -561,7 +583,7 @@ function Drawer() {
       >
         <DrawerBody f={f} />
       </Center>
-      <Pointer frame={f} start={31} click={53} at={[1154, 540]} />
+      <Pointer frame={f} start={38} click={53} at={[1224, 540]} />
     </Canvas>
   );
 }
@@ -576,7 +598,7 @@ function Copy() {
     f < 8 ? "" : ids[Math.max(0, Math.min(4, Math.floor((cy - 84) / 132)))];
   return (
     <Canvas>
-      <Center scale={3.3}>
+      <Center scale={3.3} y={540 - 1150 * ramp(f, [56, 65], "leave")}>
         <DrawerBody
           f={90}
           opened
@@ -626,11 +648,10 @@ function Agent() {
   return (
     <Canvas>
       <Center
-        scale={interpolate(f, [0, 13], [0.9, 1], {
-          ...clamp,
-          easing: Easing.bezier(0.22, 1, 0.36, 1),
-        })}
-        opacity={ramp(f, [0, 8]) * (1 - ramp(f, [73, 80]))}
+        // Rises in as the copied menu lifts away; recedes into the brand hold.
+        y={540 + 1150 * (1 - ramp(f, [0, 14], "arrive"))}
+        scale={1 - 0.3 * ramp(f, [70, 80], "leave")}
+        opacity={1 - ramp(f, [74, 80])}
       >
         <div style={{ width: 1420, height: 460, position: "relative" }}>
           {sent && (
@@ -729,7 +750,7 @@ function Agent() {
           </div>
         </div>
       </Center>
-      <div style={{ opacity: ramp(f, [1, 6]) * (1 - ramp(f, [55, 61])) }}>
+      <div style={{ opacity: ramp(f, [8, 12]) * (1 - ramp(f, [55, 61])) }}>
         <Cursor
           kind="soft"
           size={76}
@@ -746,7 +767,7 @@ function Agent() {
 }
 function Logo() {
   const f = useCurrentFrame(),
-    fade = 1 - ramp(f, [90, 97]);
+    fade = 1 - ramp(f, [70, 77]);
   const k = (t: number, values: number[], points = [0, 22, 43, 64, 83, 100]) =>
     interpolate(
       t,
@@ -758,14 +779,7 @@ function Logo() {
   return (
     <Canvas>
       <Center scale={2.8} opacity={fade}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            position: "relative",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <div
             style={{
               width: 89,
@@ -796,22 +810,6 @@ function Logo() {
               );
             })}
           </svg>
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "100%",
-              whiteSpace: "nowrap",
-              fontSize: 15,
-              fontWeight: 500,
-              letterSpacing: -0.3,
-              color: "#84778f",
-              opacity: ramp(f, [28, 38], "arrive"),
-              transform: `translate(-50%,${6 - 6 * ramp(f, [28, 40], "arrive")}px)`,
-            }}
-          >
-            komo.offbr.co
-          </div>
         </div>
       </Center>
     </Canvas>
@@ -840,9 +838,9 @@ const defs = [
   ["sidebar", Sidebar, 42, "action", "PUSH", "sidebar", "reveal"],
   ["feed", Feed, 114, "action", "CLOSE", "sidebar", "reveal"],
   ["drawer", Drawer, 84, "action", "CLOSE", "drawer", "interaction"],
-  ["copy", Copy, 57, "action", "MACRO", "copy", "interaction"],
+  ["copy", Copy, 65, "action", "MACRO", "copy", "interaction"],
   ["agent", Agent, 84, "consequence", "CLOSE", "agent", "interaction"],
-  ["logo", Logo, 98, "consequence", "PUSH", "logo", "entrance"],
+  ["logo", Logo, 78, "consequence", "PUSH", "logo", "entrance"],
 ] as const;
 export const SCENES: Scene[] = defs.map(
   ([id, component, length, beat, tier, subject, activity]) => ({
@@ -858,8 +856,6 @@ export const SCENES: Scene[] = defs.map(
   }),
 );
 validateReadingHold("context", "Figma comments for any site", 77);
-// The URL is fully visible from frame 28 until the loop fade at frame 90.
-validateReadingHold("logo", "komo.offbr.co", 90 - 28);
 export function Film() {
   let offset = 0;
   return (
