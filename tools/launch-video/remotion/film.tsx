@@ -430,7 +430,8 @@ function Sidebar() {
   return <SidebarStage f={useCurrentFrame()} />;
 }
 function Feed() {
-  return <SidebarStage f={useCurrentFrame() + 42} />;
+  // Continues the sidebar take at its beat-aligned trim.
+  return <SidebarStage f={useCurrentFrame() + 39} />;
 }
 function DrawerBody({
   f,
@@ -629,7 +630,7 @@ function Agent() {
           ...clamp,
           easing: Easing.bezier(0.22, 1, 0.36, 1),
         })}
-        opacity={ramp(f, [0, 8]) * (1 - ramp(f, [77, 84]))}
+        opacity={ramp(f, [0, 8]) * (1 - ramp(f, [73, 80]))}
       >
         <div style={{ width: 1420, height: 460, position: "relative" }}>
           {sent && (
@@ -745,7 +746,7 @@ function Agent() {
 }
 function Logo() {
   const f = useCurrentFrame(),
-    fade = 1 - ramp(f, [70, 77]);
+    fade = 1 - ramp(f, [90, 97]);
   const k = (t: number, values: number[], points = [0, 22, 43, 64, 83, 100]) =>
     interpolate(
       t,
@@ -757,7 +758,14 @@ function Logo() {
   return (
     <Canvas>
       <Center scale={2.8} opacity={fade}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            position: "relative",
+          }}
+        >
           <div
             style={{
               width: 89,
@@ -788,6 +796,22 @@ function Logo() {
               );
             })}
           </svg>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "100%",
+              whiteSpace: "nowrap",
+              fontSize: 15,
+              fontWeight: 500,
+              letterSpacing: -0.3,
+              color: "#84778f",
+              opacity: ramp(f, [28, 38], "arrive"),
+              transform: `translate(-50%,${6 - 6 * ramp(f, [28, 40], "arrive")}px)`,
+            }}
+          >
+            komo.offbr.co
+          </div>
         </div>
       </Center>
     </Canvas>
@@ -818,7 +842,7 @@ const defs = [
   ["drawer", Drawer, 84, "action", "CLOSE", "drawer", "interaction"],
   ["copy", Copy, 57, "action", "MACRO", "copy", "interaction"],
   ["agent", Agent, 84, "consequence", "CLOSE", "agent", "interaction"],
-  ["logo", Logo, 78, "consequence", "PUSH", "logo", "entrance"],
+  ["logo", Logo, 98, "consequence", "PUSH", "logo", "entrance"],
 ] as const;
 export const SCENES: Scene[] = defs.map(
   ([id, component, length, beat, tier, subject, activity]) => ({
@@ -834,6 +858,8 @@ export const SCENES: Scene[] = defs.map(
   }),
 );
 validateReadingHold("context", "Figma comments for any site", 77);
+// The URL is fully visible from frame 28 until the loop fade at frame 90.
+validateReadingHold("logo", "komo.offbr.co", 90 - 28);
 export function Film() {
   let offset = 0;
   return (

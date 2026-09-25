@@ -1,0 +1,17 @@
+{
+  "sounds": [
+    { "name": "press", "recipe": "click", "words": ["softer"] },
+    { "name": "pin", "recipe": "pop", "words": ["playful"] },
+    { "name": "arrive", "recipe": "pop", "words": ["softer", "lighter"] },
+    { "name": "react", "recipe": "pop", "words": ["playful", "lighter"] },
+    { "name": "type", "recipe": "click", "words": ["minimal", "snappier"] },
+    { "name": "resolve", "recipe": "success", "words": ["snappier"] },
+    { "name": "copied", "recipe": "success", "words": ["warmer", "snappier"] },
+    { "name": "open", "recipe": "notification", "words": ["warmer"] },
+    { "name": "slide", "recipe": "whoosh", "frames": 14 },
+    { "name": "fold", "recipe": "toggle", "params": { "on": false } },
+    { "name": "unfold", "recipe": "toggle", "params": { "on": true } },
+    { "name": "send", "recipe": "whoosh", "frames": 17, "words": ["lighter"] },
+    { "name": "brand", "recipe": "success", "words": ["warmer", "triumphant"] }
+  ]
+}

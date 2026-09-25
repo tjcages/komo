@@ -1,4 +1,4 @@
-# komo — 20.9-second Remotion promo
+# komo — 21.4-second Remotion promo
 
 A component-vignette cut.
 
@@ -9,12 +9,12 @@ Proof: pins become a conversation, comments collect in the sidebar, and the draw
 | --- | --- |
 | 0–2.57 | “Figma comments for any site” and pins share one camera; pin clicks |
 | 2.57–5.57 | Conversation and reactions, Resolve feedback, exit |
-| 5.57–6.97 | Page pins appear; sidebar opens |
-| 6.97–10.77 | Incoming comments, search for “lavender”, result hold |
-| 10.77–13.57 | Drawer entrance, collapse, horizontal expansion, menu |
-| 13.57–15.47 | Cursor traverses rows and copies; confirmation holds |
-| 15.47–18.27 | Prompt paste and Send, fixed text metrics |
-| 18.27–20.87 | Symbol and wordmark entrance, settled hold, loop fade |
+| 5.57–6.87 | Page pins appear; sidebar opens |
+| 6.87–10.67 | Incoming comments, search for “lavender”, result hold |
+| 10.67–13.53 | Drawer entrance, collapse, horizontal expansion, menu |
+| 13.53–15.43 | Cursor traverses rows and copies; confirmation holds |
+| 15.43–18.10 | Prompt paste and Send, fixed text metrics |
+| 18.10–21.37 | Symbol and wordmark entrance, komo.offbr.co call to action, loop fade |
 
 ## Source and rendering
 
@@ -30,7 +30,7 @@ node qc.mjs --flat=context,conversation,sidebar,feed,drawer,agent,logo --wide=si
 node build.mjs
 ```
 
-Output: `../komo-promo/out/film.mp4`. Eight independent scene compositions plus `komo-promo`, the full 626-frame timeline. `src/edit.json` controls cuts. The final scene is intentionally a logo vignette, not a workspace pull-back. No audio is included.
+Output: `../komo-promo/out/film.mp4`. Eight independent scene compositions plus `komo-promo`, the full 641-frame timeline. `src/edit.json` controls cuts. The final scene is intentionally a logo vignette with the site address, not a workspace pull-back. `film.mp4` is the silent picture; `film-sound.mp4` adds the soundtrack described below.
 
 `native.json` contains fixture-only HTML emitted by the actual widget renderer, its stylesheet with wall-clock animation/transition declarations stripped, and the site's SVG logo. It contains no running product code, customer feedback, screenshots, or iframe. The stage retains native classes, icons, colors and controls; frame-driven wrappers provide composition and motion. The drawer samples Motion's pure spring generator at fixed frame times using the product's 400ms / 0.24 bounce parameters. Card motion uses the product's 600 stiffness / 34 damping. No live hooks, polling, portals, or production timers execute in the render.
 
@@ -38,7 +38,7 @@ The sidebar is framed on the native dark review surface. Prompt content is gener
 
 The native fixture was captured from the isolated existing demo at beats 5 (pins/toolbar), 14 (conversation), 46 (sidebar), and 55 (drawer), then reduced to the rendered elements. Refresh this fixture when the actual widget changes; do not redesign the UI inside the film.
 
-The revised brief explicitly extends the skill’s usual 12–15 second limit. Setup adjusts only the local helper’s validation caps to 630 frames per film and 120 per shot. Current edit is 626 frames. Search uses the product’s 280ms cubic-bezier(.22,1,.36,1) icon-to-field geometry; rows retain its 250ms entrance/reflow curve. The sidebar uses its existing easing at a slower playback duration. The drawer spring is unchanged; its camera zoom starts only after the spring ends, with a monotonic curve.
+The revised brief explicitly extends the skill’s usual 12–15 second limit. Setup adjusts only the local helper’s validation caps to 660 frames per film and 120 per shot. Current edit is 641 frames. Search uses the product’s 280ms cubic-bezier(.22,1,.36,1) icon-to-field geometry; rows retain its 250ms entrance/reflow curve. The sidebar uses its existing easing at a slower playback duration. The drawer spring is unchanged; its camera zoom starts only after the spring ends, with a monotonic curve.
 
 Menu fidelity: rendered rows are direct children of the native panel so first/last corner rules apply. Selected background comes from `styles.ts` (`#ffffff0d`, lavender ink, inset outline). Hover follows the cursor through actual row IDs. Copy label and icon use the `MorphingMenu.tsx` 200ms cubic-bezier(.22,1,.36,1) swap: label ±4px and blur 2px, icon scale .7 and blur 2px. The real confirmation label remains “Copied prompt.” The panel stays centered independently of the changing shell dimensions, eliminating lateral drift during expansion.
 
@@ -48,12 +48,13 @@ Opening title, pins, and cursor now share one parent camera transform, so both p
 
 ## September 22 polish
 
-Conversation messages reserve their final height, enter with an 8px translation, and never recenter the card or Resolve target while typing. Resolve presses at frame 78 and holds its accent feedback before exit at frame 84. Paste and Send now share the same mirrored press/release motion as the other interactions. The current edit is 626 frames / 20.8667 seconds; search, drawer spring, fixed prompt typography, and logo choreography are preserved.
+Conversation messages reserve their final height, enter with an 8px translation, and never recenter the card or Resolve target while typing. Resolve presses at frame 78 and holds its accent feedback before exit at frame 84. Paste and Send now share the same mirrored press/release motion as the other interactions. Search, drawer spring, fixed prompt typography, and logo choreography are preserved.
 
 To stage a preview after rendering:
 
 ```sh
 pnpm build
+node tools/launch-video/remotion/sound/mix.mjs --editor /path/to/video-editor/assets/editor
 node tools/launch-video/remotion/preview.mjs
 pnpm exec wrangler versions upload --config packages/komo-site/wrangler.jsonc --preview-alias film-polish
 ```
@@ -63,4 +64,14 @@ The preview script accepts `--review-url=https://github.com/tjcages/komo/pull/NU
 
 ## Current opening
 
-The owner’s final wording is “Figma comments for any site”. The five-word title holds 77 frames to pass its reading-time gate. The other seven shots retain their existing timing and choreography, resulting in 626 frames / 20.8667 seconds (displayed as 20.9s). It remains a single 96px line with the same fade stagger and shared camera.
+The owner’s final wording is “Figma comments for any site”. The five-word title holds 77 frames to pass its reading-time gate. The other seven shots retain their choreography; with the beat-aligned trims and the call to action, the edit is 641 frames / 21.3667 seconds (displayed as 21.4s). It remains a single 96px line with the same fade stagger and shared camera.
+
+## Sound and beat-aligned cuts
+
+The soundtrack follows the MIT [video-editor skill](https://github.com/tjcages/skills/tree/main/video-editor). Install its `skills/video-editor/assets/editor` folder anywhere outside this repo with `npm ci`, then run `node tools/launch-video/remotion/sound/mix.mjs --editor <that folder>` after `node build.mjs`. It writes `../komo-promo/out/film-sound.mp4`, the mix recipe, and a spectrogram at `out/listen.png`.
+
+The music is an original, license-free 112 BPM bed generated by `bed.mjs`. It stays a soft pad through the title, and its groove enters as the conversation opens at 2.567s. `edit.json` records the grid (`start` 1.719s) and all seven cuts land on its half-beat lines. To reach the grid, the sidebar trim moved from 42 to 39 frames (the feed continues the same stage from frame 39, so the take stays continuous), the drawer holds 2 frames longer, and the agent shot ends 4 frames sooner with its fade moved to frames 73–80.
+
+`sound/sounds.json` defines 13 designed interface sounds, one per role: presses, pin reveals, arriving replies and comments, reactions, typing, the Resolve and Copied confirmations, the conversation and menu opens, the sidebar dock, the drawer fold, the Send whoosh, and the brand chime. `sound/cues.json` places 31 cues on scene-local frames taken from the film's own press and result timing. Presses sit under the results they trigger. Two feed arrivals and two typing ticks are deliberately left to the music because they landed on its kicks. The master measures -14.2 LUFS with -1.2 dBTP true peak, audio aligns within a frame, and `listen.mjs` hears all 31 cues at their frames. A person should still listen once through the final frame before release.
+
+The composition cap in `setup.mjs` is 660 frames for the 641-frame edit.
