@@ -1,4 +1,9 @@
 {
+  "music": {
+    "bpm": 112,
+    "start": 1.719,
+    "phase": 0
+  },
   "cuts": [
     {
       "scene": "context",
@@ -15,31 +20,31 @@
     {
       "scene": "sidebar",
       "in": 0,
-      "out": 42,
+      "out": 39,
       "continuity": "momentum"
     },
     {
       "scene": "feed",
       "in": 0,
-      "out": 114,
+      "out": 98,
       "continuity": "match"
     },
     {
       "scene": "drawer",
       "in": 0,
-      "out": 84,
+      "out": 86,
       "continuity": "impact"
     },
     {
       "scene": "copy",
       "in": 0,
-      "out": 57,
+      "out": 65,
       "continuity": "match"
     },
     {
       "scene": "agent",
       "in": 0,
-      "out": 84,
+      "out": 80,
       "continuity": "impact"
     },
     {

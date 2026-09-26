@@ -1,0 +1,294 @@
+{
+  "version": 1,
+  "fps": 30,
+  "cues": [
+    {
+      "id": "context-16-pin",
+      "scene": "context",
+      "frame": 16,
+      "sound": "custom:pin",
+      "role": "reveal",
+      "volume": 0.9,
+      "label": "Pin appears"
+    },
+    {
+      "id": "context-25-pin",
+      "scene": "context",
+      "frame": 25,
+      "sound": "custom:pin",
+      "role": "reveal",
+      "volume": 0.7,
+      "label": "Second pin"
+    },
+    {
+      "id": "context-54-press",
+      "scene": "context",
+      "frame": 54,
+      "sound": "custom:press",
+      "role": "press",
+      "volume": 0.6,
+      "label": "Click pin"
+    },
+    {
+      "id": "context-56-handoff",
+      "scene": "context",
+      "frame": 56,
+      "sound": "custom:handoff",
+      "role": "impact",
+      "volume": 0.9,
+      "label": "Push into pin"
+    },
+    {
+      "id": "conversation-1-open",
+      "scene": "conversation",
+      "frame": 1,
+      "sound": "custom:open",
+      "role": "open",
+      "volume": 0.8,
+      "label": "Thread opens"
+    },
+    {
+      "id": "conversation-21-arrive",
+      "scene": "conversation",
+      "frame": 21,
+      "sound": "custom:arrive",
+      "role": "add",
+      "volume": 1,
+      "label": "Reply arrives"
+    },
+    {
+      "id": "conversation-37-arrive",
+      "scene": "conversation",
+      "frame": 37,
+      "sound": "custom:arrive",
+      "role": "add",
+      "volume": 1,
+      "label": "Reply arrives"
+    },
+    {
+      "id": "conversation-39-react",
+      "scene": "conversation",
+      "frame": 39,
+      "sound": "custom:react",
+      "role": "pick",
+      "volume": 0.8,
+      "label": "Reaction"
+    },
+    {
+      "id": "conversation-49-react",
+      "scene": "conversation",
+      "frame": 49,
+      "sound": "custom:react",
+      "role": "pick",
+      "volume": 0.7,
+      "label": "Reaction"
+    },
+    {
+      "id": "conversation-78-press",
+      "scene": "conversation",
+      "frame": 78,
+      "sound": "custom:press",
+      "role": "press",
+      "volume": 0.6,
+      "label": "Press Resolve"
+    },
+    {
+      "id": "conversation-80-resolve",
+      "scene": "conversation",
+      "frame": 80,
+      "sound": "custom:resolve",
+      "role": "success",
+      "volume": 0.9,
+      "label": "Resolved"
+    },
+    {
+      "id": "sidebar-3-pin",
+      "scene": "sidebar",
+      "frame": 3,
+      "sound": "custom:pin",
+      "role": "reveal",
+      "volume": 0.7,
+      "label": "Page pins"
+    },
+    {
+      "id": "sidebar-9-pin",
+      "scene": "sidebar",
+      "frame": 9,
+      "sound": "custom:pin",
+      "role": "reveal",
+      "volume": 0.6,
+      "label": "Page pins"
+    },
+    {
+      "id": "sidebar-15-slide",
+      "scene": "sidebar",
+      "frame": 15,
+      "sound": "custom:slide",
+      "role": "dock",
+      "volume": 0.9,
+      "label": "Sidebar slides in"
+    },
+    {
+      "id": "feed-10-arrive",
+      "scene": "feed",
+      "frame": 10,
+      "sound": "custom:arrive",
+      "role": "add",
+      "volume": 1,
+      "label": "Comment 1 arrives"
+    },
+    {
+      "id": "feed-22-arrive",
+      "scene": "feed",
+      "frame": 22,
+      "sound": "custom:arrive",
+      "role": "add",
+      "volume": 1,
+      "label": "Comment 2 arrives"
+    },
+    {
+      "id": "feed-34-arrive",
+      "scene": "feed",
+      "frame": 34,
+      "sound": "custom:arrive",
+      "role": "add",
+      "volume": 1,
+      "label": "Comment 3 arrives"
+    },
+    {
+      "id": "feed-62-press",
+      "scene": "feed",
+      "frame": 62,
+      "sound": "custom:press",
+      "role": "press",
+      "volume": 0.6,
+      "label": "Click search"
+    },
+    {
+      "id": "feed-70-type",
+      "scene": "feed",
+      "frame": 70,
+      "sound": "custom:type",
+      "role": "type",
+      "volume": 0.55,
+      "label": "Typing lavender"
+    },
+    {
+      "id": "feed-78-type",
+      "scene": "feed",
+      "frame": 78,
+      "sound": "custom:type",
+      "role": "type",
+      "volume": 0.55,
+      "label": "Typing lavender"
+    },
+    {
+      "id": "drawer-1-pin",
+      "scene": "drawer",
+      "frame": 1,
+      "sound": "custom:pin",
+      "role": "reveal",
+      "volume": 0.8,
+      "label": "Drawer appears"
+    },
+    {
+      "id": "drawer-25-fold",
+      "scene": "drawer",
+      "frame": 25,
+      "sound": "custom:fold",
+      "role": "toggle-off",
+      "volume": 0.8,
+      "label": "Drawer collapses"
+    },
+    {
+      "id": "drawer-53-press",
+      "scene": "drawer",
+      "frame": 53,
+      "sound": "custom:press",
+      "role": "press",
+      "volume": 0.6,
+      "label": "Click drawer"
+    },
+    {
+      "id": "drawer-56-open",
+      "scene": "drawer",
+      "frame": 56,
+      "sound": "custom:open",
+      "role": "open",
+      "volume": 0.8,
+      "label": "Menu opens"
+    },
+    {
+      "id": "copy-41-press",
+      "scene": "copy",
+      "frame": 41,
+      "sound": "custom:press",
+      "role": "press",
+      "volume": 0.6,
+      "label": "Click Copy prompt"
+    },
+    {
+      "id": "copy-43-resolve",
+      "scene": "copy",
+      "frame": 43,
+      "sound": "custom:resolve",
+      "role": "success",
+      "volume": 0.9,
+      "label": "Copied prompt"
+    },
+    {
+      "id": "copy-55-handoff",
+      "scene": "copy",
+      "frame": 55,
+      "sound": "custom:handoff",
+      "role": "impact",
+      "volume": 0.9,
+      "label": "Menu lifts, composer rises"
+    },
+    {
+      "id": "agent-19-press",
+      "scene": "agent",
+      "frame": 19,
+      "sound": "custom:press",
+      "role": "press",
+      "volume": 0.6,
+      "label": "Paste"
+    },
+    {
+      "id": "agent-22-arrive",
+      "scene": "agent",
+      "frame": 22,
+      "sound": "custom:arrive",
+      "role": "add",
+      "volume": 1,
+      "label": "Prompt pasted"
+    },
+    {
+      "id": "agent-52-press",
+      "scene": "agent",
+      "frame": 52,
+      "sound": "custom:press",
+      "role": "press",
+      "volume": 0.6,
+      "label": "Press Send"
+    },
+    {
+      "id": "agent-54-send",
+      "scene": "agent",
+      "frame": 54,
+      "sound": "custom:send",
+      "role": "result",
+      "volume": 1,
+      "label": "Prompt sent"
+    },
+    {
+      "id": "logo-9-brand",
+      "scene": "logo",
+      "frame": 9,
+      "sound": "custom:brand",
+      "role": "brand",
+      "volume": 0.9,
+      "label": "Logo lands"
+    }
+  ]
+}

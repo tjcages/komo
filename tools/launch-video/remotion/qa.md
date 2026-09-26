@@ -1,14 +1,13 @@
-# Current render evidence — 2026-09-22
+# Current render evidence — 2026-09-25
 
-[Worker preview](https://427324ea-komo-site.off-brand.workers.dev/promo/) · [PR #28](https://github.com/tjcages/komo/pull/28) · [OFF-680](https://linear.app/off-brand-studio/issue/OFF-680)
+[Worker preview](https://film-sound-komo-site.off-brand.workers.dev/promo/) · [PR #34](https://github.com/tjcages/komo/pull/34) · [OFF-736](https://linear.app/off-brand-studio/issue/OFF-736)
 
-- Exact opening: “Figma comments for any site”. One 96px line, 77-frame validated reading hold, clear side margins through the final camera zoom. The other seven scenes retain their choreography.
-- Render source `0237614`. H.264, 1920×1080, 30fps, 626 frames, exactly 20.866667 seconds, silent. The review label rounds to 20.9s.
-- Movie: 2,963,263 bytes. Local and deployed SHA-256 match: `31ec84074f390f0abcb7ac69e7389583a8126b1d642a863e1579e36ec83934a6`.
-- Local build, typecheck, 146 tests across 24 files, and size gates pass. Remotion typecheck and reading-time validation pass. Opening middle and final-zoom stills were inspected; all eight scenes were reviewed in the preceding choreography pass.
-- Boundary QC has three intentional warnings: conversation/sidebar and agent/logo meet on the canvas color; drawer/copy share the settled menu camera. No other frame warnings. Native reset CSS disables animations; every filmed motion uses frame time.
-- Chrome playback verifies the exact opening, advancing sidebar sequence, 20.9s label, and PR #28 link. Existing Worker preview version: `427324ea-5624-4455-a05f-d32a8290cd92`. No production deployment.
-- Conversation uses fixed message slots. Resolve presses at frame78, rebounds, holds accent feedback, and exits at84. Paste/Send use continuous press/release curves. The resolved conversation remains excluded from the eleven open threads in the drawer and prompt. No agent execution is implied.
-- The retired webpage film is removed. Licensed helper source and generated media stay outside Git; prior media was preserved. The owner approved the video and subsequently requested this final wording revision. Merge is coordinated separately.
+- Re-edit per the [video-editor skill](https://github.com/tjcages/skills/tree/main/video-editor): pin push-through into the thread, resolved thread collapse into a pull-back onto the page, faster feed, closer drawer, menu lift into a rising agent composer, 12-frame pointer approaches, original music bed, and 32 sound cues. The end CTA was removed at the owner's request; the logo ending is the approved one.
+- H.264 1920×1080 30fps, 613 frames (20.43s, labelled 20.4s), AAC soundtrack. Mixed movie: 3815547 bytes. Local and deployed SHA-256 match: `452c0e5430e7d0b5ea45b165bfe20299bae1c0ff116fb6696c4bdfef55bb2916`.
+- `beats.mjs`: 7/7 cuts on the 112 BPM half-beat grid. `listen.mjs`: aligned within a frame, -14.2 LUFS, -1.3 dBTP, no dead air, faded ending, all 32 cues stand out at their frames. No sound-grammar warnings.
+- Transition frames inspected as stills: pin centred before the cut, thread opening at matching size, no blank frame before the page pull-back, drawer and menu fully in frame, menu/composer handoff.
+- `qc.mjs` warnings: conversation/sidebar, drawer/copy, and agent/logo boundary similarity (intentional handoffs), and the empty band on the final copy frame between the lifting menu and rising composer.
+- Local `pnpm build`, `pnpm typecheck`, 206 tests, and size gates pass. Remotion typecheck passes.
+- Worker preview version only, alias `film-sound`; no production deployment. A person still needs to watch and listen through the final frame.
 
 Source/render commands: [README](./README.md). Previous revision evidence remains in Git history.
