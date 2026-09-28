@@ -12,6 +12,9 @@ function sameConfig(a: KomoConfig, b: KomoConfig): boolean {
     keyof KomoConfig
   >;
   return [...keys].every((key) => {
+    // An inline `local: { endpoint }` is a new object on every render.
+    if (key === "local")
+      return JSON.stringify(a.local) === JSON.stringify(b.local);
     if (key !== "onboarding") return Object.is(a[key], b[key]);
     const before = a.onboarding;
     const after = b.onboarding;

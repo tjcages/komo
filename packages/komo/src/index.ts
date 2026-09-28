@@ -47,7 +47,7 @@ import {
   mobileComposerPosition,
   reviewLayout,
 } from "./review-layout.js";
-import { createToolbar, type ToolbarItem } from "./lazy-toolbar.js";
+import { createToolbar, type ToolbarAction, type ToolbarIcon, type ToolbarItem } from "./lazy-toolbar.js";
 import { canonicalPage } from "./page.js";
 import { ApiError, CommentsApi } from "./api.js";
 import { connectionIssue, type ConnectionIssue } from "./connection-issue.js";
@@ -57,6 +57,13 @@ import {
   resolveAnchor,
   locateAnchor as measureAnchor,
 } from "./anchors.js";
+import {
+  localEndpoint,
+  savedChoice,
+  store,
+  watchingAgents,
+  type WatchingAgent,
+} from "./local-agent.js";
 import {
   age,
   avatar,
@@ -173,6 +180,41 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   if (localSite && channel === "local")
     options = { ...options, branch: "local" };
+  // "Send to": the team's backend, or an agent that watches on this machine.
+  const agentsOnly =
+    typeof options.local === "object" && !!options.local.agentsOnly;
+  const localUrl = localEndpoint(options);
+  if (agentsOnly && (!localUrl || options.onboarding))
+    throw new Error(
+      "Local agent-only comments require a localhost page without onboarding."
+    );
+  const team = { endpoint: options.endpoint, branch: options.branch, sessionEndpoint: options.sessionEndpoint, sessionDomain: options.sessionDomain };
+  const saved =
+    localUrl && !options.onboarding ? savedChoice(options.project) : null;
+  let sendTo = agentsOnly
+    ? (saved && saved !== "team" ? saved : "")
+    : saved ?? "team";
+  if (agentsOnly || sendTo !== "team")
+    options = {
+      ...options,
+      endpoint: localUrl!,
+      sessionEndpoint: localUrl!,
+      sessionDomain: undefined,
+      branch: sendTo || options.branch,
+    };
+  let agents: WatchingAgent[] = [];
+  let agentsStatus: "loading" | "unreachable" | "ready" = "loading";
+  const agentLabels = new Map<string, string>();
+  let agentsTimer: number | undefined;
+  let agentsProbed = 0;
+  let agentsProbeRevision = 0;
+  let teamName = "";
+  // Notes on the agent's channel that wait for Send. Null until the server
+  // answers. An older komo has no batch Send, and then sendable is false.
+  let held: number | null = null;
+  let sendable = true;
+  // A Send or saved note moves this, so earlier counts are dropped.
+  let sends = 0;
   let api = new CommentsApi(options);
   const abort = new AbortController();
   let destroyed = false,
@@ -428,7 +470,6 @@ export function initComments(options: CommentsOptions): CommentsController {
   let submitAfterIdentity: (() => Promise<void>) | null = null;
   let lastPage = page(),
     toastTimer = 0,
-    listScrollTimer = 0,
     frame = 0,
     githubTimer = 0;
   const replies = new Map<string, string>();
@@ -515,6 +556,13 @@ export function initComments(options: CommentsOptions): CommentsController {
       const portrait = avatar(api.user);
       portrait.classList.add("review-avatar");
       return portrait;
+    }
+    if (id === "send-to") return icon(sendTo === "team" ? "team" : "agent");
+    if (id === "send") {
+      const glyph = el("span", "send-glyph");
+      glyph.append(icon("arrow"));
+      if (held) glyph.append(el("span", "send-count", held > 99 ? "99+" : String(held)));
+      return glyph;
     }
     return icon(
       id === "browse" ? "pointer" : id === "comment" ? "comment" : "expand",
@@ -1286,7 +1334,201 @@ export function initComments(options: CommentsOptions): CommentsController {
   }
   // Retry from the start if the project config never loaded.
   function retryConnection() {
-    run(projectLoaded ? refresh : loadProject);
+    if (agentsOnly && !sendTo)
+      run(async () => {
+        await probeAgents();
+      });
+    else run(projectLoaded ? refresh : loadProject);
+  }
+  function localMode() {
+    return agentsOnly || sendTo !== "team";
+  }
+  const commentCount = (count: number) =>
+    `${count} comment${count === 1 ? "" : "s"}`;
+  // A label stays as the repo spells it; only the fallback gets a capital.
+  function agentName(channel: string, start = false) {
+    const label = agentLabels.get(channel);
+    return label ? `${label} agent` : start ? "Local agent" : "local agent";
+  }
+  // Agents that watch this project on this machine, for the "Send to" menu.
+  // Null when the server did not answer; the menu then keeps what it shows.
+  async function probeAgents() {
+    if (!localUrl || options.onboarding || destroyed) return agents;
+    const probe = ++agentsProbeRevision;
+    agentsProbed = Date.now();
+    const next = await watchingAgents(localUrl, options.project, options.repo);
+    if (destroyed || probe !== agentsProbeRevision) return null;
+    const status = next ? "ready" : "unreachable";
+    const statusChanged = agentsStatus !== status;
+    agentsStatus = status;
+    if (agentsOnly && !sendTo && statusChanged && next?.length !== 1)
+      live.textContent = status === "unreachable"
+        ? "Can’t connect to local agents"
+        : next?.length ? "Choose an agent" : "No agent is watching";
+    if (!next) {
+      if (agentsOnly && !sendTo) {
+        agents = [];
+        if (statusChanged) {
+          renderToolbar();
+          renderList();
+        }
+      }
+      return null;
+    }
+    for (const agent of next) agentLabels.set(agent.channel, agent.label);
+    const stopped =
+      localMode() &&
+      agents.some((agent) => agent.channel === sendTo) &&
+      !next.some((agent) => agent.channel === sendTo);
+    const changed = JSON.stringify(next) !== JSON.stringify(agents);
+    agents = next;
+    if (stopped)
+      notify(
+        `The ${agentName(sendTo)} stopped watching. It gets your comments when it starts again.`
+      );
+    if (changed || statusChanged) {
+      renderToolbar();
+      if (agentsOnly && !sendTo) renderList();
+    }
+    if (agentsOnly && !sendTo && agents.length === 1)
+      run(() => sendComments(agents[0].channel, true));
+    return agents;
+  }
+  // Swap the whole backend at runtime, like the setup flow does.
+  async function sendComments(choice: string, picked: boolean) {
+    if (
+      !localUrl ||
+      (agentsOnly && !/^agent-[0-9a-f]{12}$/.test(choice))
+    ) return;
+    if (choice !== sendTo && (optimistic.busy || pending)) {
+      notify("Wait for your changes to save, then switch.");
+      return;
+    }
+    if (picked) store("send-to", options.project, choice);
+    if (choice === sendTo) return;
+    if (!localMode() && api.user) teamName = api.user.name;
+    sendTo = choice;
+    options = {
+      ...options,
+      ...(choice === "team" ? team : { endpoint: localUrl, sessionEndpoint: localUrl, sessionDomain: undefined, branch: choice }),
+      onboarding: undefined,
+    };
+    api.cancelReads();
+    api = new CommentsApi(options);
+    held = null;
+    account = false;
+    profileDraft = null;
+    dialogKey = null;
+    selected = null;
+    projectLoaded = false;
+    accessError = "";
+    issue = null;
+    connection = "Connecting";
+    lastRefresh = undefined;
+    lastRefreshRevision = -1;
+    // Drop responses that are still on their way from the previous backend.
+    hydrateThreads();
+    polling?.wake();
+    render();
+    void countHeld().catch(() => {});
+    notify(
+      choice === "team"
+        ? "New comments go to your team."
+        : `New comments go to the ${agentName(choice)}.`
+    );
+    while (refreshing && !destroyed)
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    await loadProject();
+  }
+  // With no saved choice, a site that the team's komo refuses goes to the
+  // only agent that watches this project.
+  async function pickAgent(reason: unknown) {
+    if (
+      !(reason instanceof ApiError && reason.code === "site_not_approved") ||
+      !localUrl ||
+      localMode() ||
+      options.onboarding ||
+      savedChoice(options.project) ||
+      Date.now() - agentsProbed < 10000
+    )
+      return false;
+    const found = await probeAgents();
+    if (found?.length !== 1 || localMode() || savedChoice(options.project))
+      return false;
+    await sendComments(found[0].channel, false);
+    return true;
+  }
+  let guestRequest: { source: CommentsApi; promise: Promise<void> } | null = null;
+  // An agent on this machine needs no account: the first note signs in as a
+  // guest with the team name when this page view knows it, else "You". Local
+  // mode never calls the hosted service.
+  function ensureGuest() {
+    const source = api;
+    if (source.user) return Promise.resolve();
+    if (!localMode()) return source.guest(guestName);
+    if (guestRequest?.source !== source) {
+      const promise = source.guest(teamName || "You").finally(() => {
+        if (guestRequest?.source === source) guestRequest = null;
+      });
+      guestRequest = { source, promise };
+    }
+    return guestRequest.promise;
+  }
+  function setHeld(next: number | null) {
+    if (next === held) return;
+    held = next;
+    renderToolbar();
+  }
+  async function countHeld() {
+    if (!localMode() || destroyed || (agentsOnly && !sendTo)) return;
+    const source = api,
+      send = sends;
+    let next = held;
+    try {
+      next = (await api.request<{ held: number }>("local/pending")).held;
+    } catch (reason) {
+      if (!(reason instanceof ApiError && reason.status === 404)) return;
+      next = null;
+    }
+    if (source !== api || send !== sends) return;
+    if (sendable !== (next !== null)) {
+      sendable = next !== null;
+      renderToolbar();
+    }
+    setHeld(next);
+  }
+  // Send releases every note held on the agent's channel, on every page.
+  async function sendHeld() {
+    const source = api;
+    // A note that is still saving would miss this Send.
+    while ((optimistic.busy || pending) && !destroyed)
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    if (destroyed || source !== api || !localMode()) return;
+    sends++;
+    const result = await api
+      .request<{ released: number; held: number }>("local/send", "POST", {
+        project: options.project,
+        repo: options.repo,
+        branch: options.branch,
+      })
+      .finally(() => sends++);
+    if (source !== api) return;
+    setHeld(result.held);
+    if (result.released)
+      notify(
+        `Sent ${commentCount(result.released)} to the ${agentName(sendTo)}.${
+          agents.some((agent) => agent.channel === sendTo)
+            ? ""
+            : " It gets them when it starts watching."
+        }`
+      );
+  }
+  // A note on the agent's channel waits for Send.
+  function noted() {
+    if (localMode()) {
+      sends++;
+      run(countHeld);
+    }
   }
   async function mutate(action: () => Promise<void>) {
     if (pending) return;
@@ -1314,9 +1556,10 @@ export function initComments(options: CommentsOptions): CommentsController {
       .filter((thread) => thread.comments.length > 0);
   let polling: ReturnType<typeof adaptivePolling> | undefined;
   let lastRefresh: Thread[] | undefined;
+  let listScrollTimer: number | undefined;
   let lastRefreshRevision = -1;
   async function refresh() {
-    if (destroyed || refreshing || optimistic.busy || options.onboarding)
+    if (destroyed || refreshing || optimistic.busy || options.onboarding || (agentsOnly && !sendTo))
       return;
     const revision = optimistic.revision;
     const client = api;
@@ -1365,8 +1608,11 @@ export function initComments(options: CommentsOptions): CommentsController {
         (reason instanceof DOMException && reason.name === "AbortError")
       )
         return;
+      if (agentsOnly && reason instanceof ApiError && reason.status === 401)
+        projectLoaded = false;
       if (token !== client.token) hydrateThreads();
       if (
+        !agentsOnly &&
         reason instanceof ApiError &&
         (reason.status === 401 || reason.status === 403) &&
         reason.code !== "site_not_approved"
@@ -1376,7 +1622,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         lastRefresh = undefined;
         optimistic.replace([], revision);
       }
-      issue = accessError ? null : connectionIssue(reason);
+      issue = accessError ? null : connectionIssue(reason, localMode());
       connection = "Offline";
       renderList();
       renderToolbar();
@@ -1386,7 +1632,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     }
   }
   function setMode(value: boolean) {
-    if (options.onboarding) return;
+    if (options.onboarding || (agentsOnly && !sendTo && value)) return;
     commentMode = value;
     if (expanded) toggleExpanded(false);
     const restore = value ? (parkedDraft ?? recoveredDrafts.shift()) : null;
@@ -2190,6 +2436,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         id: "comment",
         label: "Add comment · C",
         icon: glyph("comment"),
+        disabled: agentsOnly && !sendTo,
         onSelect: () => setMode(!commentMode),
       },
       {
@@ -2204,6 +2451,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         icon: glyph("expand"),
         onSelect: () => toggleExpanded(!expanded),
       },
+      ...sendToItems(glyph),
       {
         id: "account",
         expandedOrder: -1,
@@ -2258,7 +2506,18 @@ export function initComments(options: CommentsOptions): CommentsController {
         ? items.filter(
             (item) => item.id === "account" || item.id === "comments",
           )
-        : items,
+        : localMode()
+          ? items.filter((item) =>
+              item.id !== "copy-prompts" && (!agentsOnly || item.id !== "account")
+            )
+          : items,
+      onOpenChange: (open) => {
+        // An open menu probes every 10 s, whatever the poll interval.
+        clearInterval(agentsTimer);
+        if (!open || !localUrl || options.onboarding) return;
+        void probeAgents();
+        agentsTimer = window.setInterval(() => void probeAgents(), 10000);
+      },
       alignEnd:
         expanded && edgeSidebar
           ? false
@@ -2281,6 +2540,84 @@ export function initComments(options: CommentsOptions): CommentsController {
       label: "Website review",
       moreLabel: "More review tools",
     });
+  }
+
+  // Team, then each agent that watches this project on this machine. With an
+  // agent chosen, Send releases the notes held for it.
+  function sendToItems(
+    glyph: (name: keyof typeof icons) => ToolbarIcon
+  ): ToolbarItem[] {
+    if (!localUrl || options.onboarding) return [];
+    const rows: ToolbarItem[] = agents.map((agent) => ({
+      id: `send-to-${agent.channel}`,
+      label: `${agent.label} agent · ${agent.state === "working" ? "Working" : "Ready"}`,
+      icon: glyph("agent"),
+      activeIcon: glyph("check"),
+      current: sendTo === agent.channel,
+      onSelect: () => run(() => sendComments(agent.channel, true)),
+    }));
+    if (sendTo && localMode() && !agents.some((agent) => agent.channel === sendTo))
+      rows.unshift({
+        id: `send-to-${sendTo}`,
+        label: `${agentName(sendTo, true)} · Not watching`,
+        icon: glyph("agent"),
+        activeIcon: glyph("check"),
+        current: true,
+      });
+    if (!rows.length)
+      rows.push({
+        id: "send-to-none",
+        label: agentsOnly && agentsStatus === "loading"
+          ? "Connecting to local agents…"
+          : agentsOnly && agentsStatus === "unreachable"
+            ? "Can’t connect to local agents"
+            : "No agent is watching",
+        icon: glyph("agent"),
+        disabled: true,
+        onSelect: () =>
+          notify("Start watch mode in an agent session for this repo."),
+      });
+    const destination = localMode()
+      ? sendTo ? agentName(sendTo) : "Local agent"
+      : "Team";
+    const send: ToolbarItem[] = [
+      // One place in the dock: disabled while nothing waits, so it never moves.
+      {
+        id: "send",
+        label: held
+          ? `Send ${commentCount(held)} to the ${agentName(sendTo)}`
+          : held === null
+            ? `Send to the ${agentName(sendTo)}`
+            : "No comments to send",
+        icon: { glyph: "arrow", badge: held ? (held > 99 ? "99+" : String(held)) : undefined },
+        disabled: !held,
+        onSelect: held ? () => run(sendHeld) : undefined,
+      },
+    ];
+    return [
+      {
+        id: "send-to",
+        label: `Send to: ${destination}`,
+        icon: glyph(localMode() ? "agent" : "team"),
+        children: [
+          ...(!agentsOnly
+            ? [
+                {
+                  id: "send-to-team",
+                  label: "Team",
+                  icon: glyph("team"),
+                  activeIcon: glyph("check"),
+                  current: !localMode(),
+                  onSelect: () => run(() => sendComments("team", true)),
+                },
+              ]
+            : []),
+          ...rows,
+        ],
+      },
+      // An older komo has no batch Send, so it shows no Send controls.
+      ...(!!sendTo && localMode() && sendable ? send : []),
+    ];
   }
 
   let pinSnapshot = "";
@@ -2675,7 +3012,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     thread: Thread,
     noticeAnchor?: ReturnType<typeof captureNoticePosition>,
   ) {
-    if (!api.user && (!guests || !guestName.trim())) {
+    if (!api.user && !localMode() && (!guests || !guestName.trim())) {
       openAccount();
       return;
     }
@@ -2691,7 +3028,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           resolvedBy: resolved ? api.user : null,
         })),
         async (id) => {
-          if (!api.user) await api.guest(guestName);
+          await ensureGuest();
           await api.request(`threads/${id(thread.id)}`, "PATCH", {
             resolved,
           });
@@ -3120,6 +3457,21 @@ export function initComments(options: CommentsOptions): CommentsController {
       list.append(item);
     }
     if (!list.childElementCount) {
+      if (agentsOnly && !sendTo) {
+        const empty = el("div", "empty");
+        empty.setAttribute("role", "status");
+        empty.append(
+          icon("agent"),
+          el("strong", "", agentsStatus === "loading"
+            ? "Connecting to local agents…"
+            : agentsStatus === "unreachable"
+              ? "Can’t connect to local agents"
+              : agents.length > 1 ? "Choose an agent" : "No agent is watching"),
+        );
+        if (agentsStatus !== "loading")
+          empty.append(button("Try again", retryConnection, "secondary"));
+        list.append(empty);
+      } else {
       const empty = el("div", "empty");
       if (loading) empty.setAttribute("role", "status");
       empty.append(
@@ -3147,7 +3499,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       } else if (connection === "Offline" && issue) {
         empty.append(el("p", "", issue.detail));
         const actions = el("div", "empty-actions");
-        if (issue.kind === "site")
+        if (issue.kind === "site" && !localMode())
           actions.append(
             button(
               "Turn on comments",
@@ -3189,6 +3541,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         );
       }
       list.append(empty);
+      }
       list.dataset.empty = "";
     }
     if (threads.length && connection === "Offline")
@@ -3342,8 +3695,8 @@ export function initComments(options: CommentsOptions): CommentsController {
                   editing = optimistic.id(comment.id);
                   editText = body;
                 }
-              },
-            ),
+              }
+            ).then(noted)
           );
         },
         "primary",
@@ -3434,42 +3787,50 @@ export function initComments(options: CommentsOptions): CommentsController {
     emoji: string,
     active: boolean,
   ) {
-    if (!api.user && (!guests || !guestName.trim())) {
+    if (!api.user && !localMode() && (!guests || !guestName.trim())) {
       openAccount();
       return;
     }
     run(async () => {
-      if (!api.user) await api.guest(guestName);
-      const user = api.user!;
-      await saveOptimistic(
-        changeThread(thread.id, (current) => ({
-          ...current,
-          comments: current.comments.map((item) => {
-            if (item.id !== optimistic.id(comment.id)) return item;
-            const reactions = Object.fromEntries(
-              Object.entries(item.reactions).map(([key, users]) => [
-                key,
-                users.filter((id) => id !== user.id),
-              ]),
+      // Keep the backend fixed while the local guest signs in. The optimistic
+      // queue does not become busy until after that asynchronous step.
+      const signingIn = localMode() && !api.user;
+      if (signingIn) pending = true;
+      try {
+        await ensureGuest();
+        const user = api.user!;
+        await saveOptimistic(
+          changeThread(thread.id, (current) => ({
+            ...current,
+            comments: current.comments.map((item) => {
+              if (item.id !== optimistic.id(comment.id)) return item;
+              const reactions = Object.fromEntries(
+                Object.entries(item.reactions).map(([key, users]) => [
+                  key,
+                  users.filter((id) => id !== user.id),
+                ])
+              );
+              if (active)
+                reactions[emoji] = [...(reactions[emoji] ?? []), user.id];
+              return { ...item, reactions };
+            }),
+          })),
+          async (id) => {
+            await api.request(
+              `threads/${id(thread.id)}/comments/${id(comment.id)}/reactions`,
+              "POST",
+              { emoji, active }
             );
-            if (active)
-              reactions[emoji] = [...(reactions[emoji] ?? []), user.id];
-            return { ...item, reactions };
-          }),
-        })),
-        async (id) => {
-          await api.request(
-            `threads/${id(thread.id)}/comments/${id(comment.id)}/reactions`,
-            "POST",
-            { emoji, active },
-          );
-        },
-      );
-      if (active)
-        recordEmoji(
-          `branch-comments:emoji:${options.project}:${user.id}`,
-          emoji,
+          }
         );
+        if (active)
+          recordEmoji(
+            `branch-comments:emoji:${options.project}:${user.id}`,
+            emoji
+          );
+      } finally {
+        if (signingIn) pending = false;
+      }
     });
   }
 
@@ -3580,6 +3941,21 @@ export function initComments(options: CommentsOptions): CommentsController {
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       if (!input.value.trim() || pending) return;
+      if (!api.user && localMode()) {
+        // Hold the form while the guest signs in, so Enter is never lost.
+        pending = true;
+        send.disabled = true;
+        run(async () => {
+          try {
+            await ensureGuest();
+          } finally {
+            pending = false;
+            send.disabled = !input.value.trim();
+          }
+          await postMessage(thread);
+        });
+        return;
+      }
       if (!api.user) {
         submitAfterIdentity = () => postMessage(thread);
         openAccount();
@@ -3700,6 +4076,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         render();
       }
     }
+    noted();
   }
 
   async function resumeSubmission() {
@@ -4002,10 +4379,11 @@ export function initComments(options: CommentsOptions): CommentsController {
           );
         } else {
           content.append(sidebarSetting());
-          if (localSite) content.append(channelSetting());
-          content.append(usagePanel());
+          if (localSite && !agentsOnly && !localMode()) content.append(channelSetting());
+          if (!localMode()) content.append(usagePanel());
         }
         if (
+          !localMode() &&
           api.user?.verified &&
           !options.onboarding?.code &&
           !options.onboarding?.claimKey &&
@@ -4813,6 +5191,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       if (!movingThread) {
         pinsScrolling = true;
         pins.dataset.scrolling = "true";
+        clearTimeout(listScrollTimer);
         clearTimeout(pinScrollTimer);
         pinScrollTimer = window.setTimeout(() => {
           if (destroyed) return;
@@ -4862,73 +5241,74 @@ export function initComments(options: CommentsOptions): CommentsController {
     },
     { signal: abort.signal },
   );
-  document.addEventListener(
+  const onKeydown = (event: KeyboardEvent) => {
+    keyboardAction = true;
+    queueMicrotask(() => {
+      keyboardAction = false;
+    });
+    const target = event.composedPath()[0];
+    if ((account || (compactSidebar && expanded)) && event.key === "Tab") {
+      const controls = [
+        ...(account ? dialogs : shadow).querySelectorAll<HTMLElement>(
+          "button:not(:disabled),input:not(:disabled):not([type=hidden]),select:not(:disabled),textarea:not(:disabled),summary,a[href],[tabindex]"
+        ),
+      ].filter(
+        (control) =>
+          control.tabIndex >= 0 &&
+          control.getClientRects().length > 0 &&
+          !control.closest("[inert]") &&
+          (account || !compactSidebar || !!control.closest(".panel,.toolbar"))
+      );
+      const first = controls[0],
+        last = controls.at(-1);
+      if (event.shiftKey && (shadow.activeElement === first || !controls.includes(shadow.activeElement as HTMLElement))) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (shadow.activeElement === last || !controls.includes(shadow.activeElement as HTMLElement))) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+    const typing =
+      target instanceof HTMLElement &&
+      (target.matches("input,textarea,select") || target.isContentEditable);
+    if (event.key === "Escape") {
+      if (mode || draft || selected || account) dismiss();
+      else if (expanded) toggleExpanded(false);
+      return;
+    }
+    if (
+      options.onboarding ||
+      typing ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey
+    )
+      return;
+    if (event.key.toLowerCase() === "c") {
+      event.preventDefault();
+      setMode(!commentMode);
+    }
+    if (event.key.toLowerCase() === "v") {
+      event.preventDefault();
+      setMode(false);
+    }
+  };
+  host.addEventListener(
     "keydown",
     (event) => {
-      keyboardAction = true;
-      queueMicrotask(() => {
-        keyboardAction = false;
-      });
-      const target = event.composedPath()[0];
-      if ((account || (compactSidebar && expanded)) && event.key === "Tab") {
-        const controls = [
-          ...(account ? dialogs : shadow).querySelectorAll<HTMLElement>(
-            "button:not(:disabled),input:not(:disabled):not([type=hidden]),select:not(:disabled),textarea:not(:disabled),summary,a[href],[tabindex]",
-          ),
-        ].filter(
-          (control) =>
-            control.tabIndex >= 0 &&
-            control.getClientRects().length > 0 &&
-            !control.closest("[inert]") &&
-            (account ||
-              !compactSidebar ||
-              !!control.closest(".panel,.toolbar")),
-        );
-        const first = controls[0],
-          last = controls.at(-1);
-        if (
-          event.shiftKey &&
-          (shadow.activeElement === first ||
-            !controls.includes(shadow.activeElement as HTMLElement))
-        ) {
-          event.preventDefault();
-          last?.focus();
-        } else if (
-          !event.shiftKey &&
-          (shadow.activeElement === last ||
-            !controls.includes(shadow.activeElement as HTMLElement))
-        ) {
-          event.preventDefault();
-          first?.focus();
-        }
-      }
-      const typing =
-        target instanceof HTMLElement &&
-        (target.matches("input,textarea,select") || target.isContentEditable);
-      if (event.key === "Escape") {
-        if (mode || draft || selected || account) dismiss();
-        else if (expanded) toggleExpanded(false);
-        return;
-      }
-      if (
-        options.onboarding ||
-        typing ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey
-      )
-        return;
-      if (event.key.toLowerCase() === "c") {
-        event.preventDefault();
-        setMode(!commentMode);
-      }
-      if (event.key.toLowerCase() === "v") {
-        event.preventDefault();
-        setMode(false);
-      }
+      onKeydown(event);
+      event.stopPropagation();
     },
     { signal: abort.signal },
   );
+  host.addEventListener("keypress", (event) => event.stopPropagation(), {
+    signal: abort.signal,
+  });
+  host.addEventListener("keyup", (event) => event.stopPropagation(), {
+    signal: abort.signal,
+  });
+  document.addEventListener("keydown", onKeydown, { signal: abort.signal });
   document.addEventListener(
     "pointerdown",
     (event) => {
@@ -5002,6 +5382,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     signal: abort.signal,
   });
   function syncSession() {
+    if (agentsOnly && !sendTo) return false;
     const next = new CommentsApi(options);
     if (next.token === api.token || (api.transient && !next.token))
       return false;
@@ -5075,16 +5456,23 @@ export function initComments(options: CommentsOptions): CommentsController {
     { capture: true, signal: abort.signal },
   );
   polling = adaptivePolling({
-    interval: Math.max(2000, options.pollInterval ?? 4000),
+    interval: localUrl ? 2000 : Math.max(2000, options.pollInterval ?? 4000),
     enabled: () =>
       !destroyed &&
       !document.hidden &&
       navigator.onLine !== false &&
-      !options.onboarding,
+      !options.onboarding && (!agentsOnly || !!sendTo),
     active: () => expanded || account || mode || !!draft || !!selected,
     read: async () => {
       checkPage();
-      return projectLoaded ? refresh() : loadProject();
+      if (localUrl && Date.now() - agentsProbed >= 10000) void probeAgents();
+      if (localMode()) void countHeld().catch(() => {});
+      try {
+        return await (projectLoaded ? refresh() : loadProject());
+      } catch (reason) {
+        if (await pickAgent(reason)) return true;
+        throw reason;
+      }
     },
   });
   for (const event of ["online", "offline"])
@@ -5144,8 +5532,8 @@ export function initComments(options: CommentsOptions): CommentsController {
       dockMotion?.stop();
       stopEdgeMotion(true);
       abort.abort();
+      clearInterval(agentsTimer);
       clearTimeout(toastTimer);
-      clearTimeout(listScrollTimer);
       clearTimeout(githubTimer);
       cancelAnimationFrame(frame);
       cancelAnimationFrame(hoverFrame);
@@ -5173,7 +5561,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     },
     comment(element) {
       const compose = () => {
-        if (destroyed || !element.isConnected) return;
+        if (destroyed || (agentsOnly && !sendTo) || !element.isConnected) return;
         const rect = element.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
         composeAt(element, {
@@ -5235,6 +5623,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         });
   }
   async function loadProject() {
+    if (agentsOnly && !sendTo) return;
     const client = api;
     const token = client.token;
     let config: {
@@ -5249,9 +5638,11 @@ export function initComments(options: CommentsOptions): CommentsController {
       .catch(() => {
         /* An expired guest session can be renewed by entering a name. */
       })
-      .then(() => {
+      .then(async () => {
         if (destroyed || client !== api) return;
         if (token !== client.token) hydrateThreads();
+        if (agentsOnly) await ensureGuest();
+        if (destroyed || client !== api) return;
         renderToolbar();
         if (account) renderDialog();
         return refresh();
@@ -5266,7 +5657,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         (reason instanceof DOMException && reason.name === "AbortError")
       )
         return;
-      const next = connectionIssue(reason);
+      const next = connectionIssue(reason, localMode());
       const changed = issue?.detail !== next.detail;
       issue = next;
       connection = "Offline";
@@ -5290,7 +5681,17 @@ export function initComments(options: CommentsOptions): CommentsController {
     render();
     return changed;
   }
-  if (!options.onboarding?.inProject)
-    run(() => loadProject().finally(() => polling?.wake(false)));
+  if (!options.onboarding?.inProject && (!agentsOnly || sendTo))
+    run(async () => {
+      try {
+        await loadProject();
+      } catch (reason) {
+        if (!(await pickAgent(reason))) throw reason;
+      } finally {
+        polling?.wake(false);
+      }
+    });
+  if (localUrl) void probeAgents();
+  if (localMode()) void countHeld().catch(() => {});
   return controller;
 }

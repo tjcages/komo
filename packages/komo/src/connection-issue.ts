@@ -7,8 +7,24 @@ export type ConnectionIssue = {
 };
 
 /** Say why comments didn't load, in words a visitor can act on. */
-export function connectionIssue(reason: unknown): ConnectionIssue {
+export function connectionIssue(
+  reason: unknown,
+  local = false
+): ConnectionIssue {
   const code = reason instanceof ApiError ? reason.code : undefined;
+  // A local agent server serves only this machine; the fix is in the repo.
+  if (local && code === "site_not_approved")
+    return {
+      kind: "site",
+      title: "Local agents don’t accept this site",
+      detail: "Add this origin to local.origins in .komo/project.json.",
+    };
+  if (local && code === "unreachable")
+    return {
+      kind: "unreachable",
+      title: "Can’t connect to local agents",
+      detail: "Start watch mode in an agent session for this repo.",
+    };
   if (code === "site_not_approved")
     return {
       kind: "site",

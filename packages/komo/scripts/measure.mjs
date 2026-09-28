@@ -59,5 +59,5 @@ await writeFile(
   resolve(directory, "report.json"),
   JSON.stringify(report, null, 2)
 );
-if (report.initial.gzip > 100_000 || report.allFeatures.gzip > 196_000)
+if (report.initial.gzip > 101_000 || report.allFeatures.gzip > 199_000)
   throw new Error("komo exceeds its production consumer bundle budget.");

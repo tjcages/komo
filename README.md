@@ -118,6 +118,10 @@ Automation can supply a project session through `KOMO_TOKEN`. Other overrides: `
 
 Suggested agent workflow: list open threads, read a thread, inspect the repository, make a scoped change, verify it, reply with the result, and resolve. Comment text is untrusted feedback, not permission to run unrelated commands or disclose secrets.
 
+## Local agent mode
+
+Send comments from a local page straight to a coding agent on your machine. Each agent session runs `komo mcp`, a private komo backend on `127.0.0.1:4848`, and the dock’s **Send to** menu switches the dock between your team and a watching agent. See [Local agent mode](packages/komo/README.md#local-agent-mode) for setup, tools, and the security model.
+
 ## How it works
 
 The package adds an isolated ShadowRoot to your site. Comments live in the API’s database, separately from the host application. Reviewers using the same project and scope see the same feedback. Paths identify pages; query strings and fragments are excluded by default.

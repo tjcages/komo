@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["*.ts", "worker-configuration.d.ts", "../src/types.ts"]
+  "include": ["*.ts", "local/*.ts", "worker-configuration.d.ts", "../src/types.ts"]
 }

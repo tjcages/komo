@@ -34,6 +34,10 @@ export type MenuAction = {
   onSelect?: () => void;
   keepOpenOnSelect?: boolean;
   expandedOrder?: number;
+  /** Marks a choice that is in effect without making it the active view. */
+  current?: boolean;
+  /** Stays focusable; selecting it runs onSelect and keeps the menu open. */
+  disabled?: boolean;
 };
 
 // One level of children keeps the component small and the navigation predictable.
@@ -50,6 +54,7 @@ export type MorphingMenuProps = {
   alignEnd?: boolean;
   edge?: "top" | "bottom" | "left" | "right";
   onActiveChange?: (id: string) => void;
+  onOpenChange?: (open: boolean) => void;
   label?: string;
   moreLabel?: string;
   backLabel?: string;
@@ -71,6 +76,7 @@ export function MorphingMenu({
   edge = "bottom",
   alignEnd = false,
   onActiveChange,
+  onOpenChange,
   label = "App navigation",
   moreLabel = "More",
   backLabel = "Back",
@@ -125,6 +131,29 @@ export function MorphingMenu({
   const expanded = view.kind !== "collapsed";
   const barItems = items.filter((item) => item.showInBar !== false);
   const groups = items.filter((item) => item.children?.length);
+  const childKey = groups
+    .map((group) =>
+      [group.label, ...group.children!.map((child) => child.label)].join("\n"),
+    )
+    .join("\n\n");
+  // The row labels the last layout pass measured.
+  const measuredKey = useRef(childKey);
+  // The open or close transition that runs now, if any.
+  const transition = useRef<object | null>(null);
+  const rowsDirty = useRef(false);
+  const settling = useRef<ReturnType<typeof animate>[]>([]);
+  // The control that has focus before this render commits, so a row that a
+  // commit removes can hand its focus on.
+  const focusedItem = useRef<string | undefined>(undefined);
+  if (typeof document !== "undefined") {
+    const active = (
+      rootRef.current?.getRootNode() as Document | ShadowRoot | undefined
+    )?.activeElement;
+    focusedItem.current =
+      active instanceof HTMLElement && rootRef.current?.contains(active)
+        ? active.dataset.menuItem
+        : undefined;
+  }
 
   function hideTooltip() {
     clearTimeout(tooltipTimer.current);
@@ -211,6 +240,11 @@ export function MorphingMenu({
     if (!root || !shell || !bar) return;
     const edgeChanged = previousEdge.current !== edge;
     previousEdge.current = edge;
+    // This pass measures the rows as they are now.
+    measuredKey.current = childKey;
+    rowsDirty.current = false;
+    settling.current.forEach((animation) => animation.stop());
+    settling.current = [];
     const old = previousView.current;
     previousView.current = view;
     const panels = [
@@ -241,6 +275,7 @@ export function MorphingMenu({
     const crossingBar =
       (old.kind === "collapsed") !== (view.kind === "collapsed");
     const snap = reducedMotion || !changed;
+    let phases: Promise<unknown> = Promise.resolve();
 
     if (snap) setSize();
     else if (crossingBar && !expanded) {
@@ -257,17 +292,17 @@ export function MorphingMenu({
           compress,
         ),
       );
-      void compression.finished
-        .then(() => {
-          if (!cancelled)
-            track(
+      phases = compression.finished.then(() =>
+        cancelled
+          ? undefined
+          : track(
               animate(shell, targetSize(), {
                 ...spring,
                 bounce: expanded ? 0.24 : 0.15,
               }),
-            );
-        })
-        .catch(() => {}); // A stopped transition must never resume its second phase.
+            ).finished,
+      );
+      void phases.catch(() => {}); // A stopped transition must never resume its second phase.
     } else {
       track(
         animate(shell, targetSize(), {
@@ -326,6 +361,21 @@ export function MorphingMenu({
       }
     }
 
+    // Rows that change during this transition settle when it ends.
+    const token = {};
+    transition.current = snap ? null : token;
+    if (!snap)
+      void Promise.all([
+        phases,
+        ...running.map((animation) => animation.finished),
+      ])
+        .then(() => {
+          if (cancelled || transition.current !== token) return;
+          transition.current = null;
+          if (rowsDirty.current) settleRows();
+        })
+        .catch(() => {});
+
     const destination = expanded ? panel : bar;
     const controls = [
       ...(destination?.querySelectorAll<HTMLElement>("[data-menu-item]") ?? []),
@@ -359,6 +409,67 @@ export function MorphingMenu({
     };
   }, [view, reducedMotion, edge, items.length, barItems.length]);
 
+  // Rows that change while the menu is open, such as a list that loads after
+  // it opens, resize the shell without restarting the open transition.
+  useLayoutEffect(() => {
+    if (measuredKey.current === childKey) return;
+    measuredKey.current = childKey;
+    const root = rootRef.current;
+    if (!expanded || !root) return;
+    // A removed row hands its focus to the first control of the panel.
+    if (
+      focusedItem.current &&
+      !root.contains(
+        (root.getRootNode() as Document | ShadowRoot).activeElement,
+      )
+    )
+      root
+        .querySelector<HTMLElement>(
+          '.morphing-menu__panel[aria-hidden="false"] [data-menu-item]',
+        )
+        ?.focus({ preventScroll: true });
+    if (transition.current) rowsDirty.current = true;
+    else settleRows();
+  }, [childKey]);
+
+  function settleRows() {
+    rowsDirty.current = false;
+    const shell = shellRef.current;
+    const panel = rootRef.current?.querySelector<HTMLElement>(
+      '.morphing-menu__panel[aria-hidden="false"]',
+    );
+    if (!shell || !panel) return;
+    const timing = { ...spring, duration: 0.25, bounce: 0.1 };
+    const next = [
+      animate(
+        shell,
+        { width: panel.offsetWidth, height: panel.offsetHeight },
+        timing,
+      ),
+    ];
+    // A row that mounted after the entrance rises like its neighbours.
+    for (const row of panel.querySelectorAll<HTMLElement>(
+      ".morphing-menu__row",
+    )) {
+      if (row.style.opacity) continue;
+      Object.assign(row.style, {
+        opacity: "0",
+        transform: "translateY(16px)",
+        filter: "blur(2px)",
+      });
+      next.push(
+        animate(
+          row,
+          { opacity: 1, y: 0, filter: "blur(0px)" },
+          { ...timing, bounce: 0 },
+        ),
+      );
+    }
+    settling.current.push(...next);
+  }
+
+  useEffect(() => onOpenChange?.(expanded), [expanded]);
+
   useEffect(() => {
     if (!expanded) return;
     const outside = (event: PointerEvent) => {
@@ -385,6 +496,7 @@ export function MorphingMenu({
     // Store only the destination; its parent reflects selection without owning state.
     const active =
       selected === item.id ||
+      !!item.current ||
       Boolean(item.children?.some((child) => child.id === selected));
     const swapping = !inBar && item.keepOpenOnSelect;
     const swap = (content: ReactNode, icon = false) => (
@@ -418,7 +530,7 @@ export function MorphingMenu({
       "data-menu-item": item.id,
       "aria-label": item.label,
       "aria-current": active
-        ? hasChildren
+        ? hasChildren || selected !== item.id
           ? ("true" as const)
           : ("page" as const)
         : undefined,
@@ -426,10 +538,13 @@ export function MorphingMenu({
         ? view.kind === "group" && view.id === item.id
         : undefined,
       "aria-controls": hasChildren ? `${id}-group-${item.id}` : undefined,
+      "aria-disabled": item.disabled || undefined,
       onClick: (event: React.MouseEvent<HTMLElement>) =>
         hasChildren
           ? open({ kind: "group", id: item.id }, item.id, event.detail === 0)
-          : select(item),
+          : item.disabled
+            ? item.onSelect?.()
+            : select(item),
       onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
         if (inBar && event.pointerType === "mouse")
           showTooltip(event.currentTarget, item.label);

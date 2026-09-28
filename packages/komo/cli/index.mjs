@@ -397,7 +397,13 @@ try {
     agentCommands.includes(command)
       ? JSON.stringify({
           ok: false,
-          error: { message: error.message, status: error.status ?? null },
+          error: {
+            message: error.message,
+            status: error.status ?? null,
+            // The local edit guard returns the thread as it is now.
+            ...(error.status === 409 && error.code ? { code: error.code } : {}),
+            ...(error.thread ? { version: error.version, thread: error.thread } : {}),
+          },
         })
       : error.message
   );

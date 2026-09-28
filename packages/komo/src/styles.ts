@@ -27,6 +27,10 @@ export const styles: string = `
 }
 * {
   box-sizing: border-box;
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }
 button,
 input,
@@ -956,6 +960,33 @@ ${morphingMenuStyles}
   height: 18px;
   color: #bcb9bd;
 }
+.toolbar .morphing-menu [aria-disabled="true"] {
+  color: #8f8c91;
+}
+/* The number of notes that wait for Send, on the dock's Send shortcut. */
+.send-glyph {
+  position: relative;
+  display: flex;
+}
+.send-count {
+  position: absolute;
+  top: -7px;
+  left: 12px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #f7a363;
+  color: #0d0d0d;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.morphing-menu__row .send-count {
+  display: none;
+}
 
 /* Conversations keep an avatar column and a quiet, inset reply field. */
 .dialog {
@@ -1597,6 +1628,7 @@ ${morphingMenuStyles}
   min-width: 0;
   min-height: 28px;
   padding: 3px 0;
+  overflow-y: hidden;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -1736,23 +1768,9 @@ textarea {
   margin-inline: -12px;
   padding: 0 0 112px;
   overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  scrollbar-gutter: stable;
   scroll-padding-bottom: 112px;
   -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 112px), transparent calc(100% - 24px));
   mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 112px), transparent calc(100% - 24px));
-}
-:host(.review-open) .panel .list[data-scrolling="true"] { scrollbar-color: #ffffff30 transparent; }
-@supports selector(::-webkit-scrollbar) {
-  :host(.review-open) .panel .list,
-  :host(.review-open) .panel .list[data-scrolling="true"] { scrollbar-width: auto; scrollbar-color: auto; }
-  :host(.review-open) .panel .list::-webkit-scrollbar { width: 4px; }
-  :host(.review-open) .panel .list::-webkit-scrollbar-track { background: transparent; }
-  :host(.review-open) .panel .list::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
-  :host(.review-open) .panel .list[data-scrolling="true"]::-webkit-scrollbar-thumb { background: #ffffff30; }
-  :host(.review-open) .panel .list[data-scrolling="true"]::-webkit-scrollbar-thumb:hover { background: #ffffff50; }
-  :host(.review-open) .panel .list::-webkit-scrollbar-button { display: none; }
 }
 @media (max-width: 760px) {
   :host(.review-open) .panel { height: 100%; }

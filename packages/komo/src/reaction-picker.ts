@@ -115,7 +115,8 @@ export function reactionPicker(
           .nav-button { position: relative; border-radius: 6px; }
           .nav-button + .nav-button::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 1px; background: #ffffff0d; }
           .nav-button[aria-selected="true"] { background: #ffffff10; }
-          .tabpanel { padding: 0 4px 6px; }
+          .tabpanel { padding: 0 4px 6px; scrollbar-width: none; scrollbar-gutter: auto; }
+          .tabpanel::-webkit-scrollbar { display: none; }
         `;
         picker.shadowRoot?.append(styles);
         place();
