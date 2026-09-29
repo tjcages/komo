@@ -12,3 +12,5 @@ packages/komo/server/setup-client.txt
 
 # Rendered launch media stays local; reproducible source is committed.
 tools/launch-video/output/
+
+videos/audio/.cache/
