@@ -33,6 +33,14 @@ await rm("dist", { recursive: true, force: true });
 execFileSync("tsc", ["-p", "tsconfig.json", "--emitDeclarationOnly"], {
   stdio: "inherit",
 });
+// Backend config is a separate entry: it must never enter the browser widget graph.
+await build({
+  entryPoints: ["src/server-config.ts"],
+  outfile: "dist/server-config.js",
+  bundle: true,
+  format: "esm",
+  platform: "neutral",
+});
 const result = await build({
   entryPoints: [
     "src/index.ts",

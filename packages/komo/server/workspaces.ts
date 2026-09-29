@@ -1,17 +1,8 @@
 import { check, string, originAllowed } from "./validation";
 import type { Identity } from "../src/types";
 import { editedOrigins, siteEdits } from "./project-sites";
-export type Project = {
-  repo: string;
-  origins: string[];
-  allowGuests?: boolean;
-  allowGuestResolve?: boolean;
-  requireOwner?: boolean;
-  bootstrapHash?: string;
-  suspended?: boolean;
-  writesPerDay?: number;
-  retainedCommentsPerUser?: number;
-};
+import type { KomoProjectConfig } from "../src/server-config.js";
+export type Project = KomoProjectConfig;
 
 export function retainReviewerComments(
   db: D1Database,

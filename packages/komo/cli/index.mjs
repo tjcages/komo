@@ -9,6 +9,7 @@ import { branchName, clientModule, gitValue, repository } from "./config.mjs";
 
 import { installAgentWorkflow } from "./workflow.mjs";
 import { agentCommands, agentHelp, runAgent } from "./agent.mjs";
+import { writeKomoBackendConfig } from "./backend-config.mjs";
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cwd = process.cwd();
@@ -27,7 +28,15 @@ const exists = async (path) => {
   }
 };
 const settingsPath = resolve(cwd, ".komo/project.json");
-const generatedPath = resolve(cwd, "komo.config.js");
+// Keep existing browser imports working. New backend setups use a separate helper.
+const generatedName = (await exists(resolve(cwd, "komo.config.js")))
+  ? "komo.config.js"
+  : args.includes("--self-host") ||
+      args.includes("--node") ||
+      (await exists(resolve(cwd, "komo.config.ts")))
+    ? ".komo/client.js"
+    : "komo.config.js";
+const generatedPath = resolve(cwd, generatedName);
 const run = (program, argv, options = {}) =>
   new Promise((resolveRun, reject) => {
     const child = spawn(program, argv, {
@@ -70,7 +79,7 @@ async function sync() {
       throw Error("Cannot detect the branch. Set KOMO_BRANCH for this build.");
   }
   await writeFile(generatedPath, clientModule(config));
-  console.log("Updated komo.config.js");
+  console.log(`Updated ${generatedName}`);
 }
 async function protectLocalFiles() {
   const path = resolve(cwd, ".gitignore");
@@ -82,6 +91,7 @@ async function protectLocalFiles() {
     ".komo/node.env",
     ".komo/.wrangler/",
     "komo.config.js",
+    ".komo/client.js",
   ].filter((line) => !existing.split("\n").includes(line));
   if (additions.length)
     await writeFile(path, `${existing}\n# komo\n${additions.join("\n")}\n`);
@@ -170,6 +180,10 @@ async function init() {
     const selfHosted = args.includes("--self-host");
     const nodeHosted = args.includes("--node");
     if (selfHosted && nodeHosted) throw Error("Choose --node or --self-host.");
+    if ((selfHosted || nodeHosted) && (await exists(resolve(cwd, "komo.config.ts"))))
+      throw Error(
+        "komo.config.ts already exists. Use your existing backend config with the documented Worker entry or komo serve; init does not overwrite it."
+      );
     const detected = repository(gitValue(["remote", "get-url", "origin"], cwd));
     const project = `komo_${randomUUID().replaceAll("-", "")}`;
     const repo =
@@ -293,14 +307,15 @@ async function init() {
         requireOwner: true,
         bootstrapHash: createHash("sha256").update(key).digest("hex"),
       };
+      await writeKomoBackendConfig(cwd, {
+        projects: { [project]: projectConfig },
+        googleClientId: googleClient,
+        publicUrl: endpoint,
+      });
       await writeFile(join(dir, "owner-key"), key, { mode: 0o600 });
       await writeFile(join(dir, "node.env"), [
         "DATABASE_URL=REPLACE_WITH_POSTGRES_URL",
-        `PUBLIC_URL=${endpoint}`,
-        `PROJECTS=${JSON.stringify({ [project]: projectConfig })}`,
-        `GOOGLE_CLIENT_ID=${googleClient}`,
         "GOOGLE_CLIENT_SECRET=REPLACE_WITH_GOOGLE_SECRET",
-        "PORT=8080",
         "",
       ].join("\n"), { mode: 0o600 });
       config = { endpoint, project, repo, scope, origin };
@@ -308,7 +323,7 @@ async function init() {
       await sync();
       await installAgentWorkflow(cwd);
       console.log(
-        `Edit .komo/node.env with your PostgreSQL URL and Google secret.\nDeploy the Node container with those variables.\nRegister ${endpoint}/auth/google/callback in Google Console.\nOpen ${endpoint}/setup?project=${project}#${key} to claim ownership after the API is live.\n`
+        `Edit komo.config.ts for backend settings and .komo/node.env for your PostgreSQL URL and Google secret.\nRun komo serve with those environment variables, or deploy your Node container.\nMount the widget using .komo/client.js.\nRegister ${endpoint}/auth/google/callback in Google Console.\nOpen ${endpoint}/setup?project=${project}#${key} to claim ownership after the API is live.\n`
       );
       return;
     } else {
@@ -335,27 +350,25 @@ async function init() {
       );
       await writeFile(
         join(dir, "index.ts"),
-        'export { default } from "@tjcages/komo/server";\n'
+        'import { createKomoServer } from "@tjcages/komo/server";\nimport config from "../komo.config";\n\nexport default createKomoServer(config);\n'
       );
+      await writeKomoBackendConfig(cwd, {
+        projects: {
+          [project]: {
+            repo,
+            origins,
+            requireOwner: true,
+            bootstrapHash: createHash("sha256").update(key).digest("hex"),
+          },
+        },
+        googleClientId: googleClient,
+      });
       const wrangler = {
         name,
         main: "index.ts",
         compatibility_date: "2026-07-02",
         compatibility_flags: ["nodejs_compat"],
         observability: { enabled: true },
-        vars: {
-          PROJECTS: JSON.stringify({
-            [project]: {
-              repo,
-              origins,
-              requireOwner: true,
-              bootstrapHash: createHash("sha256").update(key).digest("hex"),
-            },
-          }),
-          GOOGLE_CLIENT_ID: googleClient,
-          GITHUB_CLIENT_ID: "",
-          GITHUB_CLIENT_SECRET: "",
-        },
       };
       const path = join(dir, "wrangler.json");
       await writeFile(path, JSON.stringify(wrangler, null, 2));
@@ -374,7 +387,7 @@ async function init() {
     await installAgentWorkflow(cwd);
     console.log("Added the komo comment workflow to AGENTS.md");
     console.log(
-      `\nMount after the page loads:\n\nimport { initKomo } from '@tjcages/komo';\ninitKomo(${JSON.stringify({ ...config, origin: undefined, ...(config.scope === "branch" ? { branch: branchName(process.env, cwd) } : {}) }, null, 2)});\n\nFor automatic branch detection, use the generated komo.config.js helper and run komo sync before your build.\n`
+      `\nMount after the page loads:\n\nimport { initKomo } from '@tjcages/komo';\ninitKomo(${JSON.stringify({ ...config, origin: undefined, ...(config.scope === "branch" ? { branch: branchName(process.env, cwd) } : {}) }, null, 2)});\n\nFor automatic branch detection, use the generated ${generatedName} helper and run komo sync before your build.\n`
     );
   } finally {
     rl.close();
@@ -383,7 +396,7 @@ async function init() {
 try {
   if (args.includes("--help") || !command)
     console.log(
-      `komo\n\n  komo init          Create a Google-owned hosted workspace\n  komo init --self-host  Deploy your own Worker and D1 database\n  komo init --node       Prepare a Node/PostgreSQL project\n  komo deploy        Resume self-hosted deployment\n  komo sync          Regenerate client settings; detect the current branch\n\nOptions: --origin URL --endpoint API_URL --repo OWNER/REPO --branch-scope\nSelf-host: --google-client-id ID; Node: --preview-origin HTTPS_WILDCARD\n\nComments are shared across deployments unless --branch-scope is set.${
+      `komo\n\n  komo init          Create a Google-owned hosted workspace\n  komo init --self-host  Deploy your own Worker and D1 database\n  komo init --node       Prepare a Node/PostgreSQL project\n  komo serve         Run the Node API using komo.config.ts and environment secrets\n  komo deploy        Resume self-hosted deployment\n  komo sync          Regenerate client settings; detect the current branch\n\nOptions: --origin URL --endpoint API_URL --repo OWNER/REPO --branch-scope\nSelf-host: --google-client-id ID; Node: --preview-origin HTTPS_WILDCARD\n\nComments are shared across deployments unless --branch-scope is set.${
         agentHelp
       }`
     );
@@ -391,6 +404,7 @@ try {
   else if (command === "init") await init();
   else if (command === "deploy") await deploy();
   else if (command === "sync") await sync();
+  else if (command === "serve") await import("../dist/node.mjs");
   else throw Error(`Unknown command: ${command}`);
 } catch (error) {
   console.error(

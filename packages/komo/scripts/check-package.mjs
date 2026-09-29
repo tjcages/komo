@@ -42,7 +42,10 @@ try {
     join(root, packed.filename),
   ]);
   assert.match(
-    await readFile(join(root, "node_modules/@tjcages/komo/dist/react.js"), "utf8"),
+    await readFile(
+      join(root, "node_modules/@tjcages/komo/dist/react.js"),
+      "utf8",
+    ),
     /^['"]use client['"];?/,
     "React entry must preserve its client boundary after minification",
   );
@@ -52,9 +55,11 @@ try {
     import { initKomo } from '@tjcages/komo';
     import { defineKomo } from '@tjcages/komo/setup';
     import { useKomo } from '@tjcages/komo/react';
+    import { defineKomoConfig } from '@tjcages/komo/config';
     import { createElement } from 'react';
     import { renderToString } from 'react-dom/server';
     const config = {project:'packed-test'};
+    if (!defineKomoConfig({projects:{}}).projects) throw Error('Backend config export failed');
     initKomo(config).destroy(); defineKomo(config)().destroy();
     function App(){useKomo(config);return createElement('p',null,'ok')}
     if(renderToString(createElement(App)) !== '<p>ok</p>') throw Error('SSR failed');
@@ -67,6 +72,8 @@ try {
     import { initKomo, type KomoConfig } from '@tjcages/komo';
     import { defineKomo } from '@tjcages/komo/setup';
     import { useKomo } from '@tjcages/komo/react';
+    import { defineKomoConfig, type KomoServerConfig } from '@tjcages/komo/config';
+    const backend: KomoServerConfig = defineKomoConfig({projects:{review:{repo:'test/repo',origins:[]}}});
     const config: KomoConfig = {project:'packed-test'};
     initKomo(config).destroy(); defineKomo(config)().destroy(); useKomo(config);
   `,
@@ -123,6 +130,35 @@ try {
     { env },
   );
   run(process.execPath, [cli, "deploy"], { env });
+  const backendPath = join(root, "komo.config.ts");
+  const backendConfig = await readFile(backendPath, "utf8");
+  await writeFile(
+    backendPath,
+    `${backendConfig}\n// preserved operator config\n`,
+  );
+  run(process.execPath, [cli, "sync"], { env });
+  assert.equal(
+    await readFile(backendPath, "utf8"),
+    `${backendConfig}\n// preserved operator config\n`,
+  );
+  assert.doesNotMatch(
+    await readFile(join(root, ".komo/client.js"), "utf8"),
+    /bootstrapHash|googleClientId/,
+  );
+  // A packed Node runtime must load TypeScript (including the public config export)
+  // before attempting a database connection. No network or database is needed here.
+  await writeFile(
+    join(root, "invalid.config.ts"),
+    `import { defineKomoConfig } from '@tjcages/komo/config'; export default defineKomoConfig({projects:{}, port:-1});`,
+  );
+  assert.throws(
+    () =>
+      run(process.execPath, [cli, "serve"], {
+        env: { ...env, KOMO_CONFIG: join(root, "invalid.config.ts") },
+        stdio: "pipe",
+      }),
+    /Invalid komo backend config: port/,
+  );
   const commands = (await readFile(join(root, "commands.jsonl"), "utf8"))
     .trim()
     .split("\n")
@@ -142,7 +178,7 @@ try {
   );
   assert.deepEqual(await readdir(join(root, ".komo/migrations")), migrations);
   assert.match(
-    await readFile(join(root, "komo.config.js"), "utf8"),
+    await readFile(join(root, ".komo/client.js"), "utf8"),
     /packed-test.workers.dev/,
   );
   await build({

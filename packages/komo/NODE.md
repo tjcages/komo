@@ -7,8 +7,8 @@ The browser widget and CLI use the same API protocol on Cloudflare and Node. Thi
 1. In your website repository, install komo and generate the Node project:
 
    ```sh
-   npm install @tjcages/komo
-   npx komo init --node \
+   pnpm add @tjcages/komo
+   pnpm exec komo init --node \
      --endpoint https://comments.example.com \
      --origin https://pr-42.preview.example.com \
      --preview-origin 'https://pr-*.preview.example.com' \
@@ -17,11 +17,33 @@ The browser widget and CLI use the same API protocol on Cloudflare and Node. Thi
      --google-client-id YOUR_GOOGLE_CLIENT_ID
    ```
 
-   This writes `.komo/node.env` and `.komo/owner-key`, adds them to `.gitignore`, and configures the existing widget and agent CLI. The preview wildcard matches one hostname label under a domain you control. The endpoint is the **public API origin**, not a preview URL. For local development it may use HTTP localhost. Keep the generated owner key private.
+   This writes an editable `komo.config.ts`, a generated `.komo/client.js` browser helper, and private `.komo/node.env` / `.komo/owner-key` files. Commit the backend config; the helper and private files are ignored. The preview wildcard matches one hostname label under a domain you control. The endpoint is the **public API origin**, not a preview URL. For local development it may use HTTP localhost. Keep the generated owner key private.
 
 2. Provide a PostgreSQL database with a dedicated user allowed to create tables and triggers. Replace the `DATABASE_URL` and `GOOGLE_CLIENT_SECRET` placeholders in `.komo/node.env`. Add the printed `https://comments.example.com/auth/google/callback` URL to the Google OAuth client's authorized redirect URIs. In Cloud Run, supply the same variables through service configuration and a secret store. Do not commit the environment file. The Node runtime does not enable hosted provisioning (`KOMO_HOSTED`).
 
-3. Build this repository's image with `docker build -f Dockerfile.node -t komo-node .`. Run it with the generated variables and HTTPS in front. For a local check, set `PUBLIC_URL=http://localhost:8080` in `.komo/node.env` and run `docker run --env-file /path/to/your-website/.komo/node.env -p 8080:8080 komo-node`. For Cloud Run, set the container port to 8080. Cloud SQL or another reachable PostgreSQL service can be used through `DATABASE_URL`; the database connection URL must be reachable from the container. Startup applies the bundled schema under a database lock. `/health` returns `{"ok":true}` after migrations succeed.
+3. Run the installed package with the generated environment file:
+
+   ```sh
+   node --env-file=.komo/node.env node_modules/@tjcages/komo/cli/index.mjs serve
+   ```
+
+   With variables supplied by your deployment platform, use `pnpm exec komo serve`. Node loads `komo.config.ts` from the working directory; `KOMO_CONFIG=/absolute/path/komo.config.ts` selects an explicit file. TypeScript and relative imports work on Node 22.12 and later. A missing default file keeps the existing environment-only setup; a missing explicit file or invalid config fails startup.
+
+   For a container, install the package in your own deployment directory and copy the backend config into the image. No fork is required:
+
+   ```dockerfile
+   FROM node:22-slim
+   WORKDIR /app
+   RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
+   COPY package.json pnpm-lock.yaml ./
+   RUN pnpm install --prod --frozen-lockfile
+   COPY komo.config.ts ./
+   USER node
+   EXPOSE 8080
+   CMD ["node", "node_modules/@tjcages/komo/cli/index.mjs", "serve"]
+   ```
+
+   Include any modules imported by your config. Run with `docker run --env-file .komo/node.env -p 8080:8080 YOUR_IMAGE` and HTTPS in front. For Cloud Run, set the container port to 8080 and supply secrets through service configuration. The repository's existing `Dockerfile.node` also works; mount your config into it and set `KOMO_CONFIG` to the mounted path. Cloud SQL or another reachable PostgreSQL service can be used through `DATABASE_URL`. Startup applies the bundled schema under a database lock. `/health` returns `{"ok":true}` after migrations succeed.
 
 4. Open the owner-claim URL printed by `komo init --node` and sign in with Google. The setup page claims ownership once; the owner can then manage approved sites and private access. The generated widget config contains your project key. Use the same project key and branch in the bot CLI.
 

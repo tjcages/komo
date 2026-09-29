@@ -65,14 +65,16 @@ beforeAll(async () => {
     await readFile(new URL("../server/wrangler.jsonc", import.meta.url), "utf8")
   );
   config.name = "comments-test";
-  const apiPath = fileURLToPath(new URL("../server/index.ts", import.meta.url));
+  const apiPath = fileURLToPath(new URL("../server/configured-worker.ts", import.meta.url));
   config.main = join(directory, "worker.ts");
   // Mock only Google's upstream responses in the test Worker; exercise the real
   // OAuth callback, state cookie, database provisioning and scoped session code.
   await writeFile(
     config.main,
     `
-    import api from ${JSON.stringify(apiPath)};
+    import { createKomoServer } from ${JSON.stringify(apiPath)};
+    import backend from "./komo.config";
+    const api = createKomoServer(backend);
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (input, init) => {
       const url = String(input);
@@ -109,6 +111,9 @@ beforeAll(async () => {
     },
   });
   config.vars.KOMO_HOSTED = "true";
+  await writeFile(join(directory, "komo.config.ts"), `export default { projects: ${config.vars.PROJECTS} };`);
+  // File-owned projects must take precedence over legacy environment settings.
+  config.vars.PROJECTS = "{}";
   config.vars.GOOGLE_CLIENT_ID = "fixture-client";
   config.vars.GOOGLE_CLIENT_SECRET = "fixture-secret-not-a-real-credential";
   config.d1_databases = [

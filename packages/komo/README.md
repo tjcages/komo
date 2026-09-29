@@ -184,7 +184,13 @@ Install komo in your project, then run:
 pnpm exec komo init --self-host --origin https://preview.example.com
 ```
 
-The CLI signs into Cloudflare, creates a dedicated D1 database, applies migrations, deploys a Worker, and prompts for the Google client secret through Wrangler. It writes the deployment configuration into `.komo/` so you own and can change it.
+The CLI signs into Cloudflare, creates a dedicated D1 database, applies migrations, deploys a Worker, and prompts for the Google client secret through Wrangler. It writes editable backend settings to `komo.config.ts`, infrastructure settings to `.komo/wrangler.json`, and a public widget helper to `.komo/client.js`. Commit the backend config; the generated helper and secrets are ignored.
+
+```js
+// In your website, after hydration:
+import { initKomo } from './.komo/client.js';
+initKomo();
+```
 
 Create a Google OAuth **Web application** client with `openid profile email` access. Pass its public client ID with `--google-client-id`, or enter it when prompted. Add the callback printed after deployment:
 
@@ -199,6 +205,48 @@ If setup is interrupted, run `pnpm exec komo deploy` to resume the existing depl
 Self-hosted storage belongs to your Cloudflare account; its service limits and charges apply. Use `komo deploy` for package migrations and `komo project export` for feedback backups. The hosted service and self-hosted installations use separate databases.
 
 For a Node container with PostgreSQL (including Cloud Run), use the [Node self-hosting guide](./NODE.md). It uses the same `endpoint`, project configuration, and CLI commands without Wrangler. Existing Worker installations do not change.
+
+### Backend config
+
+`komo.config.ts` belongs to the backend. Never import it into your website. The browser widget still uses its own public options and generated helper. Authentication behavior is unchanged; custom auth plugins are not supported yet.
+
+```ts
+import { defineKomoConfig } from '@tjcages/komo/config';
+
+export default defineKomoConfig({
+  projects: {
+    review: {
+      repo: 'your-org/your-repo',
+      origins: ['https://your-site.com', 'https://pr-*.preview.example.com'],
+      allowGuests: true,
+      allowGuestResolve: true,
+      writesPerDay: 10000,
+    },
+  },
+  googleClientId: 'YOUR_PUBLIC_GOOGLE_CLIENT_ID',
+  // Node only; omit these on Workers:
+  publicUrl: 'https://comments.example.com',
+  port: 8080,
+  proxyHops: 0,
+});
+```
+
+`projects` uses the existing backend project settings: `repo`, `origins`, `allowGuests`, `allowGuestResolve`, `requireOwner`, `bootstrapHash`, `suspended`, `writesPerDay`, and `retainedCommentsPerUser`. Keep the project key and generated `requireOwner` / `bootstrapHash` settings when moving an existing installation; the example above does not create an owner claim. Set `retainedCommentsPerUser` to zero to disable pruning. Owner-managed approved-site changes continue to apply over the configured origins.
+
+The file owns the entire project map: it replaces `PROJECTS`, without merging it. Environment variables `GOOGLE_CLIENT_ID` and `GITHUB_CLIENT_ID` override `googleClientId` and `githubClientId` when present, including empty strings. `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_SECRET`, and `DATABASE_URL` remain environment secrets. For Node, `PUBLIC_URL`, `PORT`, and `KOMO_PROXY_HOPS` override the corresponding file settings. Invalid file settings fail startup rather than silently falling back.
+
+New self-hosted setups generate this file once. `komo sync` only refreshes the browser helper; `komo deploy` applies migrations and redeploys without rewriting your backend config. Changing backend settings requires a redeploy on Workers or a restart on Node. The config is trusted executable server code, so keep it under your deployment's control.
+
+Existing environment-only deployments and `komo.config.js` browser helpers remain supported. To adopt the backend config on an existing Worker, copy the existing `PROJECTS` object into `projects` without changing keys or owner settings, and replace `.komo/index.ts` with:
+
+```ts
+import { createKomoServer } from '@tjcages/komo/server';
+import config from '../komo.config';
+
+export default createKomoServer(config);
+```
+
+Wrangler bundles the TypeScript config with the Worker; it is not a runtime file lookup. Remove redundant public client-ID variables from Wrangler if the file should supply them. Keep D1 bindings, routes, compatibility settings, and secrets in Wrangler. You can retain the old browser helper or move it to `.komo/client.js` and update its imports; `komo sync` preserves an existing `komo.config.js` helper.
 
 ## Configuration
 

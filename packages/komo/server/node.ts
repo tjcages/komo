@@ -4,12 +4,18 @@ import { isIP } from "node:net";
 import { postgresDatabase } from "./postgres";
 import worker from "./index";
 import { sitePattern } from "./validation";
+import { loadKomoServerConfig } from "./node-config";
 
+const config = await loadKomoServerConfig();
 const databaseUrl = process.env.DATABASE_URL;
-const projects = process.env.PROJECTS;
-const publicUrl = process.env.PUBLIC_URL;
+const projects = config
+  ? JSON.stringify(config.projects)
+  : process.env.PROJECTS;
+const publicUrl = process.env.PUBLIC_URL ?? config?.publicUrl;
 if (!databaseUrl || !projects || !publicUrl)
-  throw Error("DATABASE_URL, PUBLIC_URL, and PROJECTS are required");
+  throw Error(
+    "DATABASE_URL, PUBLIC_URL (or config.publicUrl), and PROJECTS (or config.projects) are required",
+  );
 const origin = new URL(publicUrl);
 if (
   origin.origin !== publicUrl ||
@@ -24,18 +30,19 @@ const configured = JSON.parse(projects) as Record<
   { repo?: unknown; origins?: unknown }
 >;
 if (
-  !configured ||
-  typeof configured !== "object" ||
-  Array.isArray(configured) ||
-  Object.values(configured).some(
-    (project) =>
-      !project ||
-      typeof project.repo !== "string" ||
-      !Array.isArray(project.origins) ||
-      project.origins.some(
-        (site) => typeof site !== "string" || sitePattern(site) !== site,
-      ),
-  )
+  !config &&
+  (!configured ||
+    typeof configured !== "object" ||
+    Array.isArray(configured) ||
+    Object.values(configured).some(
+      (project) =>
+        !project ||
+        typeof project.repo !== "string" ||
+        !Array.isArray(project.origins) ||
+        project.origins.some(
+          (site) => typeof site !== "string" || sitePattern(site) !== site,
+        ),
+    ))
 ) {
   throw Error("PROJECTS must map project keys to repo and origins");
 }
@@ -44,12 +51,14 @@ await db.migrate();
 const env = {
   DB: db,
   PROJECTS: projects,
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "",
+  GOOGLE_CLIENT_ID:
+    process.env.GOOGLE_CLIENT_ID ?? config?.googleClientId ?? "",
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? "",
-  GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ?? "",
+  GITHUB_CLIENT_ID:
+    process.env.GITHUB_CLIENT_ID ?? config?.githubClientId ?? "",
   GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET ?? "",
 } as unknown as Env;
-const port = Number(process.env.PORT ?? 8080);
+const port = Number(process.env.PORT ?? config?.port ?? 8080);
 if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw Error("Invalid PORT");
 const server = createServer(async (incoming, outgoing) => {
@@ -66,7 +75,9 @@ const server = createServer(async (incoming, outgoing) => {
         headers.set(name, Array.isArray(value) ? value.join(", ") : value);
     }
     // Ignore client-supplied Cloudflare IP headers. The API uses this trusted value for rate limits.
-    const proxyHops = Number(process.env.KOMO_PROXY_HOPS ?? 0);
+    const proxyHops = Number(
+      process.env.KOMO_PROXY_HOPS ?? config?.proxyHops ?? 0,
+    );
     if (!Number.isInteger(proxyHops) || proxyHops < 0 || proxyHops > 8)
       throw Error("Invalid KOMO_PROXY_HOPS");
     const forwardedHeader = incoming.headers["x-forwarded-for"];

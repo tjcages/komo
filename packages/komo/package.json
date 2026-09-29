@@ -7,6 +7,9 @@
   "files": [
     "dist",
     "server/index.ts",
+    "server/configured-worker.ts",
+    "server/komo-config.ts",
+    "src/server-config.ts",
     "server/validation.ts",
     "server/migrations",
     "server/tsconfig.json",
@@ -38,7 +41,11 @@
       "types": "./dist/setup.d.ts",
       "import": "./dist/setup.js"
     },
-    "./server": "./server/index.ts",
+    "./server": "./server/configured-worker.ts",
+    "./config": {
+      "types": "./dist/server-config.d.ts",
+      "import": "./dist/server-config.js"
+    },
     "./react": {
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
@@ -54,7 +61,7 @@
   "scripts": {
     "build": "node scripts/build.mjs && pnpm run build:setup && pnpm run build:node",
     "prepack": "pnpm run build",
-    "typecheck": "wrangler types --config server/wrangler.jsonc server/worker-configuration.d.ts && tsc -p tsconfig.json --noEmit && tsc -p server/tsconfig.json",
+    "typecheck": "wrangler types --strict-vars false --config server/wrangler.jsonc server/worker-configuration.d.ts && tsc -p tsconfig.json --noEmit && tsc -p server/tsconfig.json",
     "test": "pnpm run build:setup && vitest run --config vitest.config.ts",
     "dev:api": "wrangler dev --config server/wrangler.jsonc --port 8788",
     "migrate:local": "wrangler d1 migrations apply DB --local --config server/wrangler.jsonc",
@@ -94,6 +101,7 @@
   },
   "dependencies": {
     "emoji-regex": "^10.6.0",
+    "jiti": "^2.7.0",
     "pg": "^8.23.0"
   },
   "bin": {
