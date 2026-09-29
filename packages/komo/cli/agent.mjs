@@ -9,10 +9,12 @@ import {
   stat,
 } from "node:fs/promises";
 import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { branchName, findSettings } from "./config.mjs";
 import { agentWorkflow, agentPrompt } from "../dist/agent-prompt.js";
 
@@ -64,6 +66,7 @@ Agent commands:
   komo comments watch --local  Wait for local notes; prints one JSON line
   komo comments wait --local   Wait for sent notes without claiming; prints notes N
   komo mcp                   Local agent mode MCP server on stdio
+  komo mcp setup             Register this installation in Claude Code (opt-in)
   komo agents setup          Install the default workflow in AGENTS.md
   komo schema                Machine-readable command reference
 
@@ -518,6 +521,32 @@ async function login(config, path, flags) {
   }
 }
 
+const execFileAsync = promisify(execFile);
+async function setupMcp(env) {
+  const cli = fileURLToPath(new URL("./index.mjs", import.meta.url));
+  const bundle = fileURLToPath(new URL("../dist/local.mjs", import.meta.url));
+  try {
+    await stat(bundle);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    throw Error("This komo installation has no local MCP bundle. Build and install this fork's package before running komo mcp setup.");
+  }
+  try {
+    await execFileAsync("claude", ["mcp", "add", "--scope", "user", "komo", "--", process.execPath, cli, "mcp"], {
+      env,
+      timeout: 30000,
+      maxBuffer: 16384,
+    });
+  } catch (error) {
+    if (error.code === "ENOENT")
+      throw Error("Claude Code is not on PATH. Install its CLI, then run komo mcp setup again.");
+    if (/already (?:exists|registered|configured)|duplicate/i.test(`${error.stdout || ""}\n${error.stderr || ""}`))
+      throw Error("A user-scope komo MCP entry already exists. Inspect and remove it deliberately before running komo mcp setup again; this command never replaces it.");
+    throw Error("Claude Code could not register the user-scope komo MCP server. Check its installation and MCP configuration, then run komo mcp setup again.");
+  }
+  console.log(JSON.stringify({ ok: true, data: { registered: "komo", scope: "user", note: "Restart Claude Code to load the MCP tools. A local or project registration may override this user entry." } }));
+}
+
 export async function runAgent(
   args,
   { cwd = process.cwd(), env = process.env } = {}
@@ -525,8 +554,10 @@ export async function runAgent(
   const { flags, positional } = parse(args);
   const [command, action = "list", threadId, commentId] = positional;
   if (command === "mcp") {
+    if (action === "setup" && positional.length === 2 && !Object.keys(flags).length)
+      return setupMcp(env);
     if (positional.length !== 1 || Object.keys(flags).length)
-      throw Error("komo mcp takes no arguments.");
+      throw Error("Use komo mcp or komo mcp setup (without options).");
     await runMcp({ cwd, env });
     // Signals and a closed stdin end the server; nothing else may keep it up.
     process.exit(0);
@@ -559,6 +590,7 @@ export async function runAgent(
           overrides: ["--endpoint", "--origin", "--repo", "--branch"],
           body: ["--body", "--body-file", "--body-file -"],
           setup: "komo agents setup",
+          mcp: { serve: "komo mcp", setup: "komo mcp setup (opt-in Claude Code user registration)" },
           local:
             "komo mcp serves local agent mode over stdio; komo comments watch|wait|get|reply|resolve|reopen --local work on the local store",
           project: projectHelp,

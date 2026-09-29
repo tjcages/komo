@@ -18,7 +18,7 @@ npm install @tjcages/komo
 npx @tjcages/komo init
 ```
 
-Requires Node.js 22 or newer. The unscoped `komo` package on npm is unrelated; use `@tjcages/komo`.
+Requires Node.js 22.13 or newer. The unscoped `komo` package on npm is unrelated; use `@tjcages/komo`.
 
 The setup command detects your Git repository, creates a project, and asks you to sign in with Google. It prints a public project key and a ready-to-paste inline configuration. It also saves settings to `.komo/project.json` and generates an optional `komo.config.js` helper.
 
@@ -120,7 +120,16 @@ Suggested agent workflow: list open threads, read a thread, inspect the reposito
 
 ## Local agent mode
 
-Send comments from a local page straight to a coding agent on your machine. Each agent session runs `komo mcp`, a private komo backend on `127.0.0.1:4848`, and the dock’s **Send to** menu switches the dock between your team and a watching agent. See [Local agent mode](packages/komo/README.md#local-agent-mode) for setup, tools, and the security model.
+Send comments from a local page straight to a coding agent on your machine. Each agent session runs `komo mcp`, a private komo backend on `127.0.0.1:4848`, and the dock’s **Send to** menu switches the dock between your team and a watching agent. This source fork includes local agent mode; the published package does not yet include it. Use Node.js 22.13 or newer. From this checkout, install the same tarball in your app for both the widget and MCP CLI:
+
+```sh
+pnpm --dir packages/komo pack --pack-destination /path/to/your-app
+cd /path/to/your-app
+pnpm add ./tjcages-komo-0.6.0.tgz
+pnpm exec komo mcp setup
+```
+
+`komo mcp setup` opts into user-scope Claude Code registration; installation alone never registers it. Restart Claude Code afterward. An existing user entry is not replaced, and a local or project entry can override it. To use no hosted login, set a project in `.komo/project.json` and mount `initKomo({ project: 'YOUR_PROJECT_KEY', repo: 'owner/repo', local: { agentsOnly: true } })`. Open your local page, select the agent in **Send to**, leave comments, press **Send**, and ask the agent to watch. See [Local agent mode](packages/komo/README.md#local-agent-mode) for full setup, tools, and the security model.
 
 ## How it works
 
@@ -262,7 +271,7 @@ Choose **Copy all comments for agent** to copy open feedback across the configur
 
 ## Development
 
-Requires Node.js 22+, a modern browser, and Cloudflare access for deployment.
+Requires Node.js 22.13+, a modern browser, and Cloudflare access for deployment.
 
 ```sh
 pnpm --filter @tjcages/komo typecheck

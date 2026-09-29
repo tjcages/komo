@@ -8,6 +8,7 @@ import {
   readFile,
   rm,
   readdir,
+  realpath,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -32,17 +33,56 @@ try {
   );
   await writeFile(
     join(root, "package.json"),
-    JSON.stringify({ private: true, type: "module" }),
+    JSON.stringify({
+      private: true,
+      type: "module",
+      packageManager: "pnpm@10.33.3",
+    }),
   );
-  run("npm", [
-    "install",
-    "--ignore-scripts",
-    "--no-audit",
-    "--no-fund",
-    join(root, packed.filename),
-  ]);
+  for (const required of ["cli/index.mjs", "cli/agent.mjs", "dist/local.mjs"])
+    assert.ok(
+      packed.files.some((file) => file.path === required),
+      `Tarball is missing ${required}`,
+    );
+  await mkdir(join(root, "bin"));
+  const claudeCalls = join(root, "claude-calls.jsonl");
+  await writeFile(
+    join(root, "bin/claude"),
+    `#!${process.execPath}
+    import fs from 'node:fs';
+    const args = process.argv.slice(2);
+    fs.appendFileSync(${JSON.stringify(claudeCalls)}, JSON.stringify(args)+'\\n');
+    if (fs.existsSync(${JSON.stringify(join(root, "claude-registered"))})) {
+      console.error('User-scope komo already exists. private-config-must-not-appear');
+      process.exitCode = 1;
+    } else fs.writeFileSync(${JSON.stringify(join(root, "claude-registered"))}, 'yes');
+  `,
+    { mode: 0o755 },
+  );
+  const env = {
+    ...process.env,
+    PATH: `${join(root, "bin")}:${process.env.PATH}`,
+  };
+  run(
+    process.env.KOMO_PACKAGE_INSTALLER || "pnpm",
+    ["add", join(root, packed.filename), "react@19.2.7", "react-dom@19.2.7"],
+    { env },
+  );
+  assert.deepEqual(
+    await readdir(join(root, "bin")),
+    ["claude"],
+    "install must not register MCP",
+  );
+  await assert.rejects(
+    readFile(claudeCalls),
+    { code: "ENOENT" },
+    "install must not invoke Claude Code",
+  );
   assert.match(
-    await readFile(join(root, "node_modules/@tjcages/komo/dist/react.js"), "utf8"),
+    await readFile(
+      join(root, "node_modules/@tjcages/komo/dist/react.js"),
+      "utf8",
+    ),
     /^['"]use client['"];?/,
     "React entry must preserve its client boundary after minification",
   );
@@ -84,7 +124,6 @@ try {
     "es2022,dom,dom.iterable",
     "consumer.ts",
   ]);
-  await mkdir(join(root, "bin"));
   // This executable is the only Wrangler runner: no login, provisioning, or deploy occurs.
   await writeFile(
     join(root, "bin/npx"),
@@ -103,10 +142,41 @@ try {
     { mode: 0o755 },
   );
   const cli = join(root, "node_modules/@tjcages/komo/cli/index.mjs");
-  const env = {
-    ...process.env,
-    PATH: `${join(root, "bin")}:${process.env.PATH}`,
-  };
+  const mcp = run(process.execPath, [cli, "mcp"], {
+    env: { ...env, KOMO_DATA_HOME: join(root, "data") },
+    input: `${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } })}\n`,
+  });
+  assert.equal(JSON.parse(mcp.trim()).result.serverInfo.name, "komo");
+  const setup = JSON.parse(
+    run(process.execPath, [cli, "mcp", "setup"], { env }),
+  );
+  assert.equal(setup.data.scope, "user");
+  assert.deepEqual(JSON.parse((await readFile(claudeCalls, "utf8")).trim()), [
+    "mcp",
+    "add",
+    "--scope",
+    "user",
+    "komo",
+    "--",
+    process.execPath,
+    await realpath(cli),
+    "mcp",
+  ]);
+  assert.throws(
+    () => run(process.execPath, [cli, "mcp", "setup"], { env, stdio: ["ignore", "pipe", "pipe"] }),
+    (error) => {
+      const output = String(error.stderr);
+      return (
+        output.includes("already exists") &&
+        !output.includes("private-config-must-not-appear")
+      );
+    },
+    "duplicate must be refused without disclosing Claude output",
+  );
+  assert.equal(
+    (await readFile(claudeCalls, "utf8")).trim().split("\n").length,
+    2,
+  );
   run(
     process.execPath,
     [
