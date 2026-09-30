@@ -3,9 +3,11 @@ import type { Anchor } from "./types.js";
 export type QueuedNote = {
   operation: string;
   scope: string;
+  endpoint?: string;
   page: string;
   anchor: Anchor;
   body: string;
+  createdAt?: number;
   handoff?: { endpoint: string; branch: string; thread: string };
 };
 
@@ -33,6 +35,12 @@ async function transaction<T>(mode: IDBTransactionMode, work: (store: IDBObjectS
 
 export const putNote = (note: QueuedNote) => transaction<void>("readwrite", (store) => { store.put(note); });
 export const removeNote = (operation: string) => transaction<void>("readwrite", (store) => { store.delete(operation); });
+export const withNoteLock = <T>(operation: string, work: () => Promise<T>): Promise<T> =>
+  navigator.locks?.request(`komo-outbox:${operation}`, work) ?? work();
+export const getNote = (operation: string) => transaction<QueuedNote | undefined>("readonly", (store, done) => {
+  const request = store.get(operation);
+  request.onsuccess = () => done(request.result as QueuedNote | undefined);
+});
 export const listNotes = (scope: string) => transaction<QueuedNote[]>("readonly", (store, done) => {
   const request = store.getAll();
   request.onsuccess = () => done((request.result as QueuedNote[]).filter((note) => note.scope === scope));

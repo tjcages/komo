@@ -1,4 +1,4 @@
-import { chmodSync, closeSync, mkdirSync, openSync } from "node:fs";
+import { chmodSync, closeSync, mkdirSync, openSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
@@ -195,8 +195,10 @@ function useWal(database: DatabaseSync) {
 export function openStore(path = storePath()): DatabaseSync {
   const { DatabaseSync } = sqlite();
   const directory = dirname(path);
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  chmodSync(directory, 0o700);
+  const created = mkdirSync(directory, { recursive: true, mode: 0o700 });
+  if (created) chmodSync(directory, 0o700);
+  if (statSync(directory).mode & 0o022)
+    throw Error("The local data directory is writable by other users. Restrict its permissions or set KOMO_DATA_HOME to a private directory.");
   // Create the file 0600 before SQLite opens it; its WAL files copy the mode.
   closeSync(openSync(path, "a", 0o600));
   chmodSync(path, 0o600);

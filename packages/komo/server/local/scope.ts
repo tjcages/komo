@@ -113,6 +113,8 @@ export async function resolveScope(
     env.KOMO_BRANCH ||
     (settings.scope === "branch" ? branchName(env, configDirectory) : "shared");
   if (!branch) throw Error("Cannot detect the git branch. Set KOMO_BRANCH.");
+  if (branch === "komo-queued")
+    throw Error("komo-queued is reserved for notes awaiting Send. Set KOMO_BRANCH to another branch.");
   const root = realpathSync(
     gitValue(["rev-parse", "--show-toplevel"], start) || configDirectory,
   );

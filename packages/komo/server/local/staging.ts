@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { LocalKomo } from "./index";
 import { openProbe } from "./store";
-import { sendChannel, sendCounts } from "./activity";
+import { sendChannel, tombstone } from "./activity";
 
 export const queuedBranch = "komo-queued";
 const operationPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -35,11 +35,10 @@ export function validateStage(input: StageInput) {
 }
 
 function count(db: DatabaseSync, scope: Scope) {
-  const staged = sendCounts(db, { ...scope, branch: queuedBranch }).held;
-  const stagedRows = db.prepare(
-    "SELECT COUNT(*) AS count FROM threads WHERE project=? AND repo=? AND branch=? AND resolved=0"
-  ).get(scope.project, scope.repo, queuedBranch) as { count: number };
-  return Math.max(staged, Number(stagedRows.count));
+  const row = db.prepare(
+    "SELECT COUNT(*) AS count FROM threads WHERE project=? AND repo=? AND branch=? AND resolved=0 AND EXISTS (SELECT 1 FROM comments WHERE thread_id=threads.id AND body<>?)"
+  ).get(scope.project, scope.repo, queuedBranch, tombstone) as { count: number };
+  return Number(row.count);
 }
 
 export function pending(db: DatabaseSync, scope: Scope) {
@@ -119,8 +118,8 @@ export function release(db: DatabaseSync, scope: Scope, target: string) {
     throw Object.assign(Error("Choose a local agent before sending notes."), { status: 404 });
   db.exec("BEGIN IMMEDIATE");
   try {
-    const moved = db.prepare("UPDATE threads SET branch=?,updated_at=? WHERE project=? AND repo=? AND branch=? AND resolved=0")
-      .run(target, Date.now(), scope.project, scope.repo, queuedBranch);
+    const moved = db.prepare("UPDATE threads SET branch=?,updated_at=? WHERE project=? AND repo=? AND branch=? AND resolved=0 AND EXISTS (SELECT 1 FROM comments WHERE thread_id=threads.id AND body<>?)")
+      .run(target, Date.now(), scope.project, scope.repo, queuedBranch, tombstone);
     if (moved.changes)
       for (const branch of [queuedBranch, target])
         db.prepare("INSERT INTO scope_revisions(project,repo,branch,version) VALUES(?,?,?,1) ON CONFLICT(project,repo,branch) DO UPDATE SET version=version+1")

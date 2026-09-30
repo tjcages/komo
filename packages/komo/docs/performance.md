@@ -1,6 +1,6 @@
 # Performance audit — 2026-09-16
 
-Baseline: commit `95fa3c83`. All functionality and animation paths remain available.
+Historical measurement at baseline commit `95fa3c83`. These figures are not current package sizes or current build limits. All functionality and animation paths remained available in the measured revision.
 
 ## Size
 
@@ -14,7 +14,7 @@ Production ESM consumer build, esbuild splitting enabled; decimal bytes. Initial
 | npm archive | 347,950 | 341,808 |
 | Installed dependencies, KiB | 41,552 | 28,852 |
 
-The install comparison uses the same package artifact with and without the three former runtime dependencies. This isolates their disk cost: 30.6% less. The archive itself is only 1.8% smaller; unpacked package size is approximately unchanged. React, React DOM, and the official icon package remain dependencies. Bundlers can share React with the host application.
+The historical install comparison used the same package artifact with and without three former runtime dependencies. This isolated their disk cost at the time: 30.6% less. The archive was 1.8% smaller; unpacked package size was approximately unchanged. The current package declares React and React DOM as peers, and the official icon package as a development dependency. Read `package.json` and run the size command for the current package.
 
 The accent picker loads on demand. CSS and published JavaScript are minified. Motion and picker code ship as bundled chunks, avoiding installation of their full development trees. Bundled dependency licenses ship in `dist/THIRD_PARTY_NOTICES.txt`. Icons still come from the official dependency.
 
@@ -45,4 +45,4 @@ pnpm --filter @tjcages/komo bench
 
 Open the benchmark URL printed by the final command. Use `?mode=none` for the host-only control and `?mode=after&comments=0` for an empty project. To compare an older production ESM bundle, set `KOMO_BENCH_BASELINE` to its directory containing `index.js` and use `?mode=before`. Keep viewport, browser, hardware, and foreground state identical.
 
-The size command fails above 170,000 gzip bytes initially or 195,000 across all feature chunks. These budgets make future growth explicit. Benchmark files and build tooling do not ship in the npm archive.
+The current size command fails above 104,000 gzip bytes initially or 202,000 across all feature chunks. These budgets make future growth explicit. Benchmark files and build tooling do not ship in the npm archive.

@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import worker from "../index";
 import type { Thread } from "../../src/types";
 import { originAllowed } from "../validation";
-import { activity, sendCounts, tombstone } from "./activity";
+import { activity, sendChannel, sendCounts, tombstone } from "./activity";
 import { d1 } from "./d1";
 import { agentOrigin, localContext, localEnv } from "./env";
 import { listen, localPort, type Listener } from "./http";
@@ -261,6 +261,13 @@ export class LocalKomo {
     return this.exclusive(async () => release(this.database, { project, repo }, branch));
   }
 
+  /** Release only notes already on a channel when an older server lacks Send. */
+  releaseHeld(project: string, repo: string, branch: string) {
+    return this.exclusive(async () =>
+      sendChannel(this.database, { project, repo, branch }),
+    );
+  }
+
   /** A registered project's repository and allowed page origins. */
   project(project: string): ProjectConfig | undefined {
     return projectConfigs(this.database, project).get(project);
@@ -415,6 +422,7 @@ export class LocalAgent {
       !row ||
       row.project !== this.scope.project ||
       row.repo !== this.scope.repo ||
+      row.branch === "komo-queued" ||
       (row.branch !== this.scope.channel && row.branch !== this.scope.branch)
     )
       throw Error(`Thread ${threadId} is not in this agent's scope.`);

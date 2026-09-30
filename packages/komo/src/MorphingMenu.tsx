@@ -539,12 +539,15 @@ export function MorphingMenu({
         : undefined,
       "aria-controls": hasChildren ? `${id}-group-${item.id}` : undefined,
       "aria-disabled": item.disabled || undefined,
-      onClick: (event: React.MouseEvent<HTMLElement>) =>
-        hasChildren
-          ? open({ kind: "group", id: item.id }, item.id, event.detail === 0)
-          : item.disabled
-            ? item.onSelect?.()
-            : select(item),
+      onClick: (event: React.MouseEvent<HTMLElement>) => {
+        if (item.disabled) {
+          event.preventDefault();
+          return;
+        }
+        if (hasChildren)
+          open({ kind: "group", id: item.id }, item.id, event.detail === 0);
+        else select(item);
+      },
       onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
         if (inBar && event.pointerType === "mouse")
           showTooltip(event.currentTarget, item.label);

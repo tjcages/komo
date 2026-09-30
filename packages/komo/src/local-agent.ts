@@ -66,28 +66,24 @@ export async function watchingAgents(
   }
 }
 
-// Per host, so each local site or worktree keeps its own agent.
-const storageKey = (name: string, project: string) =>
-  `komo:${name}:${location.host}:${project}`;
+// Per site and local server, so a choice cannot target a different store.
+const storageKey = (project: string, endpoint: string) =>
+  `komo:send-to:${location.host}:${project}:${endpoint}`;
 
-function stored(name: string, project: string): string | null {
+export function store(project: string, endpoint: string, value: string) {
   try {
-    return localStorage.getItem(storageKey(name, project));
-  } catch {
-    return null;
-  }
-}
-
-export function store(name: string, project: string, value: string) {
-  try {
-    localStorage.setItem(storageKey(name, project), value);
+    localStorage.setItem(storageKey(project, endpoint), value);
   } catch {
     /* The value lasts for this page view. */
   }
 }
 
-/** "team", an agent channel, or null when this page has no saved choice. */
-export function savedChoice(project: string): string | null {
-  const value = stored("send-to", project);
-  return value === "team" || channel.test(value ?? "") ? value : null;
+/** An agent channel, or null when this page has no saved choice. */
+export function savedChoice(project: string, endpoint: string): string | null {
+  try {
+    const value = localStorage.getItem(storageKey(project, endpoint));
+    return channel.test(value ?? "") ? value : null;
+  } catch {
+    return null;
+  }
 }

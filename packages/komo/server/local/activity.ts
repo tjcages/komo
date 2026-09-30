@@ -68,8 +68,10 @@ export function activity(
         EXISTS(SELECT 1 FROM local_channels c WHERE c.channel=t.branch AND c.project=t.project AND c.repo=t.repo) AS channel,
         COALESCE(s.sent_revision,0) AS sent_revision
       FROM threads t
-      LEFT JOIN comments l ON l.id=(SELECT id FROM comments WHERE thread_id=t.id AND body<>?
-        ORDER BY created_at DESC,user_id IN (SELECT user_id FROM agents),id DESC LIMIT 1)
+      LEFT JOIN comments l ON l.id=(SELECT c.id FROM comments c
+        JOIN local_comment_revisions r ON r.comment_id=c.id
+        WHERE c.thread_id=t.id AND c.body<>?
+        ORDER BY r.revision DESC LIMIT 1)
       LEFT JOIN comments h ON h.id=(SELECT c.id FROM comments c
         JOIN local_comment_revisions r ON r.comment_id=c.id
         WHERE c.thread_id=t.id AND c.body<>? AND c.user_id NOT IN (SELECT user_id FROM agents)

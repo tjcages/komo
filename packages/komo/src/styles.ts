@@ -1233,8 +1233,6 @@ ${morphingMenuStyles}
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
-  scrollbar-width: thin;
-  scrollbar-color: #ffffff30 transparent;
 }
 .account {
   padding: 36px 24px 24px;
@@ -2264,19 +2262,12 @@ textarea {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  scrollbar-gutter: stable;
   box-sizing: border-box;
   /* Outdent by the card's 12px inset so comment text lines up with the header. */
   margin-inline: -12px;
   padding: 0 0 24px;
   -webkit-mask-image: none;
   mask-image: none;
-}
-:host([data-sidebar="edge"]) .edge-sidebar .panel .list[data-scrolling="true"],
-:host([data-sidebar="edge"]) .edge-sidebar .panel .list:hover {
-  scrollbar-color: #ffffff30 transparent;
 }
 :host([data-sidebar="edge"]) .edge-sidebar-sensor {
   position: fixed;

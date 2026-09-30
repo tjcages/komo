@@ -334,7 +334,7 @@ export class LocalSession {
     if (sendable !== false) return sendable;
     const { project, repo, channel } = agent.scope;
     if (this.komo.sendCounts(project, repo, channel).held)
-      await this.komo.send(project, repo, channel);
+      await this.komo.releaseHeld(project, repo, channel);
     return sendable;
   }
 

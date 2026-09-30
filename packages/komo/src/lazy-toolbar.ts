@@ -103,6 +103,7 @@ export function createToolbar(
         const control = button(
           item.label,
           () => {
+            if (item.disabled) return;
             item.onSelect?.();
             // A parent opens its group once the menu has loaded.
             void load().then(() => {

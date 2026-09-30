@@ -86,7 +86,9 @@ export function parseOrigins(value: unknown): string[] | undefined {
 }
 
 function scopeBranches(agent: LocalAgent) {
-  return [...new Set([agent.scope.channel, agent.scope.branch])];
+  return [...new Set([agent.scope.channel, agent.scope.branch])].filter(
+    (branch) => branch !== "komo-queued",
+  );
 }
 
 const iso = (time: number) => new Date(time).toISOString();
