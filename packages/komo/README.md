@@ -134,7 +134,7 @@ Until a release includes local agent mode, pack the package from this source che
 ```sh
 pnpm --dir packages/komo pack --pack-destination /path/to/your-app
 cd /path/to/your-app
-pnpm add ./tjcages-komo-0.6.0.tgz
+pnpm add ./tjcages-komo-0.7.0.tgz
 ```
 
 Keep the tarball as the app dependency until a published release includes local agent mode; a registry update to an older release removes it. With Claude Code installed, opt in once from the app directory:

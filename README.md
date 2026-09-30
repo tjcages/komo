@@ -123,7 +123,7 @@ On a local page, one dock shows Team threads beside notes for your local agent. 
 ```sh
 pnpm --dir packages/komo pack --pack-destination /path/to/your-app
 cd /path/to/your-app
-pnpm add ./tjcages-komo-0.6.0.tgz
+pnpm add ./tjcages-komo-0.7.0.tgz
 pnpm exec komo mcp setup
 ```
 
