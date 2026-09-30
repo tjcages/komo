@@ -212,6 +212,14 @@ small {
   content-visibility: auto;
   contain-intrinsic-block-size: auto 160px;
 }
+.thread-item > .card-agent {
+  position: absolute;
+  top: 8px;
+  right: 38px;
+  color: #555;
+  z-index: 1;
+}
+.thread-item > .card-agent[aria-pressed="true"] { color: #c7631e; }
 .thread-item > .card-resolve {
   position: absolute;
   top: 8px;

@@ -14,12 +14,12 @@ const channel = /^agent-[0-9a-f]{12}$/;
 export function localEndpoint(options: CommentsOptions): string | undefined {
   const { hostname } = location;
   if (
-    !options.local ||
+    options.local === false ||
     !(loopback.includes(hostname) || hostname.endsWith(".localhost"))
   )
     return;
   const endpoint = new URL(
-    (options.local !== true && options.local.endpoint) ||
+    (typeof options.local === "object" && options.local.endpoint) ||
       "http://127.0.0.1:4848",
   );
   if (

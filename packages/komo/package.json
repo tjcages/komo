@@ -19,6 +19,7 @@
     "src/page.ts",
     "NOTICE.md",
     "cli",
+    "skills/komo-watch/SKILL.md",
     "server/workspaces.ts",
     "server/setup-page.ts",
     "server/setup-client.txt",

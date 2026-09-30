@@ -127,7 +127,7 @@ Suggested agent workflow: list open threads, read a thread, inspect the reposito
 
 ## Local agent mode
 
-Send comments from a local page straight to a coding agent on your machine. Each agent session runs `komo mcp`, which serves a private komo backend at `http://127.0.0.1:4848`. The dock’s **Send to** menu switches the dock between your team and any agent that is watching. Comments to an agent wait until you press **Send**, so you can leave several and send them together. The agent then fixes each one, replies in the thread when it has a question, and resolves it when the change is made. No sign-in or hosted service is involved. Local agent mode needs Node.js 22.13 or newer, for `node:sqlite`.
+On a local page, one dock shows hosted Team threads and notes for a local agent. Each agent session runs `komo mcp`, which serves a local backend at `http://127.0.0.1:4848`. New local notes wait until you select an agent in **Send to** and press **Send**. A public Team thread can be marked for a one-way local copy; the agent's reply or resolution stays local and never changes the hosted original. Private Team handoff remains disabled until an approved transfer disclosure is available. Agent-only mode needs no hosted sign-in. Local agent mode needs Node.js 22.13 or newer, for `node:sqlite`.
 
 **Local agent mode is in this source fork, not yet in the published `@tjcages/komo` release.** From the fork checkout, pack it into the app directory and install that exact tarball in the app:
 
@@ -143,7 +143,7 @@ Keep this tarball as the app dependency; a registry update replaces the fork wit
 pnpm exec komo mcp setup
 ```
 
-This registers a user-scope `komo` MCP entry with absolute paths to this installed package and the current Node executable. It does not register during installation or `komo init`. It refuses an existing user-scope entry rather than replacing it; inspect and remove that entry yourself before trying again. A local or project entry with the same name can override the user entry. Restart Claude Code to expose the MCP tools. Any MCP client can run the installed `komo mcp` over stdio. Every agent session starts its own copy. Inside a komo project, the first copy serves the port and the others stand by; when the serving session ends, another takes the port over within five seconds. A session outside a komo project opens nothing until a tool call names a directory inside one.
+Install the optional `/komo-watch` skill for this project with `pnpm exec komo skills setup` from the app directory, or use `pnpm exec komo skills setup --user-scope` for a separate user-wide opt-in. The installer never replaces an existing skill. Invoke `/komo-watch` in a chat to start waiting; it does not start on installation. The MCP setup command registers a user-scope `komo` MCP entry with absolute paths to this installed package and the current Node executable. It does not register during installation or `komo init`. It refuses an existing user-scope entry rather than replacing it; inspect and remove that entry yourself before trying again. A local or project entry with the same name can override the user entry. Restart Claude Code to expose the MCP tools. Any MCP client can run the installed `komo mcp` over stdio. Every agent session starts its own copy. Inside a komo project, the first copy serves the port and the others stand by; when the serving session ends, another takes the port over within five seconds. A session outside a komo project opens nothing until a tool call names a directory inside one.
 
 To use local feedback without a hosted login, create `.komo/project.json` in the app with a stable project and repository name:
 
@@ -158,9 +158,9 @@ import { initKomo } from '@tjcages/komo';
 initKomo({ project: 'YOUR_PROJECT_KEY', repo: 'owner/repo', local: { agentsOnly: true } });
 ```
 
-`agentsOnly` shows only local agents; no hosted account or `komo init` is needed. For an app that also uses hosted feedback, keep its generated helper and call `initKomo({ local: true })` instead.
+`agentsOnly` skips hosted Team; no hosted account or `komo init` is needed. For an app that also uses hosted feedback, keep its generated helper; the combined dock appears automatically on a local page. Pass `local: false` to opt out of local mode.
 
-Use agent-only mode on `localhost`, `*.localhost`, `127.0.0.1`, or `[::1]` pages; it rejects other pages. The hosted-plus-local switch appears only on those pages; elsewhere `local: true` does nothing. Open **Send to** and choose an agent. Comments then go to that agent without sign-in: komo creates a guest for you on the first comment. In hosted-plus-local mode, **Team** returns to the hosted backend. komo remembers the choice for each site and project. If hosted komo refuses the local site and exactly one agent is watching, komo selects that agent.
+Use agent-only mode on `localhost`, `*.localhost`, `127.0.0.1`, or `[::1]` pages; it rejects other pages. The combined dock appears only on those pages; nonlocal pages keep hosted behavior. A new local comment queues without sign-in: komo creates a local guest when the service accepts it. Hosted Team comments stay on Team with their hosted account and access controls. The dock preserves the selected agent per site and project. If the local service is offline, the browser keeps a note in its persistent outbox and retries it when the service returns. The browser's storage remains local to that origin and can be lost if the site's data is cleared.
 
 Then ask the agent for watch mode. It calls `komo_status` once, runs the waiter command from its result in the background, and calls `komo_watch` each time the waiter reports notes:
 
@@ -177,7 +177,7 @@ Every tool accepts `directory`, the agent’s working directory. Its `.komo/proj
 
 ### Send
 
-With an agent selected in **Send to**, the dock shows **Send** with the number of comments that wait. A new comment, a reply, or an edit waits until you click **Send**. Send delivers every waiting comment for that agent, on every page of the site. While no comment waits, **Send** keeps its place in the dock and is disabled.
+The dock shows **Send** with the number of comments in the project queue. A new local note waits without an agent choice. Select the agent in **Send to**, then press **Send** to move the entire queue to that agent, across pages. Replies and edits on agent threads also wait for **Send**. An offline note persists in the browser until the service accepts it. The Send count stays visible while notes wait.
 
 Comments wait only on an agent’s own channel. A komo client without the switch has no Send, so its comments reach the agents at once. The dock hides Send when the process on the local port is an older komo without it. Then comments to an agent reach it at once, and `komo_status` returns `send: false` with a warning.
 
@@ -214,7 +214,7 @@ pnpm exec komo comments reply THREAD_ID --local --body "Brand blue or link blue?
 pnpm exec komo comments resolve THREAD_ID --local --body "Header uses the brand blue."
 ```
 
-`get` and `reopen` also accept `--local`. `watch` takes `--timeout`, `--batch`, and `--origins`. Every `--local` command takes `--directory`. `watch` and `get` print each thread's `version`; pass it to `reply` or `resolve` as `--version VERSION`. Without it, they check against the claim that the CLI took in that worktree, and fail when you wrote something the agent has not received. A failed `reply` or `resolve` prints its `code` in the error; after `changed` it also prints the current `thread` and its new `version`. The workflow that `komo agents setup` installs covers watch mode.
+`get` and `reopen` also accept `--local`. `watch` takes `--timeout`, `--batch`, and `--origins`. Every `--local` command takes `--directory`. `watch` and `get` print each thread's `version`; pass it to `reply` or `resolve` as `--version VERSION`. Without it, they check against the claim that the CLI took in that worktree, and fail when you wrote something the agent has not received. A failed `reply` or `resolve` prints its `code` in the error; after `changed` it also prints the current `thread` and its new `version`. The opt-in `/komo-watch` skill covers watch mode after `komo skills setup`; `komo agents setup` installs a CLI-only workflow.
 
 ### Scopes and origins
 
@@ -246,7 +246,7 @@ Every local comment is an instruction to a coding agent, so the local backend se
 - The project’s local origins then apply, like approved sites on hosted komo. The agent list, the Send count, and Send itself answer only those pages.
 - Request bodies are limited to 64 KiB, and the backend replaces any `CF-Connecting-IP` header a request sends.
 
-Any script on an allowed page can post comments and send them, including third-party scripts in your development build. With the default origins, every local page is allowed, so pages of other local projects can list a project’s watching agents, post comments to them, and send those comments. Narrow `local.origins` to pages you trust. Agents treat comment text as untrusted feedback, as in the hosted workflow.
+Any script on an allowed page can post comments and send them, including third-party scripts in your development build. With the default origins, every local page is allowed, so pages of other local projects can list a project’s watching agents, read local threads if they know the project key, post comments to them, and send those comments. A public Team handoff also becomes a local thread, visible to these allowed pages; the hosted access rules do not apply to its local copy. Narrow `local.origins` to pages you trust before copying Team content. Private Team handoff is blocked, not made safe by a broad local project. Agents treat comment text as untrusted feedback, as in the hosted workflow.
 
 Local comments stay in `~/.local/share/komo/local.sqlite`, readable only by your user; set `KOMO_DATA_HOME` to move it. They never sync with hosted komo. Set `KOMO_LOCAL_PORT` to use another port, and pass the same address as `local.endpoint`. The API’s usual rate limits apply.
 

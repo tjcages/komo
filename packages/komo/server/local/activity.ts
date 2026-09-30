@@ -133,8 +133,9 @@ export function sendCounts(
 export function sendChannel(
   database: DatabaseSync,
   scope: { project: string; repo: string; branch: string },
+  insideTransaction = false,
 ) {
-  database.exec("BEGIN IMMEDIATE");
+  if (!insideTransaction) database.exec("BEGIN IMMEDIATE");
   try {
     const released = sendCounts(database, scope).held;
     database
@@ -147,10 +148,10 @@ export function sendChannel(
       )
       .run(scope.project, scope.repo, scope.branch, Date.now());
     const counts = sendCounts(database, scope);
-    database.exec("COMMIT");
+    if (!insideTransaction) database.exec("COMMIT");
     return { released, ...counts };
   } catch (error) {
-    try {
+    if (!insideTransaction) try {
       database.exec("ROLLBACK");
     } catch {}
     throw error;

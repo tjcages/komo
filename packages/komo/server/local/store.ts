@@ -116,6 +116,29 @@ UPDATE local_sends SET sent_revision=COALESCE((
 ),0);
 `,
   },
+  {
+    name: "local/0004_staged_handoffs",
+    sql: `
+CREATE TABLE local_operations (
+  operation TEXT PRIMARY KEY,
+  project TEXT NOT NULL,
+  repo TEXT NOT NULL,
+  origin TEXT NOT NULL,
+  payload_hash TEXT NOT NULL,
+  thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE
+);
+CREATE TABLE local_handoffs (
+  endpoint TEXT NOT NULL,
+  project TEXT NOT NULL,
+  repo TEXT NOT NULL,
+  branch TEXT NOT NULL,
+  hosted_thread TEXT NOT NULL,
+  operation TEXT NOT NULL UNIQUE REFERENCES local_operations(operation) ON DELETE CASCADE,
+  local_thread TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE,
+  PRIMARY KEY(endpoint,project,repo,branch,hosted_thread)
+);
+`,
+  },
 ];
 
 /** The store file: $KOMO_DATA_HOME/local.sqlite, else ~/.local/share/komo. */

@@ -133,12 +133,15 @@ async function localRoute(
     return send(
       res,
       200,
-      { ok: true, local: true, send: true },
+      { ok: true, local: true, send: true, stage: true },
       origin ? { "Access-Control-Allow-Origin": origin } : {},
     );
   }
   const method = {
     "/local/agents": "GET",
+    "/local/branches": "GET",
+    "/local/handoffs": "GET",
+    "/local/stage": "POST",
     "/local/pending": "GET",
     "/local/send": "POST",
   }[url.pathname];
@@ -206,15 +209,40 @@ async function localRoute(
       { agents: komo.watchingAgents(scope.project, config.repo) },
       cors,
     );
+  if (url.pathname === "/local/branches")
+    return send(res, 200, komo.branches(scope.project, config.repo), cors);
+  if (url.pathname === "/local/handoffs") {
+    const endpoint = typeof fields.endpoint === "string" ? fields.endpoint : "";
+    const teamBranch = typeof fields.teamBranch === "string" ? fields.teamBranch : "";
+    if (endpoint.length > 500 || teamBranch.length > 200)
+      return send(res, 400, { error: "Invalid Team source." }, cors);
+    return send(res, 200, komo.handoffs(scope.project, config.repo, endpoint, teamBranch), cors);
+  }
+  if (url.pathname === "/local/pending") {
+    const target = typeof fields.target === "string" ? fields.target : "";
+    const queued = komo.queued(scope.project, config.repo);
+    const held = target && komo.isAgentChannel(scope.project, config.repo, target)
+      ? komo.sendCounts(scope.project, config.repo, target).held : 0;
+    return send(res, 200, { held: queued.held + held }, cors);
+  }
+  if (url.pathname === "/local/stage") {
+    try {
+      return send(res, 200, await komo.stageNote({
+        project: scope.project,
+        repo: config.repo,
+        operation: fields.operation as string,
+        page: fields.page as string,
+        anchor: fields.anchor,
+        body: fields.body as string,
+        handoff: fields.handoff as { endpoint: string; branch: string; thread: string } | undefined,
+      }, origin, req.headers.authorization), cors);
+    } catch (error) {
+      const reason = error as Error & { status?: number };
+      return send(res, reason.status ?? 500, { error: reason.status ? reason.message : "Could not queue the note. Try again." }, cors);
+    }
+  }
   if (!scope.branch || scope.branch.length > 200)
     return send(res, 400, { error: "Invalid branch." }, cors);
-  if (url.pathname === "/local/pending")
-    return send(
-      res,
-      200,
-      komo.sendCounts(scope.project, config.repo, scope.branch),
-      cors,
-    );
   // Only an agent channel holds notes. A stock client's branch has no Send.
   if (!komo.isAgentChannel(scope.project, config.repo, scope.branch))
     return send(

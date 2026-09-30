@@ -21,6 +21,7 @@ import { agentWorkflow, agentPrompt } from "../dist/agent-prompt.js";
 import { agentWatchWorkflow, installAgentWorkflow } from "./workflow.mjs";
 import { handOver, LocalSession } from "./local.mjs";
 import { runMcp } from "./mcp.mjs";
+import { installWatchSkill } from "./skills.mjs";
 
 const actions = {
   list: "List threads; defaults to open. --status open|resolved|all, --page /path, --limit 50, --offset 0",
@@ -51,6 +52,7 @@ export const agentCommands = [
   "agents",
   "project",
   "mcp",
+  "skills",
 ];
 export const agentHelp = `
 Agent commands:
@@ -67,6 +69,8 @@ Agent commands:
   komo comments wait --local   Wait for sent notes without claiming; prints notes N
   komo mcp                   Local agent mode MCP server on stdio
   komo mcp setup             Register this installation in Claude Code (opt-in)
+  komo skills setup          Install /komo-watch in this project's .claude/skills
+  komo skills setup --user-scope  Install /komo-watch for this user (opt-in)
   komo agents setup          Install the default workflow in AGENTS.md
   komo schema                Machine-readable command reference
 
@@ -94,7 +98,7 @@ Results are JSON except prompt (Markdown unless --json). Errors are JSON on stde
 `;
 
 function parse(args) {
-  const booleans = new Set(["--json", "--remove", "--no-open", "--local"]);
+  const booleans = new Set(["--json", "--remove", "--no-open", "--local", "--user-scope"]);
   const values = new Set([
     "--out",
     "--file",
@@ -562,6 +566,13 @@ export async function runAgent(
     // Signals and a closed stdin end the server; nothing else may keep it up.
     process.exit(0);
   }
+  if (command === "skills") {
+    if (action !== "setup" || positional.length !== 2 ||
+      Object.keys(flags).some((flag) => flag !== "user-scope"))
+      throw Error("Use komo skills setup [--user-scope].");
+    console.log(JSON.stringify({ ok: true, data: await installWatchSkill(cwd, env, !!flags["user-scope"]) }));
+    return;
+  }
   if (command === "agents") {
     if (
       action !== "setup" ||
@@ -591,6 +602,7 @@ export async function runAgent(
           body: ["--body", "--body-file", "--body-file -"],
           setup: "komo agents setup",
           mcp: { serve: "komo mcp", setup: "komo mcp setup (opt-in Claude Code user registration)" },
+          skills: { setup: "komo skills setup", userScope: "komo skills setup --user-scope", name: "komo-watch" },
           local:
             "komo mcp serves local agent mode over stdio; komo comments watch|wait|get|reply|resolve|reopen --local work on the local store",
           project: projectHelp,

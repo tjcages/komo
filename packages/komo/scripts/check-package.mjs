@@ -9,6 +9,7 @@ import {
   rm,
   readdir,
   realpath,
+  symlink,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -39,7 +40,7 @@ try {
       packageManager: "pnpm@10.33.3",
     }),
   );
-  for (const required of ["cli/index.mjs", "cli/agent.mjs", "dist/local.mjs"])
+  for (const required of ["cli/index.mjs", "cli/agent.mjs", "cli/skills.mjs", "skills/komo-watch/SKILL.md", "dist/local.mjs"])
     assert.ok(
       packed.files.some((file) => file.path === required),
       `Tarball is missing ${required}`,
@@ -68,6 +69,7 @@ try {
     ["add", join(root, packed.filename), "react@19.2.7", "react-dom@19.2.7"],
     { env },
   );
+  env.HOME = root;
   assert.deepEqual(
     await readdir(join(root, "bin")),
     ["claude"],
@@ -177,6 +179,22 @@ try {
     (await readFile(claudeCalls, "utf8")).trim().split("\n").length,
     2,
   );
+  const installedSkill = JSON.parse(run(process.execPath, [cli, "skills", "setup"], { env }));
+  assert.equal(await realpath(installedSkill.data.path), await realpath(join(root, ".claude/skills/komo-watch")));
+  assert.equal(await readFile(join(installedSkill.data.path, "SKILL.md"), "utf8"),
+    await readFile(join(root, "node_modules/@tjcages/komo/skills/komo-watch/SKILL.md"), "utf8"));
+  assert.throws(() => run(process.execPath, [cli, "skills", "setup"], { env, stdio: ["ignore", "pipe", "pipe"] }),
+    /already exists/, "setup must not overwrite a skill");
+  const home = join(root, "separate-home");
+  await mkdir(home);
+  const userSkill = JSON.parse(run(process.execPath, [cli, "skills", "setup", "--user-scope"], { env: { ...env, HOME: home } }));
+  assert.equal(await realpath(userSkill.data.path), await realpath(join(home, ".claude/skills/komo-watch")));
+  const blocked = join(root, "blocked-skill");
+  await mkdir(blocked);
+  await mkdir(join(blocked, ".claude"));
+  await symlink(join(root, ".claude/skills"), join(blocked, ".claude/skills"));
+  assert.throws(() => run(process.execPath, [cli, "skills", "setup"], { cwd: blocked, env, stdio: ["ignore", "pipe", "pipe"] }),
+    /not a directory/, "setup must refuse a symlinked skill parent");
   run(
     process.execPath,
     [

@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import worker from "../index";
 import type { Thread } from "../../src/types";
 import { originAllowed } from "../validation";
-import { activity, sendChannel, sendCounts, tombstone } from "./activity";
+import { activity, sendCounts, tombstone } from "./activity";
 import { d1 } from "./d1";
 import { agentOrigin, localContext, localEnv } from "./env";
 import { listen, localPort, type Listener } from "./http";
@@ -16,6 +16,7 @@ import {
 } from "./projects";
 import { resolveScope, type AgentScope } from "./scope";
 import { openProbe, openStore, storePath } from "./store";
+import { branches, handoffs, pending, release, stage, type StageInput } from "./staging";
 import { claimLease, claimOf, formatThread, type Holder } from "./watch";
 
 // Local agent mode: the unchanged komo Worker, run in Node over a SQLite file,
@@ -238,11 +239,26 @@ export class LocalKomo {
     return sendCounts(this.database, { project, repo, branch });
   }
 
-  /** Release every note held on an agent channel, on all its pages. */
+  /** New notes wait on a reserved branch until Send moves them to an agent. */
+  stageNote(input: StageInput, origin: string, token?: string) {
+    return stage(this, input, origin, token);
+  }
+
+  queued(project: string, repo: string) {
+    return pending(this.database, { project, repo });
+  }
+
+  branches(project: string, repo: string) {
+    return branches(this.database, { project, repo });
+  }
+
+  handoffs(project: string, repo: string, endpoint: string, branch: string) {
+    return handoffs(this.database, { project, repo }, endpoint, branch);
+  }
+
+  /** Transfer every queued note to a registered agent, then release atomically. */
   send(project: string, repo: string, branch: string) {
-    return this.exclusive(async () =>
-      sendChannel(this.database, { project, repo, branch }),
-    );
+    return this.exclusive(async () => release(this.database, { project, repo }, branch));
   }
 
   /** A registered project's repository and allowed page origins. */
