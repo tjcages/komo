@@ -9,7 +9,7 @@ initKomo({
     : undefined,
   sessionDomain: "off-brand.workers.dev",
   sessionEndpoint: "https://komo.offbr.co",
-  project: "komo-landing-demo",
+  project: "komo-github-demo",
   repo: "tjcages/komo",
   autoHideDrawer: false,
 });
