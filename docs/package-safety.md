@@ -1,6 +1,6 @@
 # Package integration and session safety
 
-Reviewed September 22, 2026 in PR #29. These safeguards are in the review build; npm publication and production API rollout are separate steps.
+Historical review of the 0.5.0 candidate on September 22, 2026 in PR #29. The evidence and package sizes below describe that candidate, not the current source build. npm publication and production API rollout were separate steps.
 
 ## Verified and fixed
 
@@ -24,10 +24,10 @@ Reviewed September 22, 2026 in PR #29. These safeguards are in the review build;
 
 ## Evidence
 
-All 205 tests across 32 files, build, typecheck, size and fresh packed-consumer gates pass. Real cookie-jar tests cover sibling/API/project isolation, explicit domain sharing, disabled storage, migration, scoped logout and shared-cookie logout. Lifecycle/queue tests cover stale teardown, scope changes, other-tab logout, focus reconciliation and late writes. Real Worker tests cover private/project/branch/author boundaries, imported actions, and fail-closed site-policy failures.
+At the time, all 205 tests across 32 files, build, typecheck, size and fresh packed-consumer gates passed. Real cookie-jar tests cover sibling/API/project isolation, explicit domain sharing, disabled storage, migration, scoped logout and shared-cookie logout. Lifecycle/queue tests cover stale teardown, scope changes, other-tab logout, focus reconciliation and late writes. Real Worker tests cover private/project/branch/author boundaries, imported actions, and fail-closed site-policy failures.
 
-Deployed Chrome checks confirm existing-account migration, repeated cached comments/account/open-sidebar reload, and automatic sign-in on a second explicitly trusted preview. No public feedback was posted or modified. Initial gzip is 96,964 bytes; all-feature gzip is 195,882 bytes, within unchanged budgets. Preview: https://refresh-ux-komo-site.off-brand.workers.dev/ (immutable https://0736a7a4-komo-site.off-brand.workers.dev/).
+Deployed Chrome checks confirmed existing-account migration, repeated cached comments/account/open-sidebar reload, and automatic sign-in on a second explicitly trusted preview. No public feedback was posted or modified. For that candidate, initial gzip was 96,964 bytes and all-feature gzip was 195,882 bytes, within the budgets at the time. Preview: https://refresh-ux-komo-site.off-brand.workers.dev/ (immutable https://0736a7a4-komo-site.off-brand.workers.dev/).
 
-Preview API dc6e8184-6918-492a-ac0f-612a567eb3bf receives 0% ordinary traffic and is explicitly selected by the preview gateway. Production remains b7b1f705-e8be-4ef4-a5af-b179caa110e1 at 100%. No production schema migration or npm publication was performed.
+During that review, preview API dc6e8184-6918-492a-ac0f-612a567eb3bf received 0% ordinary traffic and the preview gateway selected it explicitly. Production b7b1f705-e8be-4ef4-a5af-b179caa110e1 received 100%. No production schema migration or npm publication was performed in that review.
 
-The 0.5.0 candidate additionally passed real Chrome host-layout fixtures and deployed Floating/Frame reload checks, with no browser errors. Bundle headroom is only 118 gzip bytes for all features; budget limits were not raised. This is a validated release candidate, not a claim of completed device/accessibility QA or an approved production rollout. See [release steps](release-0.5.md).
+The 0.5.0 candidate additionally passed real Chrome host-layout fixtures and deployed Floating/Frame reload checks, with no browser errors. All-feature bundle headroom was 118 gzip bytes under that candidate’s budget; the limits have since changed. This was a validated release candidate, not a claim of completed device/accessibility QA or an approved production rollout. See [release steps](release-0.5.md).

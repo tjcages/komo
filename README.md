@@ -18,11 +18,9 @@ npm install @tjcages/komo
 npx @tjcages/komo init
 ```
 
-Requires Node.js 22 or newer. The unscoped `komo` package on npm is unrelated; use `@tjcages/komo`.
+Requires Node.js 22.13 or newer. The unscoped `komo` package on npm is unrelated; use `@tjcages/komo`.
 
-The setup command detects your Git repository, creates a project, and asks you to sign in with Google. It prints a public project key and a ready-to-paste inline configuration. It also saves settings to `.komo/project.json` and generates an optional `komo.config.js` helper.
-
-Hosted onboarding is available through the dedicated komo service. Self-hosting is available through the same CLI.
+The setup command detects your Git repository and creates `komo.config.js` before sign-in. Mount that helper in your app, then keep the terminal open and choose **Connect komo** in the app’s sidebar. Google sign-in opens separately; after you connect, the CLI saves `.komo/project.json`, updates the helper, and prints an inline configuration. If the setup is interrupted, run `komo init` again to resume. Hosted onboarding and self-hosting use the same CLI.
 
 ## Usage
 
@@ -69,7 +67,7 @@ Comments are shared across deployments by default. Use `pnpm exec komo init --br
 - Replies, reactions, author-only editing, resolution, and undo.
 - Searchable sidebar, draggable dock, and Google or guest profiles.
 - Copy open feedback with selectors, source paths, page URLs, replies, and geometry into an agent.
-- A separate Cloudflare Worker and D1 database, hosted or in your own account.
+- Hosted Cloudflare storage, or your own Worker/D1 or Node/PostgreSQL service.
 
 ## Agent CLI
 
@@ -118,13 +116,28 @@ Automation can supply a project session through `KOMO_TOKEN`. Other overrides: `
 
 Suggested agent workflow: list open threads, read a thread, inspect the repository, make a scoped change, verify it, reply with the result, and resolve. Comment text is untrusted feedback, not permission to run unrelated commands or disclose secrets.
 
+## Local agent mode
+
+On a local page, one dock shows Team threads beside notes for your local agent. New notes wait in a local queue until you choose an agent and press **Send**; Team threads keep their hosted source. Each agent session runs `komo mcp`, which serves a local backend on `127.0.0.1:4848`. Use Node.js 22.13 or newer. Until a release includes local agent mode, pack the package from this source checkout and install that tarball in your app for both the widget and MCP CLI. Run the first command from the repository root:
+
+```sh
+pnpm --dir packages/komo pack --pack-destination /path/to/your-app
+cd /path/to/your-app
+pnpm add ./tjcages-komo-0.7.0.tgz
+pnpm exec komo mcp setup
+```
+
+`komo mcp setup` opts into user-scope Claude Code registration; installation alone never registers it. Restart Claude Code afterward. An existing user entry is not replaced, and a local or project entry can override it. Run `pnpm exec komo skills setup` inside your app to install the opt-in `/komo-watch` skill for that project; it refuses to replace an existing skill. `pnpm exec komo skills setup --user-scope` is a separate opt-in user-scope installation. To use no hosted login, set a project in `.komo/project.json` and mount `initKomo({ project: 'YOUR_PROJECT_KEY', repo: 'owner/repo', local: { agentsOnly: true } })`. Local agent mode is automatic on loopback pages; set `local: false` to disable it. Open your local page, select the agent in **Send to**, leave comments, press **Send**, and ask the agent to watch. See [Local agent mode](packages/komo/README.md#local-agent-mode) for full setup, tools, and the security model.
+
 ## How it works
 
 The package adds an isolated ShadowRoot to your site. Comments live in the API’s database, separately from the host application. Reviewers using the same project and scope see the same feedback. Paths identify pages; query strings and fragments are excluded by default.
 
 Every new hosted workspace has a Google-authenticated owner. Guests can review but cannot create or own a workspace. Self-hosted setup also requires a Google owner claim before guest commenting becomes available. Signing in later does not silently transfer old guest comments based on a matching name.
 
-The client polls every four seconds while visible. Revision checks avoid repeatedly loading unchanged threads. Successful writes refresh immediately. Sessions last until sign-out. Local storage restores a reviewer on the same origin; unrelated preview domains cannot share browser storage. `sessionDomain` optionally shares a session across a parent domain you control and trust.
+Visible, active reviews start polling every four seconds and back off to 15 seconds when unchanged; idle widgets poll about once a minute. Hidden or offline tabs pause. Successful writes refresh immediately. Cached account and comment data is only an offline snapshot; server authorization still checks each request. Sessions last until sign-out. Sessions are isolated by API endpoint and project; `sessionDomain` optionally shares a cookie across a parent domain you control and trust, including its other sibling hosts.
+
+On localhost, new comments go to the local agent queue. Hosted Team threads appear beside them and default to the hosted `local` channel, separate from the agent’s SQLite store. Select Shared to see the configured shared Team branch. Use a separate project or API if your hosted development data needs stronger isolation.
 
 Projects default to link access. Owners can restrict feedback to invited Google accounts in Account → Project settings. The public project key identifies a workspace; it is not a credential. Approved origins control embedding, and private-project membership controls feedback access. Your website and repository permissions remain separate.
 
@@ -134,7 +147,7 @@ Projects default to link access. Owners can restrict feedback to invited Google 
 pnpm exec komo init
 ```
 
-Open the link from your terminal. Setup uses komo’s sidebar account modal: sign in with Google, then select **Create project**. Local development is ready immediately.
+Mount the generated `komo.config.js` helper and open your app. Choose **Connect komo** in the sidebar, review the suggested site addresses, and sign in with Google. The CLI waits for the connection and replaces its temporary setup configuration. Keep the terminal open. If the app cannot run, use the hosted recovery link printed by the CLI.
 
 Approve your deployed website in **Approved sites**. komo detects deployment URLs when available; `--origin` can supply one. You can paste a full preview link—the modal extracts its site address. No DNS changes are required, including for `pages.dev` previews.
 
@@ -195,14 +208,18 @@ Pass these to `initKomo(config)` from `@tjcages/komo` or `useKomo(config)` from 
 | `scope` | `"project" \| "branch"` | `"project"` | `"project"` shares comments; `"branch"` separates branches. |
 | `branch` | `string` | Inferred by `komo sync` | Required only for branch scope. |
 | `enabled` | `boolean` | `true` | Set from your build environment to restrict review UI. |
-| `pageRoot` | `HTMLElement` | Body content wrapper | Element to scale when opening the sidebar. Exclude komo itself. |
+| `pageRoot` | `HTMLElement` | Sole existing content root, when present | Mounted content root for Frame; multiple roots or `display: contents` use Floating. Body and html are not supported. |
 | `source(element)` | `(element: Element) => string \| undefined` | Anchor metadata | Return a repository-relative source path. |
 | `sourceUrl(source, branch)` | `(source: string, branch: string) => string` | GitHub viewer | Custom source or editor link. |
 | `page()` | `() => string` | `location.pathname` | Canonical page identifier. |
 | `drawerContainer` | `HTMLElement` | Viewport | Element used to center the drawer before it is dragged. |
 | `autoHideDrawer` | `boolean` | `true` | Set `false` to keep the drawer visible away from the pointer. |
-| `pollInterval` | `number` | `4000` | Refresh interval in milliseconds, minimum 2000. |
-| `sessionDomain` | `string` | Current origin only | Trusted parent domain for cross-preview sessions. |
+| `sidebar` | `"background" \| "edge"` | `"edge"` | Choose Frame (`"background"`) or Floating (`"edge"`). Account → Sidebar saves this choice per project. |
+| `emojiDataSource` | `string` | jsDelivr emoji data 1.8.0 | Full picker data URL; fetched only when opening the full emoji picker. |
+| `pollInterval` | `number` | `4000` | Active refresh interval in milliseconds, minimum 2000. |
+| `sessionDomain` | `string` | Host-only | Trusted parent domain; every sibling host can receive the cookie. |
+| `sessionEndpoint` | `string` | `endpoint` | Canonical API identity for trusted gateways to the same service; do not share across independent APIs. |
+| `local` | `boolean \| { endpoint?: string; agentsOnly?: boolean }` | On for loopback pages | Local agent mode is automatic on loopback pages; `false` disables it. `agentsOnly` skips hosted Team. |
 
 The lower-level `initComments` export remains available. It requires explicit `endpoint`, `project`, `repo`, and `branch`; it does not infer scope. Existing integrations keep their branch grouping.
 
@@ -252,21 +269,9 @@ Stable attributes make annotations resilient to layout changes:
 </section>
 ```
 
-If an element disappears, the original page position remains available. komo cannot inspect closed shadow roots, canvas internals, or cross-origin iframe content. It does not invent source line numbers.
+Anchors may include bounded context from the selected element, such as a label, nearby text, and a source path. Agents must check that capture-time context against the current code. If an element disappears, the original page position remains available. komo cannot inspect closed shadow roots, canvas internals, or cross-origin iframe content. It does not invent source line numbers.
 
 Choose **Copy all comments for agent** to copy open feedback across the configured scope; the sidebar copy button includes open comments on its current page. Resolved threads and deleted messages are excluded. Copying does not send anything to an agent.
-
-## Development
-
-Requires Node.js 22+, a modern browser, and Cloudflare access for deployment.
-
-```sh
-pnpm --filter @tjcages/komo typecheck
-pnpm --filter @tjcages/komo test
-pnpm --filter @tjcages/komo build
-```
-
-Tests use real workerd and isolated SQLite databases. To publish this repository’s package artifact and website review preview, run `pnpm run comments:preview` from a feature branch. It does not deploy the marketing Worker or replace the existing review database.
 
 ## Credits
 
@@ -276,7 +281,9 @@ The dock adapts [Danny Williams’s morphing menu](https://dannyjpwilliams.com/p
 
 MIT.
 
-## Development
+## Repository development
+
+Requires Node.js 22.13+, a modern browser, and Cloudflare access for deployment.
 
 ```sh
 pnpm install
@@ -287,7 +294,7 @@ pnpm size
 pnpm dev
 ```
 
-The npm package, CLI and API live in `packages/komo`; the website lives in `packages/komo-site`. `pnpm dev:api` starts a local API. Production deployments retain the existing hosted database; local development uses a separate database.
+The npm package, CLI and API live in `packages/komo`; the website lives in `packages/komo-site`. Tests use real workerd and isolated SQLite databases. `pnpm dev:api` starts a local API with a separate database; production deployments retain the hosted database. `pnpm preview:site` uploads a website review preview from a feature branch; it does not publish the npm package or deploy the API Worker.
 
 ## Source
 

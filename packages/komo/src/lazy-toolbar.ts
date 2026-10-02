@@ -1,12 +1,17 @@
-import type { MenuItem, MorphingMenuProps } from "./MorphingMenu.js";
+import type { MenuAction, MorphingMenuProps } from "./MorphingMenu.js";
 import { button, el, icon, type icons } from "./dom.js";
 import type { Identity } from "./types.js";
 
 export type ToolbarIcon =
-  | { glyph: keyof typeof icons }
+  | { glyph: keyof typeof icons; badge?: string }
   | { user: Identity | null };
-export type ToolbarItem = Omit<MenuItem, "icon" | "activeIcon" | "children"> & {
+export type ToolbarAction = Omit<MenuAction, "icon" | "activeIcon"> & {
   icon: ToolbarIcon;
+  activeIcon?: ToolbarIcon;
+};
+export type ToolbarItem = ToolbarAction & {
+  children?: readonly ToolbarAction[];
+  showInBar?: boolean;
 };
 export type ToolbarProps = Omit<MorphingMenuProps, "items"> & {
   items: readonly ToolbarItem[];
@@ -98,8 +103,17 @@ export function createToolbar(
         const control = button(
           item.label,
           () => {
+            if (item.disabled) return;
             item.onSelect?.();
-            void load();
+            // A parent opens its group once the menu has loaded.
+            void load().then(() => {
+              if (mounted && item.children?.length)
+                element
+                  .querySelector<HTMLButtonElement>(
+                    `[data-menu-item="${item.id}"]`,
+                  )
+                  ?.click();
+            });
           },
           "morphing-menu__shortcut",
         );
@@ -107,6 +121,7 @@ export function createToolbar(
         control.dataset.menuItem = item.id;
         if (item.id === props.activeId)
           control.setAttribute("aria-current", "page");
+        if (item.disabled) control.setAttribute("aria-disabled", "true");
         control.replaceChildren(glyph(item.id));
         bar.append(control);
       }

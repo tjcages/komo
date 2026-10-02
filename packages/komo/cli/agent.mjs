@@ -9,14 +9,19 @@ import {
   stat,
 } from "node:fs/promises";
 import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import { spawn } from "node:child_process";
-import { branchName } from "./config.mjs";
+import { spawn, execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { branchName, findSettings } from "./config.mjs";
 import { agentWorkflow, agentPrompt } from "../dist/agent-prompt.js";
 
-import { installAgentWorkflow } from "./workflow.mjs";
+import { agentWatchWorkflow, installAgentWorkflow } from "./workflow.mjs";
+import { handOver, LocalSession } from "./local.mjs";
+import { runMcp } from "./mcp.mjs";
+import { installWatchSkill } from "./skills.mjs";
 
 const actions = {
   list: "List threads; defaults to open. --status open|resolved|all, --page /path, --limit 50, --offset 0",
@@ -31,7 +36,13 @@ const actions = {
   react:
     "Set your reaction: react THREAD_ID COMMENT_ID --emoji EMOJI [--remove]",
   move: "Move a thread: move THREAD_ID --anchor-file FILE",
+  watch:
+    "Wait for notes in the local store and claim them: watch --local [--timeout 300] [--batch 3] [--origins LIST]",
+  wait:
+    "Wait for sent notes without claiming them, print notes N, and exit: wait --local [--directory DIR] [--origins LIST]",
 };
+/** Actions that also work on the local store with --local. */
+const localActions = ["watch", "wait", "get", "reply", "resolve", "reopen"];
 export const agentCommands = [
   "login",
   "logout",
@@ -40,6 +51,8 @@ export const agentCommands = [
   "schema",
   "agents",
   "project",
+  "mcp",
+  "skills",
 ];
 export const agentHelp = `
 Agent commands:
@@ -52,12 +65,20 @@ Agent commands:
   komo comments reply ID --body "Fixed; verified on mobile."
   komo comments resolve ID   Resolve after verification
   komo comments reopen ID    Reopen a thread
+  komo comments watch --local  Wait for local notes; prints one JSON line
+  komo comments wait --local   Wait for sent notes without claiming; prints notes N
+  komo mcp                   Local agent mode MCP server on stdio
+  komo mcp setup             Register this installation in Claude Code (opt-in)
+  komo skills setup          Install /komo-watch in this project's .claude/skills
+  komo skills setup --user-scope  Install /komo-watch for this user (opt-in)
   komo agents setup          Install the default workflow in AGENTS.md
   komo schema                Machine-readable command reference
 
 ${projectHelp}
 Default workflow:
 ${agentWorkflow}
+
+${agentWatchWorkflow}
 
 ${Object.entries(actions)
   .map(([name, description]) => `  ${name}: ${description}`)
@@ -66,12 +87,18 @@ ${Object.entries(actions)
 Settings: .komo/project.json (searched upward), or --project KEY.
 Overrides: --endpoint URL --origin SITE_URL --repo OWNER/REPO --branch NAME
 Bodies: --body TEXT, --body-file FILE, or --body-file - for stdin.
+Local agent mode: --local runs watch, get, reply, resolve and reopen on this
+machine's store (http://127.0.0.1:4848) with no sign-in. resolve --local takes
+an optional --body summary. watch and get --local print each thread's version;
+pass it as --version VERSION to reply or resolve --local. Without it, they
+check against this worktree's claim, and refuse when a person wrote something
+you have not received: the error prints the thread and its new version.
 Credentials: Google login, or KOMO_TOKEN for non-interactive use. Never commit tokens.
 Results are JSON except prompt (Markdown unless --json). Errors are JSON on stderr.
 `;
 
 function parse(args) {
-  const booleans = new Set(["--json", "--remove", "--no-open"]);
+  const booleans = new Set(["--json", "--remove", "--no-open", "--local", "--user-scope"]);
   const values = new Set([
     "--out",
     "--file",
@@ -93,6 +120,12 @@ function parse(args) {
     "--emoji",
     "--limit",
     "--offset",
+    "--timeout",
+    "--batch",
+    "--origins",
+    "--directory",
+    "--holder",
+    "--version",
   ]);
   const flags = {},
     positional = [];
@@ -129,20 +162,7 @@ function safeUrl(value, originOnly = false) {
   return originOnly ? url.origin : url.href.replace(/\/$/, "");
 }
 async function configuration(flags, cwd, env) {
-  let directory = cwd,
-    settings = {};
-  while (true) {
-    try {
-      settings = JSON.parse(
-        await readFile(join(directory, ".komo/project.json"), "utf8")
-      );
-      break;
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-    if (dirname(directory) === directory) break;
-    directory = dirname(directory);
-  }
+  const { directory, settings = {} } = await findSettings(cwd);
   const project = flags.project || env.KOMO_PROJECT || settings.project;
   if (!project)
     throw Error("Run komo init in this repository, or pass --project KEY.");
@@ -288,6 +308,116 @@ async function anchorFile(flags, cwd) {
     throw Error("Supply --anchor-file FILE with the captured anchor JSON.");
   return JSON.parse(await smallFile(resolve(cwd, flags["anchor-file"]), 16000));
 }
+/**
+ * `comments wait --local`: block until a sent note waits for this agent, print
+ * `notes N` and exit 0. It claims nothing and prints nothing while it waits,
+ * so an agent runs it in the background and wakes only for notes. A fatal
+ * error prints one line and exits 1. SIGTERM and SIGINT stop it quietly.
+ */
+async function runWait(flags, cwd, env) {
+  const session = new LocalSession({
+    cwd: flags.directory ? resolve(cwd, flags.directory) : cwd,
+    env,
+    pid: process.pid,
+    kind: "wait",
+  });
+  const controller = new AbortController();
+  const stop = (signal) => {
+    process.exitCode = signal === "SIGINT" ? 130 : 143;
+    controller.abort();
+  };
+  const signals = ["SIGTERM", "SIGINT", "SIGHUP"];
+  let printed = false;
+  for (const signal of signals) process.once(signal, stop);
+  try {
+    if (!flags.local)
+      throw Error("komo comments wait reads the local store. Add --local.");
+    for (const name of ["project", "endpoint", "origin", "repo", "branch", "timeout", "batch", "version"])
+      if (flags[name] !== undefined)
+        throw Error(`--${name} does not apply to komo comments wait.`);
+    const count = await session.wait(
+      { origins: flags.origins, holder: flags.holder },
+      controller.signal
+    );
+    process.stdout.write(`notes ${count}\n`);
+    process.exitCode = 0;
+    printed = true;
+  } catch (error) {
+    if (!controller.signal.aborted) {
+      process.stderr.write(`komo comments wait failed: ${error.message}\n`);
+      process.exitCode = 1;
+    }
+  } finally {
+    for (const signal of signals) process.removeListener(signal, stop);
+    try {
+      // After it prints, the waiter stays present until the agent's watch
+      // call takes over, so the dock does not report that the agent stopped.
+      // A stop signal or an error leaves at once.
+      await session.close(printed ? { leave: false, linger: handOver } : undefined);
+    } catch {}
+  }
+}
+/**
+ * One comments action on the local store. Claims from a CLI watch are held by
+ * their lease, since the process ends when it prints.
+ */
+async function runLocal(action, threadId, flags, cwd, env) {
+  if (!flags.local)
+    throw Error(`komo comments ${action} reads the local store. Add --local.`);
+  if (!localActions.includes(action))
+    throw Error(
+      `komo comments ${action} has no --local form. Use ${localActions.join(", ")}.`
+    );
+  for (const name of ["project", "endpoint", "origin", "repo", "branch"])
+    if (flags[name] !== undefined)
+      throw Error(
+        `--${name} does not apply with --local. The scope comes from .komo/project.json and git.`
+      );
+  if (flags.holder !== undefined)
+    throw Error("--holder applies to komo comments wait only.");
+  if (flags.version !== undefined && !["reply", "resolve"].includes(action))
+    throw Error("--version applies to reply and resolve only.");
+  const session = new LocalSession({
+    cwd: flags.directory ? resolve(cwd, flags.directory) : cwd,
+    env,
+    pid: 0,
+  });
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  process.once("SIGINT", abort);
+  try {
+    if (action === "watch")
+      return await session.watch(
+        {
+          timeoutSeconds: flags.timeout,
+          batchWindowSeconds: flags.batch,
+          origins: flags.origins,
+        },
+        controller.signal
+      );
+    if (action === "get") return await session.get({ threadId });
+    if (action === "reply")
+      return await session.reply({
+        threadId,
+        version: flags.version,
+        body: await inputBody(flags, cwd),
+      });
+    if (action === "resolve")
+      return await session.resolve({
+        threadId,
+        version: flags.version,
+        summary:
+          flags.body === undefined && flags["body-file"] === undefined
+            ? undefined
+            : await inputBody(flags, cwd),
+      });
+    return await session.reopen({ threadId });
+  } finally {
+    process.removeListener("SIGINT", abort);
+    // Presence lapses on its own, so a new watch call keeps the agent listed.
+    await session.close({ leave: false });
+  }
+}
 function id(value, label = "thread") {
   if (!value || !/^[\w:-]{1,100}$/.test(value))
     throw Error(`Supply a valid ${label} ID.`);
@@ -395,12 +525,54 @@ async function login(config, path, flags) {
   }
 }
 
+const execFileAsync = promisify(execFile);
+async function setupMcp(env) {
+  const cli = fileURLToPath(new URL("./index.mjs", import.meta.url));
+  const bundle = fileURLToPath(new URL("../dist/local.mjs", import.meta.url));
+  try {
+    await stat(bundle);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    throw Error("This komo installation has no local MCP bundle. Build and install this fork's package before running komo mcp setup.");
+  }
+  try {
+    await execFileAsync("claude", ["mcp", "add", "--scope", "user", "komo", "--", process.execPath, cli, "mcp"], {
+      env,
+      timeout: 30000,
+      maxBuffer: 16384,
+    });
+  } catch (error) {
+    if (error.code === "ENOENT")
+      throw Error("Claude Code is not on PATH. Install its CLI, then run komo mcp setup again.");
+    if (/already (?:exists|registered|configured)|duplicate/i.test(`${error.stdout || ""}\n${error.stderr || ""}`))
+      throw Error("A user-scope komo MCP entry already exists. Inspect and remove it deliberately before running komo mcp setup again; this command never replaces it.");
+    throw Error("Claude Code could not register the user-scope komo MCP server. Check its installation and MCP configuration, then run komo mcp setup again.");
+  }
+  console.log(JSON.stringify({ ok: true, data: { registered: "komo", scope: "user", note: "Restart Claude Code to load the MCP tools. A local or project registration may override this user entry." } }));
+}
+
 export async function runAgent(
   args,
   { cwd = process.cwd(), env = process.env } = {}
 ) {
   const { flags, positional } = parse(args);
   const [command, action = "list", threadId, commentId] = positional;
+  if (command === "mcp") {
+    if (action === "setup" && positional.length === 2 && !Object.keys(flags).length)
+      return setupMcp(env);
+    if (positional.length !== 1 || Object.keys(flags).length)
+      throw Error("Use komo mcp or komo mcp setup (without options).");
+    await runMcp({ cwd, env });
+    // Signals and a closed stdin end the server; nothing else may keep it up.
+    process.exit(0);
+  }
+  if (command === "skills") {
+    if (action !== "setup" || positional.length !== 2 ||
+      Object.keys(flags).some((flag) => flag !== "user-scope"))
+      throw Error("Use komo skills setup [--user-scope].");
+    console.log(JSON.stringify({ ok: true, data: await installWatchSkill(cwd, env, !!flags["user-scope"]) }));
+    return;
+  }
   if (command === "agents") {
     if (
       action !== "setup" ||
@@ -429,6 +601,10 @@ export async function runAgent(
           overrides: ["--endpoint", "--origin", "--repo", "--branch"],
           body: ["--body", "--body-file", "--body-file -"],
           setup: "komo agents setup",
+          mcp: { serve: "komo mcp", setup: "komo mcp setup (opt-in Claude Code user registration)" },
+          skills: { setup: "komo skills setup", userScope: "komo skills setup --user-scope", name: "komo-watch" },
+          local:
+            "komo mcp serves local agent mode over stdio; komo comments watch|wait|get|reply|resolve|reopen --local work on the local store",
           project: projectHelp,
           guidance: agentWorkflow,
         },
@@ -452,6 +628,17 @@ export async function runAgent(
         : 1;
   if (positional.length > expected)
     throw Error("Unexpected positional arguments. Run komo --help.");
+  if (command === "comments" && action === "wait")
+    return runWait(flags, cwd, env);
+  if (command === "comments" && (flags.local || action === "watch")) {
+    console.log(
+      JSON.stringify({
+        ok: true,
+        data: await runLocal(action, threadId, flags, cwd, env),
+      })
+    );
+    return;
+  }
   const config = await configuration(flags, cwd, env),
     path = credentialPath(config, env);
   const token = await readToken(path, env),

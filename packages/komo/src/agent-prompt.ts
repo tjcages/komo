@@ -59,37 +59,45 @@ export function agentPrompt(
       url.pathname = thread.page;
       lines.push(`## Page ${value(thread.page)}\nURL: ${value(url.href)}`);
     }
-    const anchor = thread.anchor;
-    lines.push(`### Thread ${value(thread.id)} — Open`);
-    lines.push(`CSS selector: ${value(anchor.selector)}`);
-    if (anchor.source) lines.push(`Source reference: ${value(anchor.source)}`);
-    for (const [key, label] of Object.entries({
-      tag: "Element",
-      role: "Role",
-      label: "Accessible label",
-      nearby: "Nearby text",
-      classes: "CSS classes",
-      selectedText: "Selected text",
-      styles: "Captured styles",
-      scope: "DOM scope",
-    })) {
-      const detail =
-        anchor.context?.[key as keyof NonNullable<typeof anchor.context>];
-      if (detail) lines.push(`${label}: ${value(detail)}`);
-    }
-    if (anchor.text) lines.push(`Target text:\n${quote(anchor.text)}`);
+    lines.push(threadMarkdown(thread));
+  }
+  return lines.join("\n\n");
+}
+
+/** A thread and all of its replies, suitable for an agent tool response. */
+export function threadMarkdown(thread: Thread): string {
+  const anchor = thread.anchor;
+  const lines = [
+    `### Thread ${value(thread.id)} — ${thread.resolved ? "Resolved" : "Open"}`,
+    `CSS selector: ${value(anchor.selector)}`,
+  ];
+  if (anchor.source) lines.push(`Source reference: ${value(anchor.source)}`);
+  for (const [key, label] of Object.entries({
+    tag: "Element",
+    role: "Role",
+    label: "Accessible label",
+    nearby: "Nearby text",
+    classes: "CSS classes",
+    selectedText: "Selected text",
+    styles: "Captured styles",
+    scope: "DOM scope",
+  })) {
+    const detail =
+      anchor.context?.[key as keyof NonNullable<typeof anchor.context>];
+    if (detail) lines.push(`${label}: ${value(detail)}`);
+  }
+  if (anchor.text) lines.push(`Target text:\n${quote(anchor.text)}`);
+  lines.push(
+    `Anchor within target: x ${percent(anchor.x)}, y ${percent(anchor.y)}${anchor.width || anchor.height ? `; highlighted area ${percent(anchor.width)} wide × ${percent(anchor.height)} high` : " (point)"}.\nCaptured document position: (${Math.round(anchor.pageX)}, ${Math.round(anchor.pageY)}) CSS px; viewport width: ${anchor.viewportWidth} CSS px. Coordinates are a fallback; layout may have changed.`,
+  );
+  for (const [index, comment] of thread.comments.entries()) {
     lines.push(
-      `Anchor within target: x ${percent(anchor.x)}, y ${percent(anchor.y)}${anchor.width || anchor.height ? `; highlighted area ${percent(anchor.width)} wide × ${percent(anchor.height)} high` : " (point)"}.\nCaptured document position: (${Math.round(anchor.pageX)}, ${Math.round(anchor.pageY)}) CSS px; viewport width: ${anchor.viewportWidth} CSS px. Coordinates are a fallback; layout may have changed.`,
+      `**${index ? "Reply" : "Requested change"} — ${value(comment.author.name)} · ${new Date(comment.createdAt).toISOString()}${comment.editedAt ? ` (edited ${new Date(comment.editedAt).toISOString()})` : ""}**\n${quote(comment.body)}`,
     );
-    for (const [index, comment] of thread.comments.entries()) {
-      lines.push(
-        `**${index ? "Reply" : "Requested change"} — ${value(comment.author.name)} · ${new Date(comment.createdAt).toISOString()}${comment.editedAt ? ` (edited ${new Date(comment.editedAt).toISOString()})` : ""}**\n${quote(comment.body)}`,
-      );
-      const reactions = Object.entries(comment.reactions)
-        .filter(([, users]) => users.length)
-        .map(([emoji, users]) => `${emoji} × ${users.length}`);
-      if (reactions.length) lines.push(`Reactions: ${reactions.join(", ")}`);
-    }
+    const reactions = Object.entries(comment.reactions)
+      .filter(([, users]) => users.length)
+      .map(([emoji, users]) => `${emoji} × ${users.length}`);
+    if (reactions.length) lines.push(`Reactions: ${reactions.join(", ")}`);
   }
   return lines.join("\n\n");
 }

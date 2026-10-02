@@ -19,6 +19,7 @@
     "src/page.ts",
     "NOTICE.md",
     "cli",
+    "skills/komo-watch/SKILL.md",
     "server/workspaces.ts",
     "server/setup-page.ts",
     "server/setup-client.txt",
@@ -52,7 +53,7 @@
     "./dist/picker-*.js"
   ],
   "scripts": {
-    "build": "node scripts/build.mjs && pnpm run build:setup && pnpm run build:node",
+    "build": "pnpm run build:setup && node scripts/build.mjs && pnpm run build:node",
     "prepack": "pnpm run build",
     "typecheck": "wrangler types --config server/wrangler.jsonc server/worker-configuration.d.ts && tsc -p tsconfig.json --noEmit && tsc -p server/tsconfig.json",
     "test": "pnpm run build:setup && vitest run --config vitest.config.ts",
@@ -100,7 +101,7 @@
     "komo": "./cli/index.mjs"
   },
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.13"
   },
   "homepage": "https://komo.offbr.co",
   "bugs": {

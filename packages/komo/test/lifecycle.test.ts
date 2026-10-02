@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { initComments } from "../src/index";
+import { localEndpoint } from "../src/local-agent";
 import type { CommentsController, CommentsOptions } from "../src/types";
 
 let controller: CommentsController | undefined;
@@ -74,6 +75,24 @@ it("rejects unsafe endpoint schemes and embedded credentials before mounting", (
       "HTTPS API endpoint",
     );
   expect(document.body.children).toHaveLength(0);
+});
+
+it("respects local: false on a subdomain of localhost", () => {
+  vi.stubGlobal("location", { hostname: "preview.site.localhost" });
+  expect(localEndpoint(options)).toBe("http://127.0.0.1:4848/");
+  expect(localEndpoint({ ...options, local: false })).toBeUndefined();
+});
+
+it("requires a new instance when the local destination changes", () => {
+  vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+  const config = { ...options, onboarding: undefined, local: { endpoint: "http://127.0.0.1:18483" } };
+  controller = initComments(config);
+  expect(() => initComments({ ...config, local: { endpoint: "http://127.0.0.1:18484" } }))
+    .toThrow("Destroy the current");
+  expect(() => initComments({ ...config, local: false }))
+    .toThrow("Destroy the current");
+  expect(() => initComments({ ...config, local: { ...config.local, agentsOnly: true } }))
+    .toThrow("Destroy the current");
 });
 
 it("clears private cached feedback and identity immediately on another tab's logout", async () => {

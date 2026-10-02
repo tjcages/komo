@@ -119,3 +119,48 @@ for (const input of Object.keys({
   }
 }
 await writeFile("dist/THIRD_PARTY_NOTICES.txt", notices.join("\n\n---\n\n"));
+
+// The local agent mode runner: the Worker, run in Node over SQLite. It is a
+// separate Node bundle, so none of it reaches the browser bundles above.
+const migrations = (await readdir("server/migrations"))
+  .filter((name) => name.endsWith(".sql"))
+  .sort();
+const inlineMigrations = `export function workerMigrations() { return ${JSON.stringify(
+  await Promise.all(
+    migrations.map(async (name) => ({
+      name,
+      sql: await readFile(join("server/migrations", name), "utf8"),
+    })),
+  ),
+)}; }`;
+await build({
+  entryPoints: ["server/local/index.ts"],
+  outfile: "dist/local.mjs",
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  target: "node22",
+  loader: { ".txt": "text" },
+  external: ["emoji-regex"],
+  logLevel: "warning",
+  plugins: [
+    {
+      name: "inline-migrations",
+      setup(build) {
+        build.onLoad(
+          { filter: /[\\/]server[\\/]local[\\/]migrations\.ts$/ },
+          () => ({
+            contents: inlineMigrations,
+            loader: "js",
+          }),
+        );
+        // The hosted setup page needs Google sign-in, which local mode does
+        // not have, so its 600 KB client stays out of the local bundle.
+        build.onLoad({ filter: /[\\/]server[\\/]setup-client\.txt$/ }, () => ({
+          contents: "",
+          loader: "text",
+        }));
+      },
+    },
+  ],
+});

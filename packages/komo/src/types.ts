@@ -103,6 +103,8 @@ export interface CommentsOptions {
   sessionDomain?: string;
   /** Canonical API identity for trusted gateways to the same service. Defaults to endpoint. */
   sessionEndpoint?: string;
+  /** Configure the loopback agent service on local website pages. */
+  local?: boolean | { endpoint?: string; agentsOnly?: boolean };
 }
 
 export interface CommentsController {

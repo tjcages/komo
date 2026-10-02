@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { resolveConfig } from "../src/config";
+import { resolveScope } from "../server/local/scope";
+import { openStore } from "../server/local/store";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +31,27 @@ describe("simple komo setup", () => {
     expect(() => resolveConfig({ ...config, scope: "branch" })).toThrow(
       "build-time branch"
     );
+  });
+  it("rejects the reserved queued branch as a local agent scope", async () => {
+    await expect(
+      resolveScope(fileURLToPath(new URL(".", import.meta.url)), {
+        KOMO_PROJECT: "fixture",
+        KOMO_BRANCH: "komo-queued",
+      }),
+    ).rejects.toThrow("komo-queued is reserved");
+  });
+  it("does not use or change an existing writable local data directory", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "komo-store-"));
+    try {
+      await chmod(directory, 0o777);
+      expect(() => openStore(join(directory, "local.sqlite"))).toThrow(
+        "writable by other users",
+      );
+      expect((await stat(directory)).mode & 0o777).toBe(0o777);
+    } finally {
+      await chmod(directory, 0o700);
+      await rm(directory, { recursive: true, force: true });
+    }
   });
   it("generates a secret-free two-line integration and refreshes branch metadata", async () => {
     const dir = await mkdtemp(join(tmpdir(), "komo-cli-"));

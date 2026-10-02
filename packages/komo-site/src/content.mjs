@@ -55,12 +55,13 @@ export const pages = [
       "Add Figma-style comments to your website with komo. Install the package, mount it once, and connect from your site.",
     body: `<h1>Install komo.</h1><p class="lede">Paste this prompt into your coding agent, or follow the steps below. Works with React, Astro, Vue, and plain JavaScript.</p>
  ${promptCode}
- <p class="manual-note">Or install manually. Requires Node.js 22 or newer.</p>
+ <p class="manual-note">Or install manually. Requires Node.js 22.13 or newer. These steps install the published package for hosted feedback. Until a release includes local agent mode, pack the source package below to try it.</p>
  ${section("01 · Install the package", code("npm install @tjcages/komo"))}
  ${section("02 · Create your project", `${code("npx @tjcages/komo init")}<p>Keep this terminal open while you start your app in another terminal.</p>`)}
  ${section("03 · Add komo to your app", `<p>Setup creates <code>komo.config.js</code> and updates it automatically when you connect. Choose your framework and adjust the import path to that file.</p>${frameworkTabs}`)}
  ${section("04 · Connect from your site", `<p>Open your app and choose <strong>Connect komo</strong> in the sidebar. Review your site addresses, then sign in with Google. Setup saves your project automatically—you’re ready to comment.</p>${connectExample}<p>Share your preview with a teammate. They can leave their name to reply, or sign in with Google.</p>${inlineOptions}`)}
- ${section("Keep it on preview builds", `<p>Pass your framework’s public environment flag to the same mount:</p>${code("initKomo({\n  enabled: import.meta.env.DEV ||\n    import.meta.env.PUBLIC_PREVIEW === 'true',\n});")}<p>Using <code>useKomo</code>? Add <code>enabled</code> to its options instead.</p><a class="text-link" href="/configuration/">Configuration options <span data-icon="arrow"></span></a>`)} `,
+ ${section("Keep it on preview builds", `<p>Pass your framework’s public environment flag to the same mount:</p>${code("initKomo({\n  enabled: import.meta.env.DEV ||\n    import.meta.env.PUBLIC_PREVIEW === 'true',\n});")}<p>Using <code>useKomo</code>? Add <code>enabled</code> to its options instead.</p><a class="text-link" href="/configuration/">Configuration options <span data-icon="arrow"></span></a>`)}
+ ${section("Local agent mode from source", `<p>Until a release includes local agent mode, pack this source checkout into your app directory and install that tarball for both your site and its MCP command. Run the first command from the repository root. Requires Node.js 22.13 or newer.</p>${code("pnpm --dir packages/komo pack --pack-destination /path/to/your-app\ncd /path/to/your-app\npnpm add ./tjcages-komo-0.7.0.tgz\npnpm exec komo mcp setup")}<p>The last command opts into Claude Code user registration. Installation does not register the MCP server. Restart Claude Code afterward. An existing user-scope entry is not replaced; a local or project entry may override it.</p><p>For local feedback without a hosted login, create <code>.komo/project.json</code> with a stable <code>project</code> and <code>repo</code>. Then mount the installed package on your local page:</p>${code("import { initKomo } from '@tjcages/komo';\ninitKomo({ project: 'YOUR_PROJECT_KEY', repo: 'owner/repo', local: { agentsOnly: true } });")}<p>With hosted feedback, one dock shows Team threads beside local agent notes. Agent-only mode shows local notes without Team. New notes wait in a local queue until you choose an agent in <strong>Send to</strong> and press <strong>Send</strong>. Use <code>pnpm exec komo skills setup</code> to opt into the project’s <code>/komo-watch</code> skill; invoke it in the agent chat to watch notes. Team handoff copies a public thread locally and never changes its hosted original. Private Team handoff remains blocked until its disclosure is approved. The package README describes the tools and page access.</p>`)} `,
   },
   {
     path: "/configuration/",
@@ -98,13 +99,16 @@ export const pages = [
         "sidebar", "\"background\" | \"edge\"",
         "\"edge\" (default) is a floating sidebar. \"background\" frames the page. Account → Sidebar switches Floating and Frame.",
      ],
-     ["pollInterval", "number", "4000 ms while the page is visible."],
+     ["emojiDataSource", "string", "Full emoji picker data URL; fetched only when the full picker opens."],
+     ["pollInterval", "number", "4000 ms for active reviews; slower when unchanged or idle."],
+     ["local", "boolean | { endpoint?: string; agentsOnly?: boolean }", "On for loopback pages. Set false to disable local agent mode; agentsOnly skips hosted Team."],
      ["source", "(element: Element) => string | undefined", "Element → repository-relative source file path."],
      ["sourceUrl", "(source: string, branch: string) => string", "Source path and branch → editor or repository URL."],
      [
        "sessionDomain", "string",
-       "Optional parent domain you own. Never a public suffix.",
+       "Optional trusted parent domain. Every sibling host can receive the session cookie.",
      ],
+     ["sessionEndpoint", "string", "Canonical API identity for trusted gateways to the same service. Never share across independent APIs."],
    ]
      .map(([k, type, v]) => `<tr><td><code>${k}</code></td><td><code>${escape(type)}</code></td><td>${v}</td></tr>`)
      .join("")}</tbody></table></div>`
