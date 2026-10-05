@@ -30,7 +30,7 @@ node qc.mjs --flat=context,conversation,sidebar,feed,drawer,agent,logo --wide=si
 node build.mjs
 ```
 
-Output: `../komo-promo/out/film.mp4`. Eight independent scene compositions plus `komo-promo`, the full 626-frame timeline. `src/edit.json` controls cuts. The final scene is intentionally a logo vignette, not a workspace pull-back. No audio is included.
+Output: `../komo-promo/out/film.mp4`. Eight independent scene compositions plus `komo-promo`, the full 626-frame timeline. `src/edit.json` controls cuts. The final scene is intentionally a logo vignette, not a workspace pull-back. The base render is silent. Add a song with the [sound studio](../../../videos/audio/README.md): preview an excerpt, snap a beat to a cut, save the mix, and export without re-rendering the picture.
 
 `native.json` contains fixture-only HTML emitted by the actual widget renderer, its stylesheet with wall-clock animation/transition declarations stripped, and the site's SVG logo. It contains no running product code, customer feedback, screenshots, or iframe. The stage retains native classes, icons, colors and controls; frame-driven wrappers provide composition and motion. The drawer samples Motion's pure spring generator at fixed frame times using the product's 400ms / 0.24 bounce parameters. Card motion uses the product's 600 stiffness / 34 damping. No live hooks, polling, portals, or production timers execute in the render.
 
