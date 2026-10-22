@@ -153,6 +153,32 @@ export function textOptions(host: {
     },
     { capture: true, passive: true, signal },
   );
+  // While the switcher is open, ← and → flip options, unless the reader is
+  // typing; the real target may sit inside the dock's shadow root.
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      const step = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+      if (
+        !step ||
+        !active ||
+        float.hidden ||
+        float.dataset.leaving !== undefined
+      )
+        return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+        return;
+      const target = event.composedPath()[0];
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || target.matches("input, textarea, select"))
+      )
+        return;
+      event.preventDefault();
+      flip(step);
+    },
+    { capture: true, signal },
+  );
   const observer = new MutationObserver(() => {
     if (!scanTimer)
       scanTimer = window.setTimeout(() => {

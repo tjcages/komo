@@ -114,6 +114,28 @@ it("previews on hover, keeps with ✓, and keeps the pick across a reload", () =
   expect(title.innerHTML).toBe("<em>Third</em>");
 });
 
+it("flips with the arrow keys while the switcher is open, but not while typing", () => {
+  const shadow = mount();
+  const title = document.querySelector("h1")!;
+  const press = (key: string, target: EventTarget = document.body) =>
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true, composed: true }),
+    );
+  press("ArrowRight");
+  expect(title.innerHTML).toBe("First");
+  hover(title);
+  press("ArrowRight");
+  expect(title.innerHTML).toBe("Second");
+  press("ArrowLeft");
+  press("ArrowLeft");
+  expect(title.innerHTML).toBe("<em>Third</em>");
+  expect(shadow.querySelector(".text-option-count")!.textContent).toBe("3/3");
+  const field = document.createElement("input");
+  document.body.append(field);
+  press("ArrowRight", field);
+  expect(title.innerHTML).toBe("<em>Third</em>");
+});
+
 it("puts an undecided preview back when the reader leaves", () => {
   vi.useFakeTimers();
   const shadow = mount();
