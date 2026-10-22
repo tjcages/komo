@@ -1824,6 +1824,9 @@ textarea {
   top: 0;
   bottom: auto;
   translate: none;
+  /* The menu sizes its shell once it loads; until then the static bar stands upright too. */
+  width: var(--mm-bar-height);
+  height: var(--mm-bar-width);
 }
 .morphing-menu[data-edge="right"] .morphing-menu__shell {
   left: auto;
@@ -1869,12 +1872,12 @@ textarea {
 
 .toolbar[data-intro-wait="true"] > .morphing-menu { transition: none; }
 .toolbar[data-intro="true"][data-away="true"] > .morphing-menu {
-  translate: 0 var(--drawer-intro-y, 100vh);
+  translate: var(--drawer-intro-x, 0px) var(--drawer-intro-y, 100vh);
   scale: 1;
   filter: none;
 }
 .toolbar[data-away="true"][data-peek="true"] > .morphing-menu {
-  translate: 0 var(--drawer-peek-y, 100vh);
+  translate: var(--drawer-peek-x, 0px) var(--drawer-peek-y, 100vh);
   scale: 1;
   opacity: 1;
   filter: none;

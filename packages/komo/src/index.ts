@@ -5903,13 +5903,35 @@ export function initComments(options: CommentsOptions): CommentsController {
         local: !!localUrl,
         notify,
         selector: selectorFor,
-        queue: (picks, body, target) => {
+        queue: async (picks, body, target) => {
           const box = target.getBoundingClientRect();
           const point = { x: box.left + 1, y: box.top + 1 };
-          return queueNote({
+          const note: QueuedNote = {
             operation: crypto.randomUUID(), scope: outboxScope, page: page(),
-            anchor: captureAnchor(target, point, point, options.source), body, options: picks,
+            anchor: captureAnchor(target, point, point, options.source), body,
+            options: picks.length ? picks : undefined,
+          };
+          await queueNote(note);
+          return note.operation;
+        },
+        // A note still in this browser is discarded; one the server holds is
+        // unstaged unless Send already moved it to an agent.
+        unqueue: async (operation) => {
+          const local = await withNoteLock(operation, async () => {
+            if (!(await getNote(operation))) return false;
+            await removeNote(operation);
+            return true;
           });
+          outbox.delete(operation);
+          if (!local)
+            // An older local server has no unstage route; its note stays.
+            await api.request("local/unstage", "POST", {
+              project: options.project, repo: options.repo, operation,
+            }).catch(() => {});
+          sends++;
+          mergeSources();
+          await countHeld();
+          await refreshLocalBranches();
         },
       });
     }, fail).finally(() => (loadingTextOptions = false));

@@ -142,6 +142,7 @@ async function localRoute(
     "/local/branches": "GET",
     "/local/handoffs": "GET",
     "/local/stage": "POST",
+    "/local/unstage": "POST",
     "/local/pending": "GET",
     "/local/send": "POST",
   }[url.pathname];
@@ -240,6 +241,14 @@ async function localRoute(
     } catch (error) {
       const reason = error as Error & { status?: number };
       return send(res, reason.status ?? 500, { error: reason.status ? reason.message : "Could not queue the note. Try again." }, cors);
+    }
+  }
+  if (url.pathname === "/local/unstage") {
+    try {
+      return send(res, 200, await komo.unstageNote(scope.project, config.repo, fields.operation as string, origin), cors);
+    } catch (error) {
+      const reason = error as Error & { status?: number };
+      return send(res, reason.status ?? 500, { error: reason.status ? reason.message : "Could not remove the note. Try again." }, cors);
     }
   }
   if (!scope.branch || scope.branch.length > 200)

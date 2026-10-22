@@ -17,7 +17,7 @@ import {
 import { resolveScope, type AgentScope } from "./scope";
 import { openProbe, openStore, storePath } from "./store";
 import { sentPicks } from "./options";
-import { branches, handoffs, pending, release, stage, type StageInput } from "./staging";
+import { branches, handoffs, pending, release, stage, unstage, type StageInput } from "./staging";
 import { claimLease, claimOf, formatThread, type Holder } from "./watch";
 
 // Local agent mode: the unchanged komo Worker, run in Node over a SQLite file,
@@ -244,6 +244,11 @@ export class LocalKomo {
   /** New notes wait on a reserved branch until Send moves them to an agent. */
   stageNote(input: StageInput, origin: string, token?: string) {
     return stage(this, input, origin, token);
+  }
+
+  /** Remove a queued note that has not been sent, for the page that staged it. */
+  unstageNote(project: string, repo: string, operation: string, origin: string) {
+    return this.exclusive(async () => unstage(this.database, { project, repo }, operation, origin));
   }
 
   queued(project: string, repo: string) {

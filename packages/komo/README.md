@@ -231,7 +231,7 @@ An agent can offer copy alternatives instead of asking about them in chat. Give 
 </p>
 ```
 
-A faint dotted underline marks each block that has options. Hover one to highlight its text and show a switcher below it: the arrows preview each option in place, ✓ keeps the one shown, and ✕ (or moving away) puts the kept text back. A kept pick is saved per origin and page in the browser, so a reload keeps it. In local agent mode ✓ also adds a note with the pick to the Send queue, so it reaches the agent like any other note. komo looks for blocks when it mounts, when the page finishes loading, and after client-side navigation, then follows changes to them.
+A faint dotted underline marks each block that has options. Hover one to highlight its text and show a switcher below it: the arrows preview each option in place, and a ✕ / ✓ toggle records your verdict on the option shown. ✓ keeps it on the page; ✕ declines it. Moving away from an option with no verdict puts the kept text back. Verdicts are saved per origin and page in the browser, so a reload keeps them. In local agent mode a kept option adds a note with the pick to the Send queue, and declining every option adds a note asking for new copy. Each block keeps at most one unsent note: changing your mind replaces it. After Send, a change adds a new note, and the newest pick wins. komo looks for blocks when it mounts, when the page finishes loading, and after client-side navigation, then follows changes to them.
 
 The agent receives the note from `komo_watch` with an `options` list, and `komo_options` or `komo options list --local` lists the newest pick for each block:
 

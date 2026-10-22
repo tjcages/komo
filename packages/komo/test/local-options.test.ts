@@ -96,6 +96,62 @@ it("refuses invalid picks and queues nothing", async () => {
   expect(komo.queued("options-test", "owner/site").held).toBe(0);
 });
 
+it("takes back an unsent note for the page that staged it, and never a sent one", async () => {
+  const operation = randomUUID();
+  await komo.stageNote(
+    {
+      project: "options-test",
+      repo: "owner/site",
+      operation,
+      page: "/",
+      anchor,
+      body: "Use this text option",
+      options: [pick],
+    },
+    origin,
+    `Bearer ${token}`,
+  );
+  expect(komo.queued("options-test", "owner/site").held).toBe(1);
+  expect(
+    await komo.unstageNote(
+      "options-test",
+      "owner/site",
+      operation,
+      "http://localhost:9999",
+    ),
+  ).toEqual({ removed: false });
+  expect(
+    await komo.unstageNote("options-test", "owner/site", operation, origin),
+  ).toEqual({ removed: true });
+  expect(komo.queued("options-test", "owner/site").held).toBe(0);
+
+  const sent = randomUUID();
+  await komo.stageNote(
+    {
+      project: "options-test",
+      repo: "owner/site",
+      operation: sent,
+      page: "/",
+      anchor,
+      body: "Use this text option",
+      options: [pick],
+    },
+    origin,
+    `Bearer ${token}`,
+  );
+  await komo.send("options-test", "owner/site", agent.scope.channel);
+  expect(
+    await komo.unstageNote("options-test", "owner/site", sent, origin),
+  ).toEqual({ removed: false });
+  const [thread] = agent.options(true);
+  await agent.resolve(
+    thread.threadId,
+    undefined,
+    { session: "test", pid: 0 },
+    agent.activityOf(thread.threadId).key ?? undefined,
+  );
+});
+
 it("hands picks to the agent only after Send, then hides them once resolved", async () => {
   const { id } = await stage([pick]);
   expect(agent.options()).toEqual([]);

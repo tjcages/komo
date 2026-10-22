@@ -119,6 +119,32 @@ export async function stage(komo: LocalKomo, input: StageInput, origin: string, 
   });
 }
 
+/**
+ * Take back a note that still waits in the queue, as the page that staged it.
+ * The operation ID is the page's own secret for that note. A note that Send
+ * already moved stays with its agent: `removed` is false.
+ */
+export function unstage(db: DatabaseSync, scope: Scope, operation: string, origin: string) {
+  if (!operationPattern.test(operation))
+    throw Object.assign(Error("Invalid note ID."), { status: 400 });
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const row = db.prepare(
+      "SELECT o.thread_id FROM local_operations o JOIN threads t ON t.id=o.thread_id WHERE o.operation=? AND o.project=? AND o.repo=? AND o.origin=? AND t.branch=?"
+    ).get(operation, scope.project, scope.repo, origin, queuedBranch) as { thread_id: string } | undefined;
+    if (row) {
+      db.prepare("DELETE FROM threads WHERE id=?").run(row.thread_id);
+      db.prepare("INSERT INTO scope_revisions(project,repo,branch,version) VALUES(?,?,?,1) ON CONFLICT(project,repo,branch) DO UPDATE SET version=version+1")
+        .run(scope.project, scope.repo, queuedBranch);
+    }
+    db.exec("COMMIT");
+    return { removed: !!row };
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
+}
+
 export function release(db: DatabaseSync, scope: Scope, target: string) {
   if (!channelPattern.test(target) || !db.prepare("SELECT 1 FROM local_channels WHERE channel=? AND project=? AND repo=?").get(target, scope.project, scope.repo))
     throw Object.assign(Error("Choose a local agent before sending notes."), { status: 404 });

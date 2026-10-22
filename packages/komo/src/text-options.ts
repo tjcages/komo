@@ -6,17 +6,34 @@ import type { OptionPick } from "./types.js";
 // `<template data-komo-option>` children; the block's own content is option
 // 0, and `data-komo-id` names the block. A faint dotted underline marks such
 // blocks. Hovering one highlights its text and floats a switcher below it:
-// the arrows preview each option in place, ✓ keeps the one shown and ✕ goes
-// back. A kept pick is saved per page in this browser, so a reload shows it,
-// and in local agent mode it is queued for Send as a note. This module loads
-// only on pages that offer options, and brings its own styles.
+// the arrows preview each option in place, and a ✕ / ✓ toggle records the
+// reader's verdict on the option shown. ✓ keeps it, so it stays on the page;
+// ✕ declines it. Verdicts are saved per page in this browser, so a reload
+// shows them. In local agent mode a kept option, or declining every option,
+// is queued for Send as a note. This module loads only on pages that offer
+// options, and brings its own styles.
+
+type Verdict = "keep" | "decline" | null;
+
+/** A block's saved state: verdicts as the options' HTML, and its unsent note. */
+type Saved = {
+  keep?: string;
+  decline?: string[];
+  /** The queued note's operation ID, and the body it carries. */
+  note?: string;
+  noted?: string;
+};
 
 type Block = {
   element: HTMLElement;
   id: string;
   /** HTML; option 0 is the block's own content. */
   options: string[];
-  /** The kept option. */
+  /** The kept option, if any. */
+  keep: number | null;
+  /** The options the reader declined. */
+  declined: Set<number>;
+  /** The option the page shows when the switcher closes: the kept one, else option 0. */
   index: number;
   /** The option on the page now: the kept one, or one being previewed. */
   shown: number;
@@ -42,7 +59,10 @@ export function textOptions(host: {
   enabled(): boolean;
   /** Local agent mode queues each kept pick as a note. */
   local: boolean;
-  queue(picks: OptionPick[], body: string, target: Element): Promise<void>;
+  /** Queue a note for Send; resolves to its operation ID. */
+  queue(picks: OptionPick[], body: string, target: Element): Promise<string>;
+  /** Take back a queued note, unless Send already delivered it. */
+  unqueue(operation: string): Promise<void>;
   notify(text: string): void;
   /** The anchors module's selector, passed in so that module stays in the main chunk. */
   selector(element: Element): string;
@@ -54,6 +74,7 @@ export function textOptions(host: {
   const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   let picks: Record<string, unknown> = {},
     picksKey = "";
+  let posting = Promise.resolve();
   let active: Block | null = null,
     pinned: { left: number; top: number } | null = null,
     hideTimer = 0,
@@ -84,11 +105,11 @@ export function textOptions(host: {
     count,
     button("Next option", () => flip(1), "icon text-option-next", "chevron"),
   );
-  const actions = el("div", "text-option-group");
-  actions.append(
-    button("Keep the current text", () => close(), "icon", "close"),
-    button("Use this option", keep, "icon text-option-keep", "check"),
-  );
+  const actions = el("div", "text-option-group text-option-verdict");
+  const thumb = el("span", "text-option-thumb");
+  const declineButton = button("Decline this option", decline, "icon", "close");
+  const keepButton = button("Use this option", keep, "icon", "check");
+  actions.append(thumb, declineButton, keepButton);
   float.append(pager, actions);
   // While the pointer is on the switcher it stays put, even when a longer or
   // shorter option reflows the block above it.
@@ -209,26 +230,30 @@ export function textOptions(host: {
       blocks.delete(element);
       return;
     }
+    const id = element.dataset.komoId?.trim() || host.selector(element);
+    // Verdicts are saved as the options' HTML, so an option the agent
+    // changed or removed loses its verdict.
+    const saved = entry(id);
+    const keep = options.indexOf(saved.keep as string);
     const block: Block = {
       element,
-      id: element.dataset.komoId?.trim() || host.selector(element),
+      id,
       options,
-      index: 0,
+      keep: keep < 0 ? null : keep,
+      declined: new Set(
+        (Array.isArray(saved.decline) ? saved.decline : [])
+          .map((html) => options.indexOf(html))
+          .filter((index) => index >= 0),
+      ),
+      index: Math.max(keep, 0),
       shown: 0,
       attribute,
       applied: html,
       templates: [...(previous?.templates ?? []), ...templates],
     };
-    const chosen = picks[block.id];
-    if (typeof chosen === "string") {
-      block.index = options.indexOf(chosen);
-      // The agent changed the options since this pick: start over.
-      if (block.index < 0) {
-        block.index = 0;
-        delete picks[block.id];
-        save();
-      }
-    }
+    const { note: _note, noted: _noted, ...verdicts } = saved;
+    if (JSON.stringify(record(block)) !== JSON.stringify(verdicts))
+      remember(block);
     // A preview survives the rescan its own swap causes.
     block.shown =
       !changed && previous.shown < options.length
@@ -285,26 +310,117 @@ export function textOptions(host: {
     const total = active.options.length;
     apply(active, (active.shown + step + total) % total, true);
     count.textContent = `${active.shown + 1}/${total}`;
+    show(verdictOf(active), true);
     place();
   }
 
-  /** Keep the option shown: save it, and queue it for the agent. */
+  /** ✓: keep the option shown, and queue it for the agent. */
   function keep() {
     const block = active;
-    if (!block) return;
-    const unchanged =
-      Object.hasOwn(picks, block.id) && block.shown === block.index;
-    block.index = block.shown;
-    picks[block.id] = block.options[block.index];
-    save();
-    close();
-    if (unchanged || !host.local) return;
-    const pick = pickOf(block);
-    host
-      .queue([pick], note([pick]), block.element)
+    if (!block || block.keep === block.shown) return;
+    block.keep = block.index = block.shown;
+    block.declined.delete(block.shown);
+    remember(block);
+    show("keep", true);
+    post(block);
+  }
+
+  /**
+   * ✕: decline the option shown. Declining the kept option un-keeps it.
+   * Declining the last undeclined option tells the agent that none fit.
+   */
+  function decline() {
+    const block = active;
+    if (!block || block.declined.has(block.shown)) return;
+    block.declined.add(block.shown);
+    if (block.keep === block.shown) block.keep = null;
+    block.index = block.keep ?? 0;
+    remember(block);
+    show("decline", true);
+    post(block);
+  }
+
+  /** What the agent should hear about a block now, if anything. */
+  function message(block: Block) {
+    if (block.keep !== null) {
+      const pick = pickOf(block);
+      return { picks: [pick], body: note([pick]) };
+    }
+    if (block.declined.size < block.options.length) return null;
+    return {
+      picks: [],
+      body: `None of the text options fit. Write new copy:\n- ${block.id}: all ${block.options.length} options declined. Current copy: ${clip(plain(block.options[0]))}`,
+    };
+  }
+
+  /**
+   * Keep one unsent note per block in step with its verdicts. A changed mind
+   * takes back the note queued before, unless Send already delivered it, and
+   * queues the new one. Runs one at a time and reads the block when it runs,
+   * so quick changes settle on the last verdict.
+   */
+  function post(block: Block) {
+    if (!host.local) return;
+    const { id, element } = block;
+    posting = posting
+      .then(async () => {
+        const current = blocks.get(element);
+        const next = current ? message(current) : null;
+        const saved = entry(id);
+        if ((saved.noted ?? null) === (next?.body ?? null)) return;
+        if (typeof saved.note === "string") {
+          await host.unqueue(saved.note);
+          const { note: _note, noted: _noted, ...rest } = entry(id);
+          write(id, rest);
+        }
+        if (!next) return;
+        const operation = await host.queue(next.picks, next.body, element);
+        write(id, { ...entry(id), note: operation, noted: next.body });
+      })
       .catch((reason) =>
         host.notify(reason instanceof Error ? reason.message : "Try again."),
       );
+  }
+
+  function verdictOf(block: Block): Verdict {
+    if (block.keep === block.shown) return "keep";
+    return block.declined.has(block.shown) ? "decline" : null;
+  }
+
+  /**
+   * Set the toggle. Between ✕ and ✓ the thumb stretches toward the new side,
+   * then its trailing edge catches up; from no verdict it blurs in.
+   */
+  function show(verdict: Verdict, animate: boolean) {
+    const previous = (actions.dataset.verdict ?? null) as Verdict;
+    if (!animate) thumb.style.transition = "none";
+    // With no verdict the thumb fades out where it is.
+    if (verdict) {
+      actions.dataset.verdict = verdict;
+      thumb.style.left = verdict === "keep" ? "26px" : "2px";
+    } else delete actions.dataset.verdict;
+    declineButton.setAttribute("aria-pressed", String(verdict === "decline"));
+    keepButton.setAttribute("aria-pressed", String(verdict === "keep"));
+    if (!animate) {
+      void thumb.offsetWidth;
+      thumb.style.transition = "";
+      return;
+    }
+    if (still() || !verdict || !previous || previous === verdict) return;
+    const [from, to] = verdict === "keep" ? [2, 26] : [26, 2];
+    thumb.animate(
+      [
+        { left: `${from}px`, width: "24px", easing: "cubic-bezier(.4,0,.2,1)" },
+        {
+          left: `${Math.min(from, to)}px`,
+          width: "48px",
+          offset: 0.45,
+          easing: ease,
+        },
+        { left: `${to}px`, width: "24px" },
+      ],
+      { duration: 320 },
+    );
   }
 
   function blockAt(target: Element | null) {
@@ -321,6 +437,7 @@ export function textOptions(host: {
     active = block;
     pinned = null;
     count.textContent = `${block.shown + 1}/${block.options.length}`;
+    show(verdictOf(block), false);
     for (const animation of float.getAnimations()) animation.cancel();
     delete float.dataset.leaving;
     float.hidden = highlight.hidden = false;
@@ -428,6 +545,34 @@ export function textOptions(host: {
     };
   }
 
+  /** A block's verdicts as saved: the options' HTML. */
+  function record(block: Block) {
+    return {
+      ...(block.keep !== null && { keep: block.options[block.keep] }),
+      ...(block.declined.size && {
+        decline: [...block.declined]
+          .sort((a, b) => a - b)
+          .map((index) => block.options[index]),
+      }),
+    };
+  }
+
+  function remember(block: Block) {
+    const { note, noted } = entry(block.id);
+    write(block.id, { ...record(block), ...(note && { note, noted }) });
+  }
+
+  function entry(id: string): Saved {
+    const value = picks[id];
+    return value && typeof value === "object" ? { ...(value as Saved) } : {};
+  }
+
+  function write(id: string, value: Saved) {
+    if (Object.keys(value).length) picks[id] = value;
+    else delete picks[id];
+    save();
+  }
+
   function load(key: string): Record<string, unknown> {
     try {
       const value: unknown = JSON.parse(localStorage.getItem(key) ?? "{}");
@@ -483,6 +628,9 @@ function normal(html: string) {
   return template.innerHTML;
 }
 
+const clip = (text: string) =>
+  text.length > 200 ? `${text.slice(0, 199)}…` : text;
+
 function plain(html: string) {
   const template = document.createElement("template");
   template.innerHTML = html;
@@ -495,9 +643,7 @@ export function note(picks: OptionPick[]) {
     picks.length === 1 ? "Use this text option:" : "Use these text options:",
   ];
   for (const [index, pick] of picks.entries()) {
-    const text =
-      pick.text.length > 200 ? `${pick.text.slice(0, 199)}…` : pick.text;
-    const line = `- ${pick.block}: option ${pick.index + 1} of ${pick.count}${pick.index ? "" : " (current)"}: ${text}`;
+    const line = `- ${pick.block}: option ${pick.index + 1} of ${pick.count}${pick.index ? "" : " (current)"}: ${clip(pick.text)}`;
     const rest = `- ${picks.length - index} more: komo options list --local`;
     if ([...lines, line].join("\n").length + rest.length + 1 > 4000) {
       lines.push(rest);
@@ -515,8 +661,12 @@ const css = `
 .text-option-group { display: flex; align-items: center; padding: 2px; border-radius: 999px; background: #0d0d0d; color: rgb(255 255 255 / 90%); box-shadow: inset 0 1px 1px rgb(255 255 255 / 8%), inset 0 -1px 2px rgb(0 0 0 / 50%), 0 1px 2px rgb(0 0 0 / 12%), 0 4px 12px rgb(0 0 0 / 10%); }
 .text-option-group button { width: 24px; height: 24px; border-radius: 50%; color: inherit; }
 .text-option-group button:hover { background: rgb(255 255 255 / 10%); }
-.text-option-group .text-option-keep { background: #fff; color: #0d0d0d; }
-.text-option-group .text-option-keep:hover { background: #e6e6e6; }
+.text-option-verdict { position: relative; isolation: isolate; }
+.text-option-verdict button { color: #fff; }
+.text-option-verdict button[aria-pressed="true"] { background: none; }
+.text-option-verdict svg { mix-blend-mode: difference; }
+.text-option-thumb { position: absolute; z-index: -1; top: 2px; left: 2px; width: 24px; height: 24px; border-radius: 999px; background: #fff; opacity: 0; scale: .6; filter: blur(2px); transition: opacity 150ms cubic-bezier(.22,1,.36,1), scale 150ms cubic-bezier(.22,1,.36,1), filter 150ms cubic-bezier(.22,1,.36,1); }
+.text-option-verdict[data-verdict] .text-option-thumb { opacity: 1; scale: 1; filter: blur(0px); }
 .text-option-group button:active { scale: .92; transition: scale 100ms cubic-bezier(.22,1,.36,1); }
 .text-option-group svg { width: 14px; height: 14px; }
 .text-option-previous svg { rotate: 90deg; }
@@ -524,5 +674,5 @@ const css = `
 .text-option-count { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
 .text-option-highlight { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
 .text-option-highlight > div { position: absolute; border-radius: 3px; background: rgb(67 136 255 / 12%); }
-@media (prefers-reduced-motion: reduce) { .text-option-group button:active { scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .text-option-group button:active { scale: 1; } .text-option-thumb { transition: none; } }
 `;

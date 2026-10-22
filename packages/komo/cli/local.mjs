@@ -233,7 +233,7 @@ export class LocalSession {
       origins: origins ?? null,
       watching: this.komo.watchingAgents(agent.scope.project, agent.scope.repo),
       hint: `Leave notes on a page whose origin matches pages, then pick "${agent.scope.label}" in the komo dock's Send to menu. Notes to "${agent.scope.label}" wait until the person presses Send in the dock. A komo client whose endpoint is ${endpoint} reaches this agent on branch "${agent.scope.branch}", where notes need no Send.`,
-      options: `To offer copy alternatives, give an element data-komo-options with a JSON array of HTML strings, or <template data-komo-option> children; its own content is option 0, and data-komo-id names the block. The person hovers the block, flips options in place, and presses ✓, which queues a note for Send: komo_watch returns it with an options list, and komo_options lists the newest pick per block. Apply each pick to the source, then resolve the note.`,
+      options: `To offer copy alternatives, give an element data-komo-options with a JSON array of HTML strings, or <template data-komo-option> children; its own content is option 0, and data-komo-id names the block. The person hovers the block, flips options in place, and presses ✓ (✕ declines), which queues a note for Send; a note saying none fit asks for new alternatives: komo_watch returns it with an options list, and komo_options lists the newest pick per block. Apply each pick to the source, then resolve the note.`,
       waiter: this.waiterCommand(origins, directory),
     };
   }

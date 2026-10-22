@@ -4,7 +4,9 @@ import { note, textOptions, type TextOptions } from "../src/text-options";
 import type { OptionPick } from "../src/types";
 
 let ui: TextOptions | undefined;
-const queue = vi.fn(async () => {});
+let queued = 0;
+const queue = vi.fn(async () => `note-${++queued}`);
+const unqueue = vi.fn(async () => {});
 const notify = vi.fn();
 const mount = (local = true) => {
   const shadow = document.createElement("div").attachShadow({ mode: "open" });
@@ -14,6 +16,7 @@ const mount = (local = true) => {
     enabled: () => true,
     local,
     queue,
+    unqueue,
     notify,
     selector: (element) => element.tagName.toLowerCase(),
   });
@@ -60,6 +63,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   queue.mockClear();
+  unqueue.mockClear();
   notify.mockClear();
 });
 
@@ -87,14 +91,22 @@ it("previews on hover, keeps with ✓, and keeps the pick across a reload", () =
   const title = document.querySelector("h1")!;
   hover(title);
   const float = shadow.querySelector<HTMLElement>(".text-option-float")!;
+  const toggle = shadow.querySelector<HTMLElement>(".text-option-verdict")!;
   expect(float.hidden).toBe(false);
+  expect(toggle.dataset.verdict).toBeUndefined();
   control(shadow, "Next option").click();
   control(shadow, "Next option").click();
   expect(title.innerHTML).toBe("<em>Third</em>");
   expect(float.textContent).toBe("3/3");
   control(shadow, "Use this option").click();
-  expect(float.hidden).toBe(true);
-  expect(title.innerHTML).toBe("<em>Third</em>");
+  // The switcher stays open and the toggle shows the verdict.
+  expect(float.hidden).toBe(false);
+  expect(toggle.dataset.verdict).toBe("keep");
+  expect(control(shadow, "Use this option").getAttribute("aria-pressed")).toBe(
+    "true",
+  );
+  control(shadow, "Previous option").click();
+  expect(toggle.dataset.verdict).toBeUndefined();
 
   ui!.destroy();
   expect(title.innerHTML).toBe("First");
@@ -102,7 +114,7 @@ it("previews on hover, keeps with ✓, and keeps the pick across a reload", () =
   expect(title.innerHTML).toBe("<em>Third</em>");
 });
 
-it("puts a preview back when the reader leaves or presses ✕", () => {
+it("puts an undecided preview back when the reader leaves", () => {
   vi.useFakeTimers();
   const shadow = mount();
   const title = document.querySelector("h1")!;
@@ -112,12 +124,42 @@ it("puts a preview back when the reader leaves or presses ✕", () => {
   hover(document.querySelector("h2")!);
   vi.runAllTimers();
   expect(title.innerHTML).toBe("First");
+});
 
-  hover(title);
+it("declines with ✕, un-keeps a declined pick, and reports when none fit", async () => {
+  const shadow = mount();
+  const lede = document.querySelector("p")!;
+  const toggle = shadow.querySelector<HTMLElement>(".text-option-verdict")!;
+  hover(lede);
   control(shadow, "Next option").click();
-  control(shadow, "Keep the current text").click();
-  expect(title.innerHTML).toBe("First");
-  expect(localStorage.length).toBe(0);
+  control(shadow, "Use this option").click();
+  await vi.waitFor(() => expect(queue).toHaveBeenCalledOnce());
+  control(shadow, "Decline this option").click();
+  expect(toggle.dataset.verdict).toBe("decline");
+  expect(
+    control(shadow, "Decline this option").getAttribute("aria-pressed"),
+  ).toBe("true");
+  // Un-keeping took back the note that ✓ queued.
+  await vi.waitFor(() => expect(unqueue).toHaveBeenCalledOnce());
+  expect(
+    JSON.parse(
+      localStorage.getItem("komo:text-options:http://localhost:3000/")!,
+    ),
+  ).toEqual({ p: { decline: ["Other lede"] } });
+  const first = await queue.mock.results[0].value;
+  expect(unqueue).toHaveBeenCalledWith(first);
+  control(shadow, "Previous option").click();
+  expect(toggle.dataset.verdict).toBeUndefined();
+  control(shadow, "Decline this option").click();
+  await vi.waitFor(() => expect(queue).toHaveBeenCalledTimes(2));
+  const [picks, body] = queue.mock.calls[1] as unknown as [
+    OptionPick[],
+    string,
+  ];
+  expect(picks).toEqual([]);
+  expect(body).toBe(
+    "None of the text options fit. Write new copy:\n- p: all 2 options declined. Current copy: Lede",
+  );
 });
 
 it("starts over when the agent changes the options under a pick", () => {
@@ -160,13 +202,26 @@ it("queues each kept pick as a note in local agent mode only", async () => {
   hover(document.querySelector("h1")!);
   control(shadow, "Use this option").click();
   expect(queue).toHaveBeenCalledOnce();
+  // A changed mind replaces the queued note with one for the new pick.
+  control(shadow, "Next option").click();
+  control(shadow, "Use this option").click();
+  await vi.waitFor(() => expect(queue).toHaveBeenCalledTimes(2));
+  expect(unqueue).toHaveBeenCalledWith(await queue.mock.results[0].value);
+  expect((queue.mock.calls[1] as unknown as [OptionPick[]])[0][0].index).toBe(
+    2,
+  );
+  expect(
+    JSON.parse(
+      localStorage.getItem("komo:text-options:http://localhost:3000/")!,
+    ).hero.note,
+  ).toBe(await queue.mock.results[1].value);
 
   ui!.destroy();
   localStorage.clear();
   const hosted = mount(false);
   hover(document.querySelector("h1")!);
   control(hosted, "Use this option").click();
-  expect(queue).toHaveBeenCalledOnce();
+  expect(queue).toHaveBeenCalledTimes(2);
 });
 
 it("keeps a note within 4,000 characters", () => {
