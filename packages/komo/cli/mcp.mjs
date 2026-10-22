@@ -123,7 +123,7 @@ export const tools = [
   {
     name: "komo_options",
     description:
-      "Read the text option picks a person sent this agent. Offer copy alternatives by giving an element data-komo-options, a JSON array of HTML strings, or <template data-komo-option> children; the element's own content is option 0, and data-komo-id names the block. The person flips between options in the dock and sends the picks as a note, which komo_watch returns with an `options` list. Each pick has the block, selector, page and url, index (0 is the current content), count, the picked text and html, the original text, and threadId. Apply each pick to the source, drop the attribute or offer new options, then resolve the note. Resolved picks are left out unless all is true.",
+      "Read the text option picks a person sent this agent. Offer copy alternatives by giving an element data-komo-options, a JSON array of HTML strings, or <template data-komo-option> children; the element's own content is option 0, and data-komo-id names the block. The person hovers the block, flips between options in place, and presses ✓, which queues a note; komo_watch returns it with an `options` list. Several notes can cover one block; the newest wins. Each pick has the block, selector, page and url, index (0 is the current content), count, the picked text and html, the original text, and threadId. Apply each pick to the source, drop the attribute or offer new options, then resolve the note. Resolved picks are left out unless all is true.",
     inputSchema: {
       type: "object",
       properties: {

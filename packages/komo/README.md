@@ -231,7 +231,7 @@ An agent can offer copy alternatives instead of asking about them in chat. Give 
 </p>
 ```
 
-Select text inside the block and a pager floats above the selection. Each arrow swaps the block's content in place. Picks are saved per origin and page in the browser, so a reload keeps them. The dock lists every block with its current option. **Queue picks** adds one note with the picks to the Send queue; on a page without local agent mode, **Copy picks** copies the same text. komo looks for blocks when it mounts, when the page finishes loading, and after client-side navigation, then follows changes to them.
+A faint dotted underline marks each block that has options. Hover one to highlight its text and show a switcher below it: the arrows preview each option in place, ✓ keeps the one shown, and ✕ (or moving away) puts the kept text back. A kept pick is saved per origin and page in the browser, so a reload keeps it. In local agent mode ✓ also adds a note with the pick to the Send queue, so it reaches the agent like any other note. komo looks for blocks when it mounts, when the page finishes loading, and after client-side navigation, then follows changes to them.
 
 The agent receives the note from `komo_watch` with an `options` list, and `komo_options` or `komo options list --local` lists the newest pick for each block:
 

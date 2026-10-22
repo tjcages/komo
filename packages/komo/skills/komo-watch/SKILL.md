@@ -16,7 +16,7 @@ This skill is opt-in for this chat. It does not register MCP tools or send comme
 
 ## Text options
 
-When the person wants to compare copy, offer alternatives on the page instead of in chat. Give the element `data-komo-options` with a JSON array of HTML strings, the alternatives only: the element's own content is option 0. Add a stable `data-komo-id`. For long or quoted copy, use `<template data-komo-option>` children. Tell the person to select text in the block to flip between options, then press **Queue picks** in the dock and **Send**.
+When the person wants to compare copy, offer alternatives on the page instead of in chat. Give the element `data-komo-options` with a JSON array of HTML strings, the alternatives only: the element's own content is option 0. Add a stable `data-komo-id`. For long or quoted copy, use `<template data-komo-option>` children. Tell the person to hover the block, flip between options, press ✓ on the one they want, and then **Send**. Each ✓ queues one note; when several notes cover one block, the newest wins.
 
 The picks arrive as a note: `komo_watch` returns it with an `options` list. `komo_options` (or `komo options list --local`) lists the newest pick per block with `block`, `selector`, `page`, `index` (0 keeps the current content), `text`, `html`, and `original`. Write each picked `html` into the source in place of the original, then remove the attribute or offer new options for blocks still open. Verify the page, then resolve the note with a one-line summary.
 

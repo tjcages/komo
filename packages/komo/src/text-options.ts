@@ -4,18 +4,22 @@ import type { OptionPick } from "./types.js";
 // Text options. An agent offers candidate copy for a block with
 // `data-komo-options`, a JSON array of HTML strings, or with
 // `<template data-komo-option>` children; the block's own content is option
-// 0, and `data-komo-id` names the block. Selecting text inside a block shows
-// a floating pager over the selection. A pick swaps the block's content at
-// once and is kept per page in this browser, so a reload shows the same picks. The dock lists every block and
-// queues the picks for an agent as one note. This module loads only on pages
-// that offer options, and brings its own styles.
+// 0, and `data-komo-id` names the block. A faint dotted underline marks such
+// blocks. Hovering one highlights its text and floats a switcher below it:
+// the arrows preview each option in place, ✓ keeps the one shown and ✕ goes
+// back. A kept pick is saved per page in this browser, so a reload shows it,
+// and in local agent mode it is queued for Send as a note. This module loads
+// only on pages that offer options, and brings its own styles.
 
 type Block = {
   element: HTMLElement;
   id: string;
   /** HTML; option 0 is the block's own content. */
   options: string[];
+  /** The kept option. */
   index: number;
+  /** The option on the page now: the kept one, or one being previewed. */
+  shown: number;
   /** The attribute value the options were read from. */
   attribute: string;
   /** The content as komo last left it. Other content came from the page. */
@@ -24,12 +28,7 @@ type Block = {
   templates: HTMLTemplateElement[];
 };
 
-export type TextOptions = {
-  /** The dock's summary of every block on this page. */
-  panel: HTMLElement;
-  scan(): void;
-  destroy(): void;
-};
+export type TextOptions = { scan(): void; destroy(): void };
 
 const selector = "[data-komo-options]";
 const ease = "cubic-bezier(.22,1,.36,1)";
@@ -41,7 +40,7 @@ export function textOptions(host: {
   page(): string;
   /** False while the dock places a comment. */
   enabled(): boolean;
-  /** Local agent mode queues picks as a note; elsewhere they are copied. */
+  /** Local agent mode queues each kept pick as a note. */
   local: boolean;
   queue(picks: OptionPick[], body: string, target: Element): Promise<void>;
   notify(text: string): void;
@@ -54,69 +53,85 @@ export function textOptions(host: {
   const signal = abort.signal;
   const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   let picks: Record<string, unknown> = {},
-    picksKey = "",
-    sent = "",
-    drawn = "";
+    picksKey = "";
   let active: Block | null = null,
-    selecting = false,
+    pinned: { left: number; top: number } | null = null,
     hideTimer = 0,
     scanTimer = 0,
     frame = 0;
 
+  // The hint lives in the page, since it underlines the page's own text.
+  const hint = el("style");
+  hint.textContent = `${selector} { text-decoration-line: underline; text-decoration-style: dotted; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-decoration-thickness: 1px; text-underline-offset: .2em; }`;
+  document.head.append(hint);
   const style = el("style");
   style.textContent = css;
-  const ring = el("div", "text-option-ring");
-  ring.hidden = true;
-  const pager = el("div", "text-option-pager");
-  pager.hidden = true;
-  pager.setAttribute("role", "group");
-  pager.setAttribute("aria-label", "Text options");
+  const highlight = el("div", "text-option-highlight");
+  highlight.hidden = true;
+  const float = el("div", "text-option-float");
+  float.hidden = true;
+  float.setAttribute("role", "group");
+  float.setAttribute("aria-label", "Text options");
   const count = el("span", "text-option-count");
+  const pager = el("div", "text-option-group");
   pager.append(
     button(
       "Previous option",
-      () => active && choose(active, active.index - 1),
+      () => flip(-1),
       "icon text-option-previous",
       "chevron",
     ),
     count,
-    button(
-      "Next option",
-      () => active && choose(active, active.index + 1),
-      "icon text-option-next",
-      "chevron",
-    ),
+    button("Next option", () => flip(1), "icon text-option-next", "chevron"),
   );
-  // Pressing a pager button must not clear the page selection it belongs to.
-  pager.addEventListener("mousedown", (event) => event.preventDefault());
-  const panel = el("section", "text-options");
-  panel.setAttribute("aria-label", "Text options");
-  panel.hidden = true;
-  host.shadow.append(style, ring, pager);
+  const actions = el("div", "text-option-group");
+  actions.append(
+    button("Keep the current text", () => close(), "icon", "close"),
+    button("Use this option", keep, "icon text-option-keep", "check"),
+  );
+  float.append(pager, actions);
+  // While the pointer is on the switcher it stays put, even when a longer or
+  // shorter option reflows the block above it.
+  float.addEventListener("pointerenter", () => {
+    clearTimeout(hideTimer);
+    const box = float.getBoundingClientRect();
+    pinned = { left: box.left, top: box.top + scrollY };
+  });
+  float.addEventListener("pointerleave", () => {
+    pinned = null;
+    closeSoon();
+  });
+  host.shadow.append(style, highlight, float);
 
-  // The pager follows the page selection. A pointer selection shows it once
-  // the pointer lifts; a keyboard selection shows it at once.
+  // Hover opens the switcher at once. The pointer crosses a gap on its way
+  // down to the switcher, so leaving waits briefly; the dock never closes it.
   document.addEventListener(
-    "pointerdown",
+    "pointerover",
     (event) => {
-      if (!(event.target as Element).closest?.("[data-branch-comments]"))
-        selecting = true;
+      if (event.pointerType !== "mouse") return;
+      if (!host.enabled()) return close(true);
+      const target = event.target as Element;
+      if (target.closest?.("[data-branch-comments]")) return;
+      const block = blockAt(target);
+      if (block) open(block);
+      else closeSoon();
     },
     { capture: true, passive: true, signal },
   );
-  for (const type of ["pointerup", "pointercancel"])
-    document.addEventListener(
-      type,
-      () => {
-        if (!selecting) return;
-        selecting = false;
-        sync();
-      },
-      { capture: true, passive: true, signal },
-    );
-  document.addEventListener("selectionchange", () => selecting || sync(), {
-    signal,
-  });
+  // Touch has no hover: a tap on a block opens its switcher, a tap elsewhere
+  // closes it. The tap still reaches the page.
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.pointerType === "mouse") return;
+      const target = event.target as Element;
+      if (target.closest?.("[data-branch-comments]")) return;
+      const block = host.enabled() && blockAt(target);
+      if (block) open(block);
+      else close();
+    },
+    { capture: true, passive: true, signal },
+  );
   const observer = new MutationObserver(() => {
     if (!scanTimer)
       scanTimer = window.setTimeout(() => {
@@ -134,7 +149,6 @@ export function textOptions(host: {
   scan();
 
   return {
-    panel,
     scan,
     destroy() {
       abort.abort();
@@ -143,11 +157,11 @@ export function textOptions(host: {
       clearTimeout(scanTimer);
       cancelAnimationFrame(frame);
       for (const block of blocks.values()) {
-        if (block.index) block.element.innerHTML = block.options[0];
+        if (block.shown) block.element.innerHTML = block.options[0];
         block.element.append(...block.templates);
       }
       blocks.clear();
-      for (const node of [style, ring, pager, panel]) node.remove();
+      for (const node of [hint, style, highlight, float]) node.remove();
     },
   };
 
@@ -164,9 +178,9 @@ export function textOptions(host: {
     for (const element of blocks.keys())
       if (!seen.has(element)) blocks.delete(element);
     if (active) active = blocks.get(active.element) ?? null;
-    if (!active) hide(true);
-    else count.textContent = `${active.index + 1}/${active.options.length}`;
-    render();
+    if (active)
+      count.textContent = `${active.shown + 1}/${active.options.length}`;
+    else close(true);
   }
 
   function read(element: HTMLElement): Block | undefined {
@@ -200,6 +214,7 @@ export function textOptions(host: {
       id: element.dataset.komoId?.trim() || host.selector(element),
       options,
       index: 0,
+      shown: 0,
       attribute,
       applied: html,
       templates: [...(previous?.templates ?? []), ...templates],
@@ -214,14 +229,16 @@ export function textOptions(host: {
         save();
       }
     }
+    // A preview survives the rescan its own swap causes.
+    block.shown =
+      !changed && previous.shown < options.length
+        ? previous.shown
+        : block.index;
     blocks.set(element, block);
     // Writing only on a change keeps the scan from feeding itself: the
     // browser may serialize what komo wrote differently from the option.
-    if (
-      changed ||
-      block.options[block.index] !== previous.options[previous.index]
-    )
-      apply(block, false);
+    if (changed || options[block.shown] !== previous.options[previous.shown])
+      apply(block, block.shown, false);
     return block;
   }
 
@@ -244,9 +261,10 @@ export function textOptions(host: {
     return [];
   }
 
-  function apply(block: Block, animate: boolean) {
+  function apply(block: Block, option: number, animate: boolean) {
     const { element } = block;
-    const html = block.options[block.index];
+    block.shown = option;
+    const html = block.options[option];
     if (element.innerHTML !== html) {
       element.innerHTML = html;
       if (animate && !still())
@@ -255,27 +273,38 @@ export function textOptions(host: {
             { opacity: 0, filter: "blur(4px)" },
             { opacity: 1, filter: "blur(0px)" },
           ],
-          {
-            duration: 200,
-            easing: ease,
-          },
+          { duration: 200, easing: ease },
         );
     }
     block.applied = element.innerHTML;
   }
 
-  function choose(block: Block, next: number) {
-    const total = block.options.length;
-    block.index = (next + total) % total;
+  /** Preview the next or previous option in place. */
+  function flip(step: number) {
+    if (!active) return;
+    const total = active.options.length;
+    apply(active, (active.shown + step + total) % total, true);
+    count.textContent = `${active.shown + 1}/${total}`;
+    place();
+  }
+
+  /** Keep the option shown: save it, and queue it for the agent. */
+  function keep() {
+    const block = active;
+    if (!block) return;
+    const unchanged =
+      Object.hasOwn(picks, block.id) && block.shown === block.index;
+    block.index = block.shown;
     picks[block.id] = block.options[block.index];
     save();
-    apply(block, true);
-    // The swap removed the selected text: select the new content, so the
-    // pager stays and the reader sees what changed.
-    select(block);
-    count.textContent = `${block.index + 1}/${total}`;
-    render();
-    place();
+    close();
+    if (unchanged || !host.local) return;
+    const pick = pickOf(block);
+    host
+      .queue([pick], note([pick]), block.element)
+      .catch((reason) =>
+        host.notify(reason instanceof Error ? reason.message : "Try again."),
+      );
   }
 
   function blockAt(target: Element | null) {
@@ -283,84 +312,62 @@ export function textOptions(host: {
     return element ? blocks.get(element) : undefined;
   }
 
-  /** The selection's range, when it holds text inside one block. */
-  function selected() {
-    const selection = getSelection();
-    if (!selection?.rangeCount || selection.isCollapsed) return;
-    const range = selection.getRangeAt(0);
-    const node = range.commonAncestorContainer;
-    const block = blockAt(node instanceof Element ? node : node.parentElement);
-    return block && { block, range };
-  }
-
-  /** Show the pager for the selected block, or hide it. */
-  function sync() {
-    const current = host.enabled() && selected();
-    if (current) show(current.block);
-    else hideSoon();
-  }
-
-  /** Select a block's whole content, which shows its pager. */
-  function select(block: Block) {
-    const range = document.createRange();
-    range.selectNodeContents(block.element);
-    const selection = getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-  }
-
-  function show(block: Block) {
+  function open(block: Block) {
     clearTimeout(hideTimer);
-    const opening = pager.hidden || pager.dataset.leaving !== undefined;
+    const opening = float.hidden || float.dataset.leaving !== undefined;
     if (!opening && active === block) return;
+    // Another block's preview ends when the pointer moves on.
+    if (active && active !== block) apply(active, active.index, true);
     active = block;
-    count.textContent = `${block.index + 1}/${block.options.length}`;
-    for (const animation of pager.getAnimations()) animation.cancel();
-    delete pager.dataset.leaving;
-    pager.hidden = ring.hidden = false;
+    pinned = null;
+    count.textContent = `${block.shown + 1}/${block.options.length}`;
+    for (const animation of float.getAnimations()) animation.cancel();
+    delete float.dataset.leaving;
+    float.hidden = highlight.hidden = false;
     place();
     if (opening && !still())
-      pager.animate([hidden, shown], { duration: 150, easing: ease });
+      float.animate([hidden, shown], { duration: 150, easing: ease });
     follow();
   }
 
-  // A tap on the pager can clear the selection first; the short delay lets
-  // its click land and select the block again.
-  function hideSoon() {
+  function closeSoon() {
     clearTimeout(hideTimer);
-    if (!pager.hidden) hideTimer = window.setTimeout(() => hide(), 150);
+    if (!float.hidden) hideTimer = window.setTimeout(() => close(), 250);
   }
 
-  function hide(immediate = false) {
+  /** Close the switcher. A preview that was not kept goes back. */
+  function close(immediate = false) {
     clearTimeout(hideTimer);
     cancelAnimationFrame(frame);
-    active = null;
-    ring.hidden = true;
-    if (pager.hidden) return;
+    if (active && active.shown !== active.index)
+      apply(active, active.index, !immediate);
+    active = pinned = null;
+    highlight.hidden = true;
+    if (float.hidden) return;
     if (immediate || still()) {
-      for (const animation of pager.getAnimations()) animation.cancel();
-      delete pager.dataset.leaving;
-      pager.hidden = true;
+      for (const animation of float.getAnimations()) animation.cancel();
+      delete float.dataset.leaving;
+      float.hidden = true;
       return;
     }
-    if (pager.dataset.leaving !== undefined) return;
-    pager.dataset.leaving = "";
-    const exit = pager.animate([shown, hidden], {
+    if (float.dataset.leaving !== undefined) return;
+    float.dataset.leaving = "";
+    const exit = float.animate([shown, hidden], {
       duration: 120,
       easing: ease,
       fill: "forwards",
     });
     void exit.finished
       .then(() => {
-        if (pager.dataset.leaving === undefined) return;
-        delete pager.dataset.leaving;
-        pager.hidden = true;
+        if (float.dataset.leaving === undefined) return;
+        delete float.dataset.leaving;
+        float.hidden = true;
         exit.cancel();
       })
       .catch(() => {});
   }
 
-  /** Keep the ring and pager on the block while it scrolls or reflows. */
+  /** Keep the highlight and switcher on the block while it scrolls or reflows. */
   function follow() {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
@@ -371,123 +378,41 @@ export function textOptions(host: {
   }
 
   /**
-   * Ring the block's text and float the pager centred above the selection,
-   * or below it at the top of the viewport.
+   * Highlight each line of the block's text and set the switcher below it,
+   * aligned as the text is.
    */
   function place() {
     if (!active) return;
     const range = document.createRange();
     range.selectNodeContents(active.element);
+    const rows = lines(range);
     const text = range.getBoundingClientRect();
     const box =
       text.width || text.height ? text : active.element.getBoundingClientRect();
-    const current = selected();
-    const target =
-      current?.block === active ? current.range.getBoundingClientRect() : box;
-    const inset = 4,
-      gap = 8;
-    Object.assign(ring.style, {
-      left: `${box.left - inset}px`,
-      top: `${box.top - inset}px`,
-      width: `${box.width + inset * 2}px`,
-      height: `${box.height + inset * 2}px`,
-    });
-    const width = pager.offsetWidth,
-      height = pager.offsetHeight;
-    const above = target.top - gap - height >= 8;
-    const left = target.left + target.width / 2 - width / 2;
-    pager.style.left = `${Math.max(8, Math.min(innerWidth - width - 8, left))}px`;
-    pager.style.top = `${above ? target.top - gap - height : target.bottom + gap}px`;
-    pager.style.transformOrigin = above ? "50% 100%" : "50% 0%";
-  }
-
-  function ordered() {
-    return [...blocks.values()].sort((a, b) =>
-      a.element.compareDocumentPosition(b.element) &
-      Node.DOCUMENT_POSITION_FOLLOWING
-        ? -1
-        : 1,
-    );
-  }
-
-  function picked(block: Block) {
-    return Object.hasOwn(picks, block.id);
-  }
-
-  /** The dock's summary: one row per block, and the action that sends picks. */
-  function render() {
-    const list = ordered();
-    const chosen = list.filter(picked).map(pickOf);
-    const signature = JSON.stringify([
-      list.map((block) => [
-        block.id,
-        block.index,
-        block.options.length,
-        picked(block),
-      ]),
-      sent,
-    ]);
-    if (signature === drawn) return;
-    drawn = signature;
-    panel.hidden = !list.length;
-    const action = button(
-      host.local ? "Queue picks" : "Copy picks",
-      () =>
-        void send(chosen).catch((reason) =>
-          host.notify(reason instanceof Error ? reason.message : "Try again."),
-        ),
-      "secondary",
-    );
-    action.disabled = !chosen.length || sent === key(chosen);
-    const head = el("div", "text-options-head");
-    head.append(el("span", "", "Text options"), action);
-    panel.replaceChildren(
-      head,
-      ...list.map((block) => {
-        const label = plain(block.options[block.index]);
-        const row = button(
-          label || block.id,
-          () => reveal(block),
-          "text-option-row",
-        );
-        row.replaceChildren(
-          el("span", "text-option-text", label || block.id),
-          el(
-            "span",
-            "text-option-count",
-            `${block.index + 1}/${block.options.length}`,
-          ),
-        );
-        if (picked(block)) row.dataset.picked = "";
-        return row;
+    while (highlight.childElementCount > rows.length)
+      highlight.lastElementChild!.remove();
+    while (highlight.childElementCount < rows.length)
+      highlight.append(el("div"));
+    rows.forEach((row, index) =>
+      Object.assign((highlight.children[index] as HTMLElement).style, {
+        left: `${row.left - 2}px`,
+        top: `${row.top}px`,
+        width: `${row.right - row.left + 4}px`,
+        height: `${row.bottom - row.top}px`,
       }),
     );
-  }
-
-  function reveal(block: Block) {
-    block.element.scrollIntoView({
-      block: "center",
-      behavior: still() ? "auto" : "smooth",
-    });
-    select(block);
-  }
-
-  async function send(chosen: OptionPick[]) {
-    if (!chosen.length) return;
-    const body = note(chosen);
-    if (host.local) {
-      const target = ordered().find(
-        (block) => block.id === chosen[0].block,
-      )?.element;
-      if (!target) return;
-      await host.queue(chosen, body, target);
-      host.notify("Picks queued. Press Send to deliver them.");
-    } else {
-      await navigator.clipboard.writeText(body);
-      host.notify("Picks copied");
-    }
-    sent = key(chosen);
-    render();
+    const width = float.offsetWidth,
+      height = float.offsetHeight;
+    const align = getComputedStyle(active.element).textAlign;
+    const [left, origin] =
+      align === "center"
+        ? [box.left + box.width / 2 - width / 2, "50% 0%"]
+        : align === "right" || align === "end"
+          ? [box.right - width, "100% 0%"]
+          : [box.left - 2, "0% 0%"];
+    float.style.left = `${pinned?.left ?? Math.max(8, Math.min(innerWidth - width - 8, left))}px`;
+    float.style.top = `${pinned ? pinned.top - scrollY : Math.min(innerHeight - height - 8, box.bottom + 8)}px`;
+    float.style.transformOrigin = origin;
   }
 
   function pickOf(block: Block): OptionPick {
@@ -525,8 +450,31 @@ export function textOptions(host: {
   }
 }
 
-const key = (picks: OptionPick[]) =>
-  JSON.stringify(picks.map((pick) => [pick.block, pick.index]));
+/** One box per line of text: inline fragments on a line merge. */
+function lines(range: Range) {
+  const rows: { left: number; right: number; top: number; bottom: number }[] =
+    [];
+  for (const rect of range.getClientRects()) {
+    if (!rect.width || !rect.height) continue;
+    const row = rows.find(
+      (item) => rect.top < item.bottom - 1 && rect.bottom > item.top + 1,
+    );
+    if (!row)
+      rows.push({
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+      });
+    else {
+      row.left = Math.min(row.left, rect.left);
+      row.right = Math.max(row.right, rect.right);
+      row.top = Math.min(row.top, rect.top);
+      row.bottom = Math.max(row.bottom, rect.bottom);
+    }
+  }
+  return rows;
+}
 
 /** HTML as the browser writes it back, so options compare with content. */
 function normal(html: string) {
@@ -543,7 +491,9 @@ function plain(html: string) {
 
 /** The note that carries picks: one line per block, within a note's 4,000 characters. */
 export function note(picks: OptionPick[]) {
-  const lines = ["Use these text options:"];
+  const lines = [
+    picks.length === 1 ? "Use this text option:" : "Use these text options:",
+  ];
   for (const [index, pick] of picks.entries()) {
     const text =
       pick.text.length > 200 ? `${pick.text.slice(0, 199)}…` : pick.text;
@@ -559,27 +509,20 @@ export function note(picks: OptionPick[]) {
 }
 
 const css = `
-.text-option-pager { position: fixed; z-index: 6; display: flex; align-items: center; padding: 2px; border-radius: 999px; background: #0d0d0d; color: rgb(255 255 255 / 90%); box-shadow: inset 0 1px 1px rgb(255 255 255 / 8%), inset 0 -1px 2px rgb(0 0 0 / 50%), 0 1px 2px rgb(0 0 0 / 12%), 0 4px 12px rgb(0 0 0 / 10%); pointer-events: auto; font-size: 12px; font-weight: 500; line-height: 1; }
-.text-option-pager[hidden], .text-option-ring[hidden], .text-options[hidden] { display: none; }
-.text-option-pager[data-leaving] { pointer-events: none; }
-.text-option-pager button { width: 24px; height: 24px; border-radius: 50%; color: inherit; }
-.text-option-pager button:hover { background: rgb(255 255 255 / 10%); }
-.text-option-pager button:active { scale: .92; transition: scale 100ms cubic-bezier(.22,1,.36,1); }
-.text-option-pager svg { width: 14px; height: 14px; }
+.text-option-float { position: fixed; z-index: 6; display: flex; gap: 6px; pointer-events: auto; font-size: 12px; font-weight: 500; line-height: 1; }
+.text-option-float[hidden], .text-option-highlight[hidden] { display: none; }
+.text-option-float[data-leaving] { pointer-events: none; }
+.text-option-group { display: flex; align-items: center; padding: 2px; border-radius: 999px; background: #0d0d0d; color: rgb(255 255 255 / 90%); box-shadow: inset 0 1px 1px rgb(255 255 255 / 8%), inset 0 -1px 2px rgb(0 0 0 / 50%), 0 1px 2px rgb(0 0 0 / 12%), 0 4px 12px rgb(0 0 0 / 10%); }
+.text-option-group button { width: 24px; height: 24px; border-radius: 50%; color: inherit; }
+.text-option-group button:hover { background: rgb(255 255 255 / 10%); }
+.text-option-group .text-option-keep { background: #fff; color: #0d0d0d; }
+.text-option-group .text-option-keep:hover { background: #e6e6e6; }
+.text-option-group button:active { scale: .92; transition: scale 100ms cubic-bezier(.22,1,.36,1); }
+.text-option-group svg { width: 14px; height: 14px; }
 .text-option-previous svg { rotate: 90deg; }
 .text-option-next svg { rotate: -90deg; }
-.text-option-pager .text-option-count { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
-.text-option-ring { position: fixed; z-index: 1; pointer-events: none; border-radius: 6px; box-shadow: 0 0 0 1.5px #4388ff; }
-.text-options { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin: 0 0 8px; padding: 4px 0 12px; border-bottom: 1px solid #ffffff12; }
-.text-options-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px 6px; font-size: 12px; font-weight: 500; color: #888; }
-.text-options-head .secondary { min-height: 28px; padding: 6px 10px; background: #262626; color: #eee; }
-.text-options-head .secondary:hover { background: #303030; }
-.text-options-head .secondary:disabled { cursor: default; }
-.text-option-row { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 8px 12px; border-radius: 10px; color: #888; text-align: left; }
-.text-option-row[data-picked] { color: #eee; }
-.text-option-row:hover { background: #161616; }
-.text-option-row:active, .text-options-head .secondary:active:not(:disabled) { scale: .98; transition: scale 100ms cubic-bezier(.22,1,.36,1); }
-.text-option-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.text-option-row .text-option-count { flex: none; color: #888; font-variant-numeric: tabular-nums; }
-@media (prefers-reduced-motion: reduce) { .text-option-pager button:active, .text-option-row:active, .text-options-head .secondary:active { scale: 1; } }
+.text-option-count { min-width: 28px; text-align: center; font-variant-numeric: tabular-nums; }
+.text-option-highlight { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+.text-option-highlight > div { position: absolute; border-radius: 3px; background: rgb(67 136 255 / 12%); }
+@media (prefers-reduced-motion: reduce) { .text-option-group button:active { scale: 1; } }
 `;

@@ -19,17 +19,13 @@ const mount = (local = true) => {
   });
   return shadow;
 };
-/** Select some text inside an element, as a reader would. */
-const select = (element: Element) => {
-  const range = document.createRange();
-  range.selectNodeContents(element.firstChild!);
-  getSelection()!.removeAllRanges();
-  getSelection()!.addRange(range);
-  document.dispatchEvent(new Event("selectionchange"));
-};
-const pagerButton = (shadow: ShadowRoot, label: string) =>
+const hover = (element: Element) =>
+  element.dispatchEvent(
+    new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" }),
+  );
+const control = (shadow: ShadowRoot, label: string) =>
   shadow.querySelector<HTMLButtonElement>(
-    `.text-option-pager [aria-label="${label}"]`,
+    `.text-option-float [aria-label="${label}"]`,
   )!;
 
 beforeEach(() => {
@@ -60,88 +56,87 @@ afterEach(() => {
   ui?.destroy();
   ui = undefined;
   localStorage.clear();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   queue.mockClear();
   notify.mockClear();
 });
 
-it("reads options from the attribute and templates, and skips blocks without alternatives", () => {
+it("reads options from the attribute and templates, and marks the page with a hint", () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  mount();
-  const rows = ui!.panel.querySelectorAll(".text-option-row");
-  expect([...rows].map((row) => row.textContent)).toEqual([
-    "First1/3",
-    "Lede1/2",
-  ]);
+  const shadow = mount();
   expect(document.querySelector("p template")).toBeNull();
   expect(warn).toHaveBeenCalledOnce();
-});
-
-it("shows the pager only for a selection inside one block", () => {
+  expect(document.head.textContent).toContain("text-decoration-style: dotted");
+  hover(document.querySelector("p")!);
+  expect(shadow.querySelector(".text-option-count")!.textContent).toBe("1/2");
+  // A block whose only alternative repeats its content offers nothing.
   vi.useFakeTimers();
-  const shadow = mount();
-  const pager = shadow.querySelector<HTMLElement>(".text-option-pager")!;
-  select(document.querySelector("h3")!);
+  hover(document.querySelector("h3")!);
   vi.runAllTimers();
-  expect(pager.hidden).toBe(true);
-  select(document.querySelector("h1")!);
-  expect(pager.hidden).toBe(false);
-  getSelection()!.removeAllRanges();
-  document.dispatchEvent(new Event("selectionchange"));
-  expect(pager.hidden).toBe(false);
-  vi.runAllTimers();
-  expect(pager.hidden).toBe(true);
-  vi.useRealTimers();
+  expect(shadow.querySelector<HTMLElement>(".text-option-float")!.hidden).toBe(
+    true,
+  );
+  ui!.destroy();
+  expect(document.head.textContent).not.toContain("dotted");
 });
 
-it("swaps a block in place, cycles, and keeps the pick across a reload", () => {
+it("previews on hover, keeps with ✓, and keeps the pick across a reload", () => {
   const shadow = mount();
   const title = document.querySelector("h1")!;
-  select(title);
-  const pager = shadow.querySelector<HTMLElement>(".text-option-pager")!;
-  expect(pager.hidden).toBe(false);
-  expect(pager.textContent).toBe("1/3");
-  pagerButton(shadow, "Next option").click();
-  pagerButton(shadow, "Next option").click();
+  hover(title);
+  const float = shadow.querySelector<HTMLElement>(".text-option-float")!;
+  expect(float.hidden).toBe(false);
+  control(shadow, "Next option").click();
+  control(shadow, "Next option").click();
   expect(title.innerHTML).toBe("<em>Third</em>");
-  // The new content stays selected, so the pager stays with it.
-  expect(getSelection()!.toString()).toBe("Third");
-  pagerButton(shadow, "Next option").click();
-  pagerButton(shadow, "Previous option").click();
+  expect(float.textContent).toBe("3/3");
+  control(shadow, "Use this option").click();
+  expect(float.hidden).toBe(true);
   expect(title.innerHTML).toBe("<em>Third</em>");
-  expect(pager.textContent).toBe("3/3");
 
   ui!.destroy();
   expect(title.innerHTML).toBe("First");
   mount();
   expect(title.innerHTML).toBe("<em>Third</em>");
-  expect(ui!.panel.querySelector("[data-picked]")?.textContent).toBe(
-    "Third3/3",
-  );
+});
+
+it("puts a preview back when the reader leaves or presses ✕", () => {
+  vi.useFakeTimers();
+  const shadow = mount();
+  const title = document.querySelector("h1")!;
+  hover(title);
+  control(shadow, "Next option").click();
+  expect(title.innerHTML).toBe("Second");
+  hover(document.querySelector("h2")!);
+  vi.runAllTimers();
+  expect(title.innerHTML).toBe("First");
+
+  hover(title);
+  control(shadow, "Next option").click();
+  control(shadow, "Keep the current text").click();
+  expect(title.innerHTML).toBe("First");
+  expect(localStorage.length).toBe(0);
 });
 
 it("starts over when the agent changes the options under a pick", () => {
   const shadow = mount();
   const title = document.querySelector("h1")!;
-  select(title);
-  pagerButton(shadow, "Next option").click();
+  hover(title);
+  control(shadow, "Next option").click();
+  control(shadow, "Use this option").click();
   ui!.destroy();
   title.setAttribute("data-komo-options", '["New second"]');
   mount();
   expect(title.innerHTML).toBe("First");
-  expect(ui!.panel.querySelector("[data-picked]")).toBeNull();
 });
 
-it("queues the picked blocks as one note, and copies them without a local agent", async () => {
+it("queues each kept pick as a note in local agent mode only", async () => {
   const shadow = mount();
-  select(document.querySelector("h1")!);
-  pagerButton(shadow, "Next option").click();
-  const action = ui!.panel.querySelector<HTMLButtonElement>(
-    ".text-options-head button",
-  )!;
-  expect(action.textContent).toBe("Queue picks");
-  action.click();
+  hover(document.querySelector("h1")!);
+  control(shadow, "Next option").click();
+  control(shadow, "Use this option").click();
   await vi.waitFor(() => expect(queue).toHaveBeenCalledOnce());
   const [picks, body, target] = queue.mock.calls[0] as unknown as [
     OptionPick[],
@@ -159,25 +154,19 @@ it("queues the picked blocks as one note, and copies them without a local agent"
       original: "First",
     },
   ]);
-  expect(body).toBe("Use these text options:\n- hero: option 2 of 3: Second");
+  expect(body).toBe("Use this text option:\n- hero: option 2 of 3: Second");
   expect(target).toBe(document.querySelector("h1"));
-  await vi.waitFor(() =>
-    expect(
-      ui!.panel.querySelector<HTMLButtonElement>(".text-options-head button")!
-        .disabled,
-    ).toBe(true),
-  );
+  // Keeping the same pick again sends nothing new.
+  hover(document.querySelector("h1")!);
+  control(shadow, "Use this option").click();
+  expect(queue).toHaveBeenCalledOnce();
 
   ui!.destroy();
-  const writeText = vi.fn(async () => {});
-  vi.stubGlobal("navigator", { clipboard: { writeText } });
-  mount(false);
-  const copy = ui!.panel.querySelector<HTMLButtonElement>(
-    ".text-options-head button",
-  )!;
-  expect(copy.textContent).toBe("Copy picks");
-  copy.click();
-  await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(body));
+  localStorage.clear();
+  const hosted = mount(false);
+  hover(document.querySelector("h1")!);
+  control(hosted, "Use this option").click();
+  expect(queue).toHaveBeenCalledOnce();
 });
 
 it("keeps a note within 4,000 characters", () => {

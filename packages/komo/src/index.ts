@@ -3708,7 +3708,6 @@ export function initComments(options: CommentsOptions): CommentsController {
       list.prepend(
         button("Saved comments · Try again", retryConnection, "secondary"),
       );
-    if (textOptionsUi) list.prepend(textOptionsUi.panel);
     if (existingList) existingList.replaceWith(list);
     else panel.append(list);
     syncTips(!!list.querySelector(".empty [aria-label='Add a comment']"));
@@ -5913,7 +5912,6 @@ export function initComments(options: CommentsOptions): CommentsController {
           });
         },
       });
-      renderList();
     }, fail).finally(() => (loadingTextOptions = false));
   }
   syncTextOptions();
