@@ -139,6 +139,23 @@ CREATE TABLE local_handoffs (
 );
 `,
   },
+  {
+    // Text option picks, carried by the note that sends them.
+    name: "local/0005_text_options",
+    sql: `
+CREATE TABLE local_option_picks (
+  thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+  block TEXT NOT NULL,
+  selector TEXT NOT NULL,
+  choice INTEGER NOT NULL,
+  count INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  html TEXT NOT NULL,
+  original TEXT NOT NULL,
+  PRIMARY KEY (thread_id, block)
+);
+`,
+  },
 ];
 
 /** The store file: $KOMO_DATA_HOME/local.sqlite, else ~/.local/share/komo. */

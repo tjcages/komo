@@ -16,7 +16,8 @@ import {
 } from "./projects";
 import { resolveScope, type AgentScope } from "./scope";
 import { openProbe, openStore, storePath } from "./store";
-import { branches, handoffs, pending, release, stage, type StageInput } from "./staging";
+import { sentPicks } from "./options";
+import { branches, handoffs, pending, release, stage, unstage, type StageInput } from "./staging";
 import { claimLease, claimOf, formatThread, type Holder } from "./watch";
 
 // Local agent mode: the unchanged komo Worker, run in Node over a SQLite file,
@@ -26,6 +27,7 @@ import { claimLease, claimOf, formatThread, type Holder } from "./watch";
 export { defaultLocalOrigins, resolveScope, type AgentScope } from "./scope";
 export { defaultPort, localPort } from "./http";
 export { storePath } from "./store";
+export type { SentPick } from "./options";
 export {
   claimLease,
   formatThread,
@@ -242,6 +244,11 @@ export class LocalKomo {
   /** New notes wait on a reserved branch until Send moves them to an agent. */
   stageNote(input: StageInput, origin: string, token?: string) {
     return stage(this, input, origin, token);
+  }
+
+  /** Remove a queued note that has not been sent, for the page that staged it. */
+  unstageNote(project: string, repo: string, operation: string, origin: string) {
+    return this.exclusive(async () => unstage(this.database, { project, repo }, operation, origin));
   }
 
   queued(project: string, repo: string) {
@@ -713,6 +720,21 @@ export class LocalAgent {
         .run(threadId);
       return { ok: true };
     });
+  }
+
+  /**
+   * The reviewer's sent text option picks in this agent's scopes: the newest
+   * per block and page. With `all`, picks the agent already resolved too.
+   */
+  options(all = false) {
+    const branches = [...new Set([this.scope.channel, this.scope.branch])].filter(
+      (branch) => branch !== "komo-queued",
+    );
+    return sentPicks(
+      this.komo.database,
+      { project: this.scope.project, repo: this.scope.repo, branches },
+      all,
+    );
   }
 
   async reopen(threadId: string) {

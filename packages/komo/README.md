@@ -172,6 +172,7 @@ Then ask the agent for watch mode. It calls `komo_status` once, runs the waiter 
 | `komo_reply` | Reply with `threadId` and `body`; the thread stays open. Fails with a code, and posts nothing, if the thread changed after the agent received it (see below). |
 | `komo_resolve` | Resolve `threadId`, then post an optional `summary` as a reply. Fails with a code, and changes nothing, if the thread changed after the agent received it (see below). |
 | `komo_reopen` | Reopen a resolved thread. |
+| `komo_options` | The text option picks you sent this agent: the newest per block and page. Picks whose note is resolved are left out unless `all` is true. See [Text options](#text-options). |
 
 Every tool accepts `directory`, the agent’s working directory. Its `.komo/project.json` selects the project, and its Git worktree selects the agent’s entry in **Send to**; pass it after the agent moves to another worktree. A thread is delivered when its last message is from a person and you sent it. One agent claims each delivery for 20 minutes, or until its session ends. After an agent replies, or resolves with a summary, the thread waits for you: your answer or an edit delivers it again after Send, and a reopen alone does not.
 
@@ -214,7 +215,34 @@ pnpm exec komo comments reply THREAD_ID --local --body "Brand blue or link blue?
 pnpm exec komo comments resolve THREAD_ID --local --body "Header uses the brand blue."
 ```
 
-`get` and `reopen` also accept `--local`. `watch` takes `--timeout`, `--batch`, and `--origins`. Every `--local` command takes `--directory`. `watch` and `get` print each thread's `version`; pass it to `reply` or `resolve` as `--version VERSION`. Without it, they check against the claim that the CLI took in that worktree, and fail when you wrote something the agent has not received. A failed `reply` or `resolve` prints its `code` in the error; after `changed` it also prints the current `thread` and its new `version`. The opt-in `/komo-watch` skill covers watch mode after `komo skills setup`; `komo agents setup` installs the default comment workflow, including local MCP watch instructions and a CLI fallback.
+`pnpm exec komo options list --local` prints the text option picks you sent. `get` and `reopen` also accept `--local`. `watch` takes `--timeout`, `--batch`, and `--origins`. Every `--local` command takes `--directory`. `watch` and `get` print each thread's `version`; pass it to `reply` or `resolve` as `--version VERSION`. Without it, they check against the claim that the CLI took in that worktree, and fail when you wrote something the agent has not received. A failed `reply` or `resolve` prints its `code` in the error; after `changed` it also prints the current `thread` and its new `version`. The opt-in `/komo-watch` skill covers watch mode after `komo skills setup`; `komo agents setup` installs the default comment workflow, including local MCP watch instructions and a CLI fallback.
+
+### Text options
+
+An agent can offer copy alternatives instead of asking about them in chat. Give the element `data-komo-options`, a JSON array of HTML strings. The element's own content is option 0, so list only the alternatives. Name the block with `data-komo-id`; without it, komo uses the element's selector. Long or quoted copy can go in `<template data-komo-option>` children instead:
+
+```html
+<h1 data-komo-id="hero-title" data-komo-options='["Pick the words on the page", "Choose copy where it lives"]'>
+  Review copy where it lives
+</h1>
+<p data-komo-id="hero-lede" data-komo-options>
+  Your agent writes a few versions.
+  <template data-komo-option>Flip between drafts on the real page, then send the ones you <em>like</em>.</template>
+</p>
+```
+
+A faint dotted underline marks each block that has options. Hover one to highlight its text and show a switcher below it: the arrows (or ← and → on the keyboard) preview each option in place, and a ✕ / ✓ toggle records your verdict on the option shown. ✓ keeps it on the page; ✕ declines it. The option on screen stays when you move away, and across a reload, until you flip again. Verdicts and the option shown are saved per origin and page in the browser. Only ✓ and ✕ reach the agent. In local agent mode a kept option adds a note with the pick to the Send queue, and declining every option adds a note asking for new copy. Each block keeps at most one unsent note: changing your mind replaces it. After Send, a change adds a new note, and the newest pick wins. komo looks for blocks when it mounts, when the page finishes loading, and after client-side navigation, then follows changes to them.
+
+The agent receives the note from `komo_watch` with an `options` list, and `komo_options` or `komo options list --local` lists the newest pick for each block:
+
+```json
+{ "threadId": "…", "resolved": false, "page": "/", "url": "http://localhost:4321/",
+  "block": "hero-title", "selector": "main > h1:nth-of-type(1)", "index": 2, "count": 3,
+  "text": "Choose copy where it lives", "html": "Choose copy where it lives",
+  "original": "Review copy where it lives", "pickedAt": "2026-10-21T18:02:11.000Z" }
+```
+
+`index` 0 keeps the current content. The agent writes each pick into the source, removes the attribute or offers new options, and resolves the note. Resolved picks are left out unless `all` (`--all`) is set.
 
 ### Scopes and origins
 
