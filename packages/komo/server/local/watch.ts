@@ -4,6 +4,7 @@ import type { Comment, Thread } from "../../src/types";
 import { originAllowed } from "../validation";
 import { activity, tombstone } from "./activity";
 import type { LocalAgent, LocalKomo } from "./index";
+import { picksOf } from "./options";
 import { alive } from "./projects";
 import type { DatabaseSync } from "node:sqlite";
 
@@ -128,7 +129,14 @@ export function formatThread(agent: LocalAgent, item: Listed) {
       editedAt: comment.editedAt ? iso(comment.editedAt) : null,
     })),
     markdown: threadMarkdown({ ...thread, comments }),
+    ...optionsOf(agent, thread.id),
   };
+}
+
+/** A note that sends text option picks carries them as `options`. */
+function optionsOf(agent: LocalAgent, threadId: string) {
+  const options = picksOf(agent.komo.database, threadId);
+  return options.length ? { options } : {};
 }
 
 type Pending = { id: string; branch: string; key: string; origin?: string };

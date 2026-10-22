@@ -41,7 +41,7 @@ function stableFor(element: Element, preferred?: string): string | undefined {
       return selector;
   }
 }
-function selectorFor(element: Element): string {
+export function selectorFor(element: Element): string {
   const parts: string[] = [];
   let node: Element | null = element;
   while (node && node !== document.body && parts.length < 12) {

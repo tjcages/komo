@@ -16,6 +16,7 @@ import {
 } from "./projects";
 import { resolveScope, type AgentScope } from "./scope";
 import { openProbe, openStore, storePath } from "./store";
+import { sentPicks } from "./options";
 import { branches, handoffs, pending, release, stage, type StageInput } from "./staging";
 import { claimLease, claimOf, formatThread, type Holder } from "./watch";
 
@@ -26,6 +27,7 @@ import { claimLease, claimOf, formatThread, type Holder } from "./watch";
 export { defaultLocalOrigins, resolveScope, type AgentScope } from "./scope";
 export { defaultPort, localPort } from "./http";
 export { storePath } from "./store";
+export type { SentPick } from "./options";
 export {
   claimLease,
   formatThread,
@@ -713,6 +715,21 @@ export class LocalAgent {
         .run(threadId);
       return { ok: true };
     });
+  }
+
+  /**
+   * The reviewer's sent text option picks in this agent's scopes: the newest
+   * per block and page. With `all`, picks the agent already resolved too.
+   */
+  options(all = false) {
+    const branches = [...new Set([this.scope.channel, this.scope.branch])].filter(
+      (branch) => branch !== "komo-queued",
+    );
+    return sentPicks(
+      this.komo.database,
+      { project: this.scope.project, repo: this.scope.repo, branches },
+      all,
+    );
   }
 
   async reopen(threadId: string) {

@@ -233,6 +233,7 @@ export class LocalSession {
       origins: origins ?? null,
       watching: this.komo.watchingAgents(agent.scope.project, agent.scope.repo),
       hint: `Leave notes on a page whose origin matches pages, then pick "${agent.scope.label}" in the komo dock's Send to menu. Notes to "${agent.scope.label}" wait until the person presses Send in the dock. A komo client whose endpoint is ${endpoint} reaches this agent on branch "${agent.scope.branch}", where notes need no Send.`,
+      options: `To offer copy alternatives, give an element data-komo-options with a JSON array of HTML strings, or <template data-komo-option> children; its own content is option 0, and data-komo-id names the block. The person flips options on the page and sends the picks as a note: komo_watch returns it with an options list, and komo_options lists the newest pick per block. Apply each pick to the source, then resolve the note.`,
       waiter: this.waiterCommand(origins, directory),
     };
   }
@@ -437,6 +438,17 @@ export class LocalSession {
     );
     this.#received.delete(id);
     return { threadId: id, resolved: true };
+  }
+
+  /**
+   * The text option picks the person sent this agent: the newest per block
+   * and page. Picks whose note is resolved are left out unless `all`.
+   */
+  async options(args = {}) {
+    const agent = await this.agent(args.directory);
+    if (args.all !== undefined && typeof args.all !== "boolean")
+      throw Error("all must be true or false.");
+    return { picks: agent.options(!!args.all) };
   }
 
   async reopen(args = {}) {

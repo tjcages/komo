@@ -235,6 +235,7 @@ async function localRoute(
         anchor: fields.anchor,
         body: fields.body as string,
         handoff: fields.handoff as { endpoint: string; branch: string; thread: string } | undefined,
+        options: fields.options,
       }, origin, req.headers.authorization), cors);
     } catch (error) {
       const reason = error as Error & { status?: number };

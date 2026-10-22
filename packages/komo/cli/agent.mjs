@@ -41,6 +41,10 @@ const actions = {
   wait:
     "Wait for sent notes without claiming them, print notes N, and exit: wait --local [--directory DIR] [--origins LIST]",
 };
+/** `komo options`: the text option picks a person sent this agent. */
+const optionActions = {
+  list: "List the newest sent pick per text block: options list --local [--all] [--directory DIR]",
+};
 /** Actions that also work on the local store with --local. */
 const localActions = ["watch", "wait", "get", "reply", "resolve", "reopen"];
 export const agentCommands = [
@@ -53,6 +57,7 @@ export const agentCommands = [
   "project",
   "mcp",
   "skills",
+  "options",
 ];
 export const agentHelp = `
 Agent commands:
@@ -67,6 +72,7 @@ Agent commands:
   komo comments reopen ID    Reopen a thread
   komo comments watch --local  Wait for local notes; prints one JSON line
   komo comments wait --local   Wait for sent notes without claiming; prints notes N
+  komo options list --local    Text option picks the person sent; JSON
   komo mcp                   Local agent mode MCP server on stdio
   komo mcp setup             Register this installation in Claude Code (opt-in)
   komo skills setup          Install /komo-watch in this project's .claude/skills
@@ -98,7 +104,7 @@ Results are JSON except prompt (Markdown unless --json). Errors are JSON on stde
 `;
 
 function parse(args) {
-  const booleans = new Set(["--json", "--remove", "--no-open", "--local", "--user-scope"]);
+  const booleans = new Set(["--json", "--remove", "--no-open", "--local", "--user-scope", "--all"]);
   const values = new Set([
     "--out",
     "--file",
@@ -589,6 +595,26 @@ export async function runAgent(
     );
     return;
   }
+  if (command === "options") {
+    if (action !== "list" || positional.length !== 2)
+      throw Error("Use komo options list --local.");
+    if (!flags.local)
+      throw Error("komo options reads the local store. Add --local.");
+    for (const name of Object.keys(flags))
+      if (!["local", "all", "directory"].includes(name))
+        throw Error(`--${name} does not apply to komo options list.`);
+    const session = new LocalSession({
+      cwd: flags.directory ? resolve(cwd, flags.directory) : cwd,
+      env,
+      pid: 0,
+    });
+    try {
+      console.log(JSON.stringify({ ok: true, data: await session.options({ all: !!flags.all }) }));
+    } finally {
+      await session.close({ leave: false });
+    }
+    return;
+  }
   if (command === "schema") {
     console.log(
       JSON.stringify(
@@ -605,6 +631,13 @@ export async function runAgent(
           skills: { setup: "komo skills setup", userScope: "komo skills setup --user-scope", name: "komo-watch" },
           local:
             "komo mcp serves local agent mode over stdio; komo comments watch|wait|get|reply|resolve|reopen --local work on the local store",
+          options: {
+            commands: optionActions,
+            offer:
+              "data-komo-options on an element: a JSON array of HTML strings, or <template data-komo-option> children. The element's own content is option 0; data-komo-id names the block, else its selector does.",
+            pick: "{ threadId, resolved, page, url, block, selector, index, count, text, html, original, pickedAt }; index 0 is the current content",
+            mcp: "komo_options",
+          },
           project: projectHelp,
           guidance: agentWorkflow,
         },

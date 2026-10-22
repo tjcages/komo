@@ -25,7 +25,7 @@ export const tools = [
   {
     name: "komo_status",
     description:
-      "Show this agent's komo scopes: its own channel (the entry in the dock's Send to menu), the branch a stock komo client uses, the local endpoint, the page origins the local server accepts, whether this process serves the port, whether the process that serves it has Send (`send`; with false, a `warning`, and notes arrive without Send), and the agents that watch the project now. `waiter` is the exact shell command that waits for notes without claiming them: it prints `notes N` and exits when N notes wait, and prints nothing while it waits. Run it in the background, then claim the notes with komo_watch. Call komo_status once when watch mode starts.",
+      "Show this agent's komo scopes: its own channel (the entry in the dock's Send to menu), the branch a stock komo client uses, the local endpoint, the page origins the local server accepts, whether this process serves the port, whether the process that serves it has Send (`send`; with false, a `warning`, and notes arrive without Send), and the agents that watch the project now. `waiter` is the exact shell command that waits for notes without claiming them: it prints `notes N` and exits when N notes wait, and prints nothing while it waits. Run it in the background, then claim the notes with komo_watch. `options` explains how to offer text options and read the picks (komo_options). Call komo_status once when watch mode starts.",
     inputSchema: {
       type: "object",
       properties: {
@@ -121,6 +121,23 @@ export const tools = [
     },
   },
   {
+    name: "komo_options",
+    description:
+      "Read the text option picks a person sent this agent. Offer copy alternatives by giving an element data-komo-options, a JSON array of HTML strings, or <template data-komo-option> children; the element's own content is option 0, and data-komo-id names the block. The person flips between options in the dock and sends the picks as a note, which komo_watch returns with an `options` list. Each pick has the block, selector, page and url, index (0 is the current content), count, the picked text and html, the original text, and threadId. Apply each pick to the source, drop the attribute or offer new options, then resolve the note. Resolved picks are left out unless all is true.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        directory,
+        all: {
+          type: "boolean",
+          default: false,
+          description: "Include picks whose note is resolved.",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "komo_reopen",
     description:
       "Reopen a resolved thread. komo_watch delivers it again only after a person adds or edits a message.",
@@ -140,10 +157,11 @@ const handlers = {
   komo_reply: (session, args) => session.reply(args),
   komo_resolve: (session, args) => session.resolve(args),
   komo_reopen: (session, args) => session.reopen(args),
+  komo_options: (session, args) => session.options(args),
 };
 
 const instructions =
-  "komo local agent mode. People leave notes on local pages with the komo dock and send them to this agent with the dock's Send to menu. For watch mode, call komo_status once and run its waiter command in the background. When it prints `notes N`, call komo_watch with timeoutSeconds 5 and batchWindowSeconds 0, handle each note with komo_resolve or komo_reply, and run the waiter again.";
+  "komo local agent mode. People leave notes on local pages with the komo dock and send them to this agent with the dock's Send to menu. For watch mode, call komo_status once and run its waiter command in the background. When it prints `notes N`, call komo_watch with timeoutSeconds 5 and batchWindowSeconds 0, handle each note with komo_resolve or komo_reply, and run the waiter again. To offer copy alternatives, give an element data-komo-options; the person's picks arrive as a note with an options list, and komo_options lists them.";
 
 const failure = (id, code, message) => ({
   jsonrpc: "2.0",

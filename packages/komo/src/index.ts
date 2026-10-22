@@ -53,6 +53,7 @@ import { ApiError, CommentsApi } from "./api.js";
 import { connectionIssue, type ConnectionIssue } from "./connection-issue.js";
 import {
   captureAnchor,
+  selectorFor,
   anchorPass,
   resolveAnchor,
   locateAnchor as measureAnchor,
@@ -76,6 +77,7 @@ import {
 } from "./dom.js";
 import { styles } from "./styles.js";
 import { getNote, listNotes, putNote, removeNote, withNoteLock, type QueuedNote } from "./local-outbox.js";
+import type { TextOptions } from "./text-options.js";
 import type {
   Anchor,
   Comment,
@@ -198,6 +200,8 @@ export function initComments(options: CommentsOptions): CommentsController {
   const outbox = new Map<string, QueuedNote>();
   const outboxScope = JSON.stringify([location.origin, options.project, options.repo]);
   let sendTo = localUrl ? savedChoice(options.project, localUrl) ?? "" : "";
+  let textOptionsUi: TextOptions | undefined,
+    loadingTextOptions = false;
   if (localUrl)
     options = {
       ...options,
@@ -1509,6 +1513,7 @@ export function initComments(options: CommentsOptions): CommentsController {
           project: options.project, repo: options.repo,
           operation: stored.operation, page: stored.page,
           anchor: stored.anchor, body: stored.body, handoff: stored.handoff,
+          options: stored.options,
         });
         if (selected === `outbox:${note.operation}`) selected = saved.id;
         await removeNote(note.operation);
@@ -3703,6 +3708,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       list.prepend(
         button("Saved comments · Try again", retryConnection, "secondary"),
       );
+    if (textOptionsUi) list.prepend(textOptionsUi.panel);
     if (existingList) existingList.replaceWith(list);
     else panel.append(list);
     syncTips(!!list.querySelector(".empty [aria-label='Add a comment']"));
@@ -5592,6 +5598,7 @@ export function initComments(options: CommentsOptions): CommentsController {
     selected = null;
     draft = null;
     render();
+    syncTextOptions();
   }
   // Client-side routers change the URL without reloading; repaint pins right
   // away from the threads already in memory. The poll below still catches
@@ -5773,6 +5780,7 @@ export function initComments(options: CommentsOptions): CommentsController {
       cancelAnimationFrame(mobileEnterFrame);
       clearTimeout(mutationTimer);
       clearTimeout(pinScrollTimer);
+      textOptionsUi?.destroy();
       clearTimeout(accountOpenTimer);
       clearTimeout(copiedPromptTimer);
       reactionSwaps.clear();
@@ -5880,6 +5888,37 @@ export function initComments(options: CommentsOptions): CommentsController {
           easing: "cubic-bezier(0.22, 1, 0.36, 1)",
         });
   }
+  // Text options load only on pages that offer them: at mount, after the
+  // page loads, and after client-side navigation.
+  function syncTextOptions() {
+    if (textOptionsUi) return textOptionsUi.scan();
+    if (loadingTextOptions || options.onboarding || destroyed ||
+        !document.querySelector("[data-komo-options]")) return;
+    loadingTextOptions = true;
+    void import("./text-options.js").then(({ textOptions }) => {
+      if (destroyed) return;
+      textOptionsUi = textOptions({
+        shadow,
+        page,
+        enabled: () => !mode,
+        local: !!localUrl,
+        notify,
+        selector: selectorFor,
+        queue: (picks, body, target) => {
+          const box = target.getBoundingClientRect();
+          const point = { x: box.left + 1, y: box.top + 1 };
+          return queueNote({
+            operation: crypto.randomUUID(), scope: outboxScope, page: page(),
+            anchor: captureAnchor(target, point, point, options.source), body, options: picks,
+          });
+        },
+      });
+      renderList();
+    }, fail).finally(() => (loadingTextOptions = false));
+  }
+  syncTextOptions();
+  if (document.readyState !== "complete")
+    window.addEventListener("load", syncTextOptions, { once: true, signal: abort.signal });
   let deepLinkOpened = false;
   function openDeepLink() {
     if (deepLinkOpened || selected || draft || account) return;
