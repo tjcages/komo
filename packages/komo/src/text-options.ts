@@ -6,11 +6,11 @@ import type { OptionPick } from "./types.js";
 // `<template data-komo-option>` children; the block's own content is option
 // 0, and `data-komo-id` names the block. A faint dotted underline marks such
 // blocks. Hovering one highlights its text and floats a switcher below it:
-// the arrows preview each option in place, and a ✕ / ✓ toggle records the
-// reader's verdict on the option shown. ✓ keeps it, so it stays on the page;
-// ✕ declines it. Verdicts are saved per page in this browser, so a reload
-// shows them. In local agent mode a kept option, or declining every option,
-// is queued for Send as a note. This module loads only on pages that offer
+// the arrows swap each option in place, and the one shown stays until the
+// reader flips again, across reloads too. A ✕ / ✓ toggle records the
+// reader's verdict on the option shown: ✓ keeps it, ✕ declines it. Both are
+// saved per page in this browser. In local agent mode a kept option, or
+// declining every option, is queued for Send as a note. This module loads only on pages that offer
 // options, and brings its own styles.
 
 type Verdict = "keep" | "decline" | null;
@@ -19,6 +19,8 @@ type Verdict = "keep" | "decline" | null;
 type Saved = {
   keep?: string;
   decline?: string[];
+  /** The option on the page, when it is not the kept one or option 0. */
+  show?: string;
   /** The queued note's operation ID, and the body it carries. */
   note?: string;
   noted?: string;
@@ -33,9 +35,7 @@ type Block = {
   keep: number | null;
   /** The options the reader declined. */
   declined: Set<number>;
-  /** The option the page shows when the switcher closes: the kept one, else option 0. */
-  index: number;
-  /** The option on the page now: the kept one, or one being previewed. */
+  /** The option on the page. */
   shown: number;
   /** The attribute value the options were read from. */
   attribute: string;
@@ -271,20 +271,23 @@ export function textOptions(host: {
           .map((html) => options.indexOf(html))
           .filter((index) => index >= 0),
       ),
-      index: Math.max(keep, 0),
       shown: 0,
       attribute,
       applied: html,
       templates: [...(previous?.templates ?? []), ...templates],
     };
-    const { note: _note, noted: _noted, ...verdicts } = saved;
-    if (JSON.stringify(record(block)) !== JSON.stringify(verdicts))
-      remember(block);
-    // A preview survives the rescan its own swap causes.
+    // A swap survives the rescan it causes; a reload shows the saved option.
+    const saw = options.indexOf(saved.show as string);
     block.shown =
       !changed && previous.shown < options.length
         ? previous.shown
-        : block.index;
+        : saw >= 0
+          ? saw
+          : Math.max(keep, 0);
+    // Drop saved HTML that no longer matches an option.
+    const { note: _note, noted: _noted, ...verdicts } = saved;
+    if (JSON.stringify(record(block)) !== JSON.stringify(verdicts))
+      remember(block);
     blocks.set(element, block);
     // Writing only on a change keeps the scan from feeding itself: the
     // browser may serialize what komo wrote differently from the option.
@@ -335,6 +338,7 @@ export function textOptions(host: {
     if (!active) return;
     const total = active.options.length;
     apply(active, (active.shown + step + total) % total, true);
+    remember(active);
     count.textContent = `${active.shown + 1}/${total}`;
     show(verdictOf(active), true);
     place();
@@ -344,7 +348,7 @@ export function textOptions(host: {
   function keep() {
     const block = active;
     if (!block || block.keep === block.shown) return;
-    block.keep = block.index = block.shown;
+    block.keep = block.shown;
     block.declined.delete(block.shown);
     remember(block);
     show("keep", true);
@@ -360,7 +364,6 @@ export function textOptions(host: {
     if (!block || block.declined.has(block.shown)) return;
     block.declined.add(block.shown);
     if (block.keep === block.shown) block.keep = null;
-    block.index = block.keep ?? 0;
     remember(block);
     show("decline", true);
     post(block);
@@ -458,8 +461,6 @@ export function textOptions(host: {
     clearTimeout(hideTimer);
     const opening = float.hidden || float.dataset.leaving !== undefined;
     if (!opening && active === block) return;
-    // Another block's preview ends when the pointer moves on.
-    if (active && active !== block) apply(active, active.index, true);
     active = block;
     pinned = null;
     count.textContent = `${block.shown + 1}/${block.options.length}`;
@@ -478,12 +479,10 @@ export function textOptions(host: {
     if (!float.hidden) hideTimer = window.setTimeout(() => close(), 250);
   }
 
-  /** Close the switcher. A preview that was not kept goes back. */
+  /** Close the switcher. The option shown stays on the page. */
   function close(immediate = false) {
     clearTimeout(hideTimer);
     cancelAnimationFrame(frame);
-    if (active && active.shown !== active.index)
-      apply(active, active.index, !immediate);
     active = pinned = null;
     highlight.hidden = true;
     if (float.hidden) return;
@@ -559,11 +558,12 @@ export function textOptions(host: {
   }
 
   function pickOf(block: Block): OptionPick {
-    const html = block.options[block.index];
+    const index = block.keep ?? 0;
+    const html = block.options[index];
     return {
       block: block.id,
       selector: host.selector(block.element),
-      index: block.index,
+      index,
       count: block.options.length,
       text: plain(html).slice(0, 4000),
       html: html.slice(0, 8000),
@@ -571,7 +571,7 @@ export function textOptions(host: {
     };
   }
 
-  /** A block's verdicts as saved: the options' HTML. */
+  /** A block's verdicts and the option on the page, as saved: the options' HTML. */
   function record(block: Block) {
     return {
       ...(block.keep !== null && { keep: block.options[block.keep] }),
@@ -579,6 +579,9 @@ export function textOptions(host: {
         decline: [...block.declined]
           .sort((a, b) => a - b)
           .map((index) => block.options[index]),
+      }),
+      ...(block.shown !== (block.keep ?? 0) && {
+        show: block.options[block.shown],
       }),
     };
   }

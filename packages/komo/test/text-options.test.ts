@@ -86,7 +86,7 @@ it("reads options from the attribute and templates, and marks the page with a hi
   expect(document.head.textContent).not.toContain("dotted");
 });
 
-it("previews on hover, keeps with ✓, and keeps the pick across a reload", () => {
+it("swaps on hover, keeps with ✓, and keeps the page as left across a reload", () => {
   const shadow = mount();
   const title = document.querySelector("h1")!;
   hover(title);
@@ -105,13 +105,26 @@ it("previews on hover, keeps with ✓, and keeps the pick across a reload", () =
   expect(control(shadow, "Use this option").getAttribute("aria-pressed")).toBe(
     "true",
   );
-  control(shadow, "Previous option").click();
-  expect(toggle.dataset.verdict).toBeUndefined();
-
   ui!.destroy();
   expect(title.innerHTML).toBe("First");
-  mount();
+  const reloaded = mount();
   expect(title.innerHTML).toBe("<em>Third</em>");
+
+  // An option flipped to without a verdict also stays, and the kept one keeps its ✓.
+  hover(title);
+  control(reloaded, "Previous option").click();
+  expect(
+    reloaded.querySelector<HTMLElement>(".text-option-verdict")!.dataset
+      .verdict,
+  ).toBeUndefined();
+  ui!.destroy();
+  mount();
+  expect(title.innerHTML).toBe("Second");
+  expect(
+    JSON.parse(
+      localStorage.getItem("komo:text-options:http://localhost:3000/")!,
+    ).hero,
+  ).toMatchObject({ keep: "<em>Third</em>", show: "Second" });
 });
 
 it("flips with the arrow keys while the switcher is open, but not while typing", () => {
@@ -136,7 +149,7 @@ it("flips with the arrow keys while the switcher is open, but not while typing",
   expect(title.innerHTML).toBe("<em>Third</em>");
 });
 
-it("puts an undecided preview back when the reader leaves", () => {
+it("keeps the option shown after the reader leaves, until they flip again", () => {
   vi.useFakeTimers();
   const shadow = mount();
   const title = document.querySelector("h1")!;
@@ -145,7 +158,18 @@ it("puts an undecided preview back when the reader leaves", () => {
   expect(title.innerHTML).toBe("Second");
   hover(document.querySelector("h2")!);
   vi.runAllTimers();
+  expect(shadow.querySelector<HTMLElement>(".text-option-float")!.hidden).toBe(
+    true,
+  );
+  expect(title.innerHTML).toBe("Second");
+  ui!.destroy();
+  const reloaded = mount();
+  expect(title.innerHTML).toBe("Second");
+  hover(title);
+  expect(reloaded.querySelector(".text-option-count")!.textContent).toBe("2/3");
+  control(reloaded, "Previous option").click();
   expect(title.innerHTML).toBe("First");
+  expect(localStorage.length).toBe(0);
 });
 
 it("declines with ✕, un-keeps a declined pick, and reports when none fit", async () => {
@@ -167,7 +191,7 @@ it("declines with ✕, un-keeps a declined pick, and reports when none fit", asy
     JSON.parse(
       localStorage.getItem("komo:text-options:http://localhost:3000/")!,
     ),
-  ).toEqual({ p: { decline: ["Other lede"] } });
+  ).toEqual({ p: { decline: ["Other lede"], show: "Other lede" } });
   const first = await queue.mock.results[0].value;
   expect(unqueue).toHaveBeenCalledWith(first);
   control(shadow, "Previous option").click();
