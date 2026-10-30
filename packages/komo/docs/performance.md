@@ -45,4 +45,4 @@ pnpm --filter @tjcages/komo bench
 
 Open the benchmark URL printed by the final command. Use `?mode=none` for the host-only control and `?mode=after&comments=0` for an empty project. To compare an older production ESM bundle, set `KOMO_BENCH_BASELINE` to its directory containing `index.js` and use `?mode=before`. Keep viewport, browser, hardware, and foreground state identical.
 
-The current size command fails above 104,000 gzip bytes initially or 202,000 across all feature chunks. These budgets make future growth explicit. Benchmark files and build tooling do not ship in the npm archive.
+The current size command fails above 105,000 gzip bytes initially or 208,000 across all feature chunks. Text options load as their own chunk, only on pages that offer them. These budgets make future growth explicit. Benchmark files and build tooling do not ship in the npm archive.

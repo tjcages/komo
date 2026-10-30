@@ -27,15 +27,28 @@ export function drawerPresence(
       window.innerHeight - rect.bottom,
     ];
     const side = gaps.indexOf(Math.min(...gaps));
-    // Move the intact dock through the viewport edge; never clip its top away.
-    toolbar.style.setProperty(
-      "--drawer-peek-y",
-      `${window.innerHeight - rect.top - rect.height / 2}px`
-    );
-    toolbar.style.setProperty(
-      "--drawer-intro-y",
-      `${window.innerHeight - rect.top + 8}px`
-    );
+    // Move the intact dock through its nearest viewport edge, never clipping
+    // it: the intro starts just past that edge, and the peek shows half.
+    const [introX, introY, peekX, peekY] = [
+      [-(rect.right + 8), 0, -(rect.left + rect.width / 2), 0],
+      [
+        window.innerWidth - rect.left + 8,
+        0,
+        window.innerWidth - rect.left - rect.width / 2,
+        0,
+      ],
+      [0, -(rect.bottom + 8), 0, -(rect.top + rect.height / 2)],
+      [
+        0,
+        window.innerHeight - rect.top + 8,
+        0,
+        window.innerHeight - rect.top - rect.height / 2,
+      ],
+    ][side];
+    toolbar.style.setProperty("--drawer-intro-x", `${introX}px`);
+    toolbar.style.setProperty("--drawer-intro-y", `${introY}px`);
+    toolbar.style.setProperty("--drawer-peek-x", `${peekX}px`);
+    toolbar.style.setProperty("--drawer-peek-y", `${peekY}px`);
     toolbar.style.setProperty(
       "--drawer-away-x",
       `${side === 0 ? -24 : side === 1 ? 24 : 0}px`

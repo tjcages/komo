@@ -3,6 +3,8 @@ import type { DatabaseSync } from "node:sqlite";
 import type { LocalKomo } from "./index";
 import { openProbe } from "./store";
 import { sendChannel, tombstone } from "./activity";
+import { recordPicks, validatePicks } from "./options";
+import type { OptionPick } from "../../src/types";
 
 export const queuedBranch = "komo-queued";
 const operationPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -16,6 +18,8 @@ export type StageInput = Scope & {
   anchor: unknown;
   body: string;
   handoff?: Handoff;
+  /** Text option picks the note sends; see options.ts. */
+  options?: unknown;
 };
 
 export function validateStage(input: StageInput) {
@@ -32,6 +36,7 @@ export function validateStage(input: StageInput) {
       throw Object.assign(Error("Invalid Team thread source."), { status: 400 });
     input.handoff.endpoint = url.href.replace(/\/$/, "");
   }
+  input.options = validatePicks(input.options);
 }
 
 function count(db: DatabaseSync, scope: Scope) {
@@ -101,6 +106,7 @@ export async function stage(komo: LocalKomo, input: StageInput, origin: string, 
         throw Object.assign(Error(result.error || "Could not queue the note. Try again."), { status: response.status });
       db.prepare("INSERT INTO local_operations(operation,project,repo,origin,payload_hash,thread_id) VALUES(?,?,?,?,?,?)")
         .run(input.operation, input.project, input.repo, origin, hash, result.id);
+      if (input.options) recordPicks(db, result.id, input.options as OptionPick[]);
       if (input.handoff)
         db.prepare("INSERT INTO local_handoffs(endpoint,project,repo,branch,hosted_thread,operation,local_thread) VALUES(?,?,?,?,?,?,?)")
           .run(input.handoff.endpoint, input.project, input.repo, input.handoff.branch, input.handoff.thread, input.operation, result.id);
@@ -111,6 +117,32 @@ export async function stage(komo: LocalKomo, input: StageInput, origin: string, 
       throw error;
     } finally { db.close(); }
   });
+}
+
+/**
+ * Take back a note that still waits in the queue, as the page that staged it.
+ * The operation ID is the page's own secret for that note. A note that Send
+ * already moved stays with its agent: `removed` is false.
+ */
+export function unstage(db: DatabaseSync, scope: Scope, operation: string, origin: string) {
+  if (!operationPattern.test(operation))
+    throw Object.assign(Error("Invalid note ID."), { status: 400 });
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const row = db.prepare(
+      "SELECT o.thread_id FROM local_operations o JOIN threads t ON t.id=o.thread_id WHERE o.operation=? AND o.project=? AND o.repo=? AND o.origin=? AND t.branch=?"
+    ).get(operation, scope.project, scope.repo, origin, queuedBranch) as { thread_id: string } | undefined;
+    if (row) {
+      db.prepare("DELETE FROM threads WHERE id=?").run(row.thread_id);
+      db.prepare("INSERT INTO scope_revisions(project,repo,branch,version) VALUES(?,?,?,1) ON CONFLICT(project,repo,branch) DO UPDATE SET version=version+1")
+        .run(scope.project, scope.repo, queuedBranch);
+    }
+    db.exec("COMMIT");
+    return { removed: !!row };
+  } catch (error) {
+    try { db.exec("ROLLBACK"); } catch {}
+    throw error;
+  }
 }
 
 export function release(db: DatabaseSync, scope: Scope, target: string) {

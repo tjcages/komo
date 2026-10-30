@@ -1,4 +1,4 @@
-import type { Anchor } from "./types.js";
+import type { Anchor, OptionPick } from "./types.js";
 
 export type QueuedNote = {
   operation: string;
@@ -9,6 +9,8 @@ export type QueuedNote = {
   body: string;
   createdAt?: number;
   handoff?: { endpoint: string; branch: string; thread: string };
+  /** Text option picks this note sends. */
+  options?: OptionPick[];
 };
 
 function open(): Promise<IDBDatabase> {

@@ -41,6 +41,23 @@ export interface Comment {
   reactions: Record<string, string[]>;
 }
 
+/**
+ * A reviewer's pick among the text options an agent offered on one block
+ * (`data-komo-options`). Option 0 is the block's own content.
+ */
+export interface OptionPick {
+  /** `data-komo-id`, else the block's selector. */
+  block: string;
+  selector: string;
+  index: number;
+  count: number;
+  /** The picked option as plain text and as HTML. */
+  text: string;
+  html: string;
+  /** Option 0, the block's own content, as plain text. */
+  original: string;
+}
+
 export interface Thread {
   id: string;
   page: string;

@@ -1,0 +1,42 @@
+<!doctype html>
+<!-- Text options demo: an agent offered alternatives for four blocks. Hover one to flip between them. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>komo text options</title>
+    <style>
+      body { margin: 0; font: 17px/1.55 ui-sans-serif, system-ui, sans-serif; color: #18181b; background: #fff; }
+      main { max-width: 720px; margin: 0 auto; padding: 96px 24px; }
+      .eyebrow { font-size: 13px; font-weight: 500; color: #71717a; }
+      h1 { margin: 12px 0 16px; font-size: 48px; line-height: 1.05; font-weight: 500; letter-spacing: -0.03em; }
+      .lede { margin: 0 0 32px; font-size: 20px; color: #3f3f46; }
+      .cta { display: inline-block; padding: 12px 18px; border-radius: 999px; background: #18181b; color: #fff; font-weight: 500; text-decoration: none; }
+      section { margin-top: 96px; text-align: center; }
+      h2 { margin: 0 0 8px; font-size: 28px; font-weight: 500; letter-spacing: -0.02em; }
+      section p { margin: 0 auto; max-width: 520px; color: #52525b; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Copy review</div>
+      <h1
+        data-komo-id="hero-title"
+        data-komo-options='["Pick the words on the page", "Read every option in place", "Choose copy where it lives"]'
+      >Review copy where it lives</h1>
+      <p class="lede" data-komo-id="hero-lede" data-komo-options>
+        Your agent writes a few versions. You flip between them on the real page and keep the best.
+        <template data-komo-option>Flip between your agent’s drafts on the real page, then send the ones you <em>actually</em> like.</template>
+        <template data-komo-option>No more pasting variants into chat. Read each one in context and pick.</template>
+      </p>
+      <a class="cta" href="#" data-komo-options='["Try it on this page", "Start picking"]'>Get started</a>
+      <section>
+        <h2 data-komo-id="feature-title" data-komo-options='["Your picks survive a reload"]'>Picks stay put</h2>
+        <p data-komo-id="feature-body" data-komo-options='["Reload, scroll, come back tomorrow. The page keeps the copy you chose until the agent writes it into the source."]'>
+          Every choice is saved for this page, so you can read top to bottom with your picks applied.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="/demo.js"></script>
+  </body>
+</html>
