@@ -686,6 +686,8 @@ const clip = (text: string) =>
 function plain(html: string) {
   const template = document.createElement("template");
   template.innerHTML = html;
+  // A line break separates words on the page, so it does in the text.
+  for (const br of template.content.querySelectorAll("br")) br.replaceWith(" ");
   return (template.content.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
