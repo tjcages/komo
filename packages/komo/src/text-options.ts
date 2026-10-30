@@ -9,9 +9,10 @@ import type { OptionPick } from "./types.js";
 // the arrows swap each option in place, and the one shown stays until the
 // reader flips again, across reloads too. A ✕ / ✓ toggle records the
 // reader's verdict on the option shown: ✓ keeps it, ✕ declines it. Both are
-// saved per page in this browser. In local agent mode a kept option, or
-// declining every option, is queued for Send as a note. This module loads only on pages that offer
-// options, and brings its own styles.
+// saved per page in this browser, and a kept option, or declining every
+// option, reaches the agent: in local agent mode as a note queued for Send,
+// on a hosted page as a comment on the block. This module loads only on pages
+// that offer options, and brings its own styles.
 
 type Verdict = "keep" | "decline" | null;
 
@@ -21,7 +22,7 @@ type Saved = {
   decline?: string[];
   /** The option on the page, when it is not the kept one or option 0. */
   show?: string;
-  /** The queued note's operation ID, and the body it carries. */
+  /** The note's operation or comment thread ID, and the body it carries. */
   note?: string;
   noted?: string;
 };
@@ -57,11 +58,14 @@ export function textOptions(host: {
   page(): string;
   /** False while the dock places a comment. */
   enabled(): boolean;
-  /** Local agent mode queues each kept pick as a note. */
-  local: boolean;
-  /** Queue a note for Send; resolves to its operation ID. */
+  /** Whether a pick can reach the agent without asking the reviewer first. */
+  ready(): boolean;
+  /**
+   * Send a pick to the agent: a note queued for Send in local agent mode, a
+   * comment on the block on a hosted page. Resolves to an ID for unqueue.
+   */
   queue(picks: OptionPick[], body: string, target: Element): Promise<string>;
-  /** Take back a queued note, unless Send already delivered it. */
+  /** Take back a pick: discard or unstage the note, or resolve the comment. */
   unqueue(operation: string): Promise<void>;
   notify(text: string): void;
   /** The anchors module's selector, passed in so that module stays in the main chunk. */
@@ -75,6 +79,8 @@ export function textOptions(host: {
   let picks: Record<string, unknown> = {},
     picksKey = "";
   let posting = Promise.resolve();
+  /** Blocks whose saved verdict this page view already tried to send. */
+  const caught = new Set<string>();
   let active: Block | null = null,
     pinned: { left: number; top: number } | null = null,
     hideTimer = 0,
@@ -224,6 +230,7 @@ export function textOptions(host: {
       if (read(element)) seen.add(element);
     for (const element of blocks.keys())
       if (!seen.has(element)) blocks.delete(element);
+    catchUp();
     if (active) active = blocks.get(active.element) ?? null;
     if (active)
       count.textContent = `${active.shown + 1}/${active.options.length}`;
@@ -389,7 +396,6 @@ export function textOptions(host: {
    * so quick changes settle on the last verdict.
    */
   function post(block: Block) {
-    if (!host.local) return;
     const { id, element } = block;
     posting = posting
       .then(async () => {
@@ -409,6 +415,23 @@ export function textOptions(host: {
       .catch((reason) =>
         host.notify(reason instanceof Error ? reason.message : "Try again."),
       );
+  }
+
+  /**
+   * Send verdicts saved before they could reach the agent: picks made while
+   * signed out, or by an older komo that kept hosted picks in the browser.
+   * Each block is tried once per page view, so a failure does not repeat on
+   * every rescan.
+   */
+  function catchUp() {
+    if (!host.ready()) return;
+    for (const block of blocks.values()) {
+      if (caught.has(block.id)) continue;
+      const body = message(block)?.body ?? null;
+      if ((entry(block.id).noted ?? null) === body) continue;
+      caught.add(block.id);
+      post(block);
+    }
   }
 
   function verdictOf(block: Block): Verdict {

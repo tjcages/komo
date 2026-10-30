@@ -1008,6 +1008,8 @@ export function initComments(options: CommentsOptions): CommentsController {
     const cached = api.cached();
     knownThreads = cached !== null;
     optimistic.reset(visibleThreads(cached ?? []));
+    // A new session may be the one that can send saved text option picks.
+    textOptionsUi?.scan();
   }
   const grip = el("div", "edge-sidebar-grip");
   grip.setAttribute("aria-hidden", "true");
@@ -4295,6 +4297,7 @@ export function initComments(options: CommentsOptions): CommentsController {
   async function resumeSubmission() {
     const submit = submitAfterIdentity;
     submitAfterIdentity = null;
+    textOptionsUi?.scan();
     if (submit) await submit();
   }
   const reactionSwaps = new Map<
@@ -5900,12 +5903,15 @@ export function initComments(options: CommentsOptions): CommentsController {
         shadow,
         page,
         enabled: () => !mode,
-        local: !!localUrl,
+        // Local mode signs in as a guest on its own; a hosted page needs the
+        // reviewer's account before a pick can become a comment.
+        ready: () => !!localUrl || !!api.user,
         notify,
         selector: selectorFor,
         queue: async (picks, body, target) => {
           const box = target.getBoundingClientRect();
           const point = { x: box.left + 1, y: box.top + 1 };
+          if (!localUrl) return postPick(body, captureAnchor(target, point, point, options.source));
           const note: QueuedNote = {
             operation: crypto.randomUUID(), scope: outboxScope, page: page(),
             anchor: captureAnchor(target, point, point, options.source), body,
@@ -5917,6 +5923,7 @@ export function initComments(options: CommentsOptions): CommentsController {
         // A note still in this browser is discarded; one the server holds is
         // unstaged unless Send already moved it to an agent.
         unqueue: async (operation) => {
+          if (!localUrl) return resolvePick(operation);
           const local = await withNoteLock(operation, async () => {
             if (!(await getNote(operation))) return false;
             await removeNote(operation);
@@ -5935,6 +5942,31 @@ export function initComments(options: CommentsOptions): CommentsController {
         },
       });
     }, fail).finally(() => (loadingTextOptions = false));
+  }
+  /**
+   * On a hosted page a pick becomes a comment on its block, so agents read it
+   * with the rest of the review. Signed out, the reviewer is asked to sign in,
+   * and the saved pick is sent once they have.
+   */
+  async function postPick(body: string, anchor: Anchor) {
+    if (!api.user) {
+      openAccount();
+      throw new Error("Sign in to send your pick.");
+    }
+    const { id } = await api.request<{ id: string }>("threads", "POST", {
+      page: page(), anchor, body,
+    });
+    run(refresh);
+    return id;
+  }
+  /** A changed mind resolves the earlier pick, so only the latest stays open. */
+  async function resolvePick(id: string) {
+    await api
+      .request(`threads/${id}`, "PATCH", { resolved: true })
+      // The thread may be gone, or the reviewer may no longer resolve it;
+      // the new pick still posts, and stays the newest.
+      .catch(() => {});
+    run(refresh);
   }
   syncTextOptions();
   if (document.readyState !== "complete")

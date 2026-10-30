@@ -8,13 +8,13 @@ let queued = 0;
 const queue = vi.fn(async () => `note-${++queued}`);
 const unqueue = vi.fn(async () => {});
 const notify = vi.fn();
-const mount = (local = true) => {
+const mount = (ready = true) => {
   const shadow = document.createElement("div").attachShadow({ mode: "open" });
   ui = textOptions({
     shadow,
     page: () => "/",
     enabled: () => true,
-    local,
+    ready: () => ready,
     queue,
     unqueue,
     notify,
@@ -220,7 +220,7 @@ it("starts over when the agent changes the options under a pick", () => {
   expect(title.innerHTML).toBe("First");
 });
 
-it("queues each kept pick as a note in local agent mode only", async () => {
+it("sends each kept pick to the agent, replacing one the reader changed", async () => {
   const shadow = mount();
   hover(document.querySelector("h1")!);
   control(shadow, "Next option").click();
@@ -261,12 +261,41 @@ it("queues each kept pick as a note in local agent mode only", async () => {
       localStorage.getItem("komo:text-options:http://localhost:3000/")!,
     ).hero.note,
   ).toBe(await queue.mock.results[1].value);
+});
 
-  ui!.destroy();
-  localStorage.clear();
-  const hosted = mount(false);
+it("sends a pick saved before the reader could post once they can", async () => {
+  // Signed out on a hosted page, the host asks the reader to sign in.
+  queue.mockRejectedValueOnce(new Error("Sign in to send your pick."));
+  let ready = false;
+  const shadow = document.createElement("div").attachShadow({ mode: "open" });
+  ui = textOptions({
+    shadow,
+    page: () => "/",
+    enabled: () => true,
+    ready: () => ready,
+    queue,
+    unqueue,
+    notify,
+    selector: (element) => element.tagName.toLowerCase(),
+  });
   hover(document.querySelector("h1")!);
-  control(hosted, "Use this option").click();
+  control(shadow, "Next option").click();
+  control(shadow, "Use this option").click();
+  await vi.waitFor(() =>
+    expect(notify).toHaveBeenCalledWith("Sign in to send your pick."),
+  );
+  // A rescan while signed out sends nothing; after sign-in it sends the pick once.
+  ui.scan();
+  await Promise.resolve();
+  expect(queue).toHaveBeenCalledOnce();
+  ready = true;
+  ui.scan();
+  ui.scan();
+  await vi.waitFor(() => expect(queue).toHaveBeenCalledTimes(2));
+  expect(queue.mock.calls[1][1]).toBe(
+    "Use this text option:\n- hero: option 2 of 3: Second",
+  );
+  await new Promise((resolve) => setTimeout(resolve));
   expect(queue).toHaveBeenCalledTimes(2);
 });
 
